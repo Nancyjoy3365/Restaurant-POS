@@ -1,26 +1,65 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+
+  --color-accent-50: oklch(96% 0.02 195);
+  --color-accent-100: oklch(92% 0.045 195);
+  --color-accent-200: oklch(85% 0.07 195);
+  --color-accent-300: oklch(76% 0.09 195);
+  --color-accent-400: oklch(68% 0.11 195);
+  --color-accent-500: oklch(58% 0.11 195);
+  --color-accent-600: oklch(49% 0.1 195);
+  --color-accent-700: oklch(40% 0.09 195);
+  --color-accent-800: oklch(32% 0.07 195);
+  --color-accent-900: oklch(25% 0.05 195);
+
+  --color-status-free: oklch(58% 0.15 155);
+  --color-status-occupied: oklch(55% 0.12 195);
+  --color-status-needsbill: oklch(62% 0.18 45);
+  --color-status-reserved: oklch(50% 0.14 300);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --font-sans: var(--font-lato);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-accent-50: var(--color-accent-50);
+  --color-accent-100: var(--color-accent-100);
+  --color-accent-200: var(--color-accent-200);
+  --color-accent-300: var(--color-accent-300);
+  --color-accent-400: var(--color-accent-400);
+  --color-accent-500: var(--color-accent-500);
+  --color-accent-600: var(--color-accent-600);
+  --color-accent-700: var(--color-accent-700);
+  --color-accent-800: var(--color-accent-800);
+  --color-accent-900: var(--color-accent-900);
+
+  --color-status-free: var(--color-status-free);
+  --color-status-occupied: var(--color-status-occupied);
+  --color-status-needsbill: var(--color-status-needsbill);
+  --color-status-reserved: var(--color-status-reserved);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans), Arial, sans-serif;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #receipt-print,
+  #receipt-print * {
+    visibility: visible;
+  }
+  #receipt-print {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+  }
 }

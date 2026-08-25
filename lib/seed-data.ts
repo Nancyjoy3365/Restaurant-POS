@@ -1,0 +1,376 @@
+import type {
+  RestaurantTable,
+  MenuItem,
+  Ingredient,
+  Vendor,
+  Recipe,
+  StaffMember,
+  ShiftEntry,
+} from "./types";
+
+export const SECTIONS = ["Patio", "Main Hall", "Bar"] as const;
+
+export const seedTables: RestaurantTable[] = [
+  { id: "t1", number: 1, seats: 2, section: "Patio", status: "free" },
+  { id: "t2", number: 2, seats: 4, section: "Patio", status: "occupied" },
+  { id: "t3", number: 3, seats: 4, section: "Patio", status: "free" },
+  { id: "t4", number: 4, seats: 6, section: "Patio", status: "reserved" },
+  { id: "t5", number: 5, seats: 2, section: "Main Hall", status: "free" },
+  { id: "t6", number: 6, seats: 4, section: "Main Hall", status: "needs-bill" },
+  { id: "t7", number: 7, seats: 4, section: "Main Hall", status: "free" },
+  { id: "t8", number: 8, seats: 8, section: "Main Hall", status: "occupied" },
+  { id: "t9", number: 9, seats: 2, section: "Main Hall", status: "free" },
+  { id: "t10", number: 10, seats: 4, section: "Main Hall", status: "free" },
+  { id: "t11", number: 11, seats: 2, section: "Bar", status: "occupied" },
+  { id: "t12", number: 12, seats: 2, section: "Bar", status: "free" },
+  { id: "t13", number: 13, seats: 4, section: "Bar", status: "reserved" },
+  { id: "t14", number: 14, seats: 6, section: "Bar", status: "free" },
+];
+
+export const seedMenu: MenuItem[] = [
+  // Starters
+  {
+    id: "m1",
+    name: "Samosa (3pc)",
+    aliases: ["samos", "sambusa"],
+    category: "Starters",
+    price: 300,
+    veg: false,
+    available: true,
+    addOns: [{ name: "Extra chili sauce", price: 0 }],
+  },
+  {
+    id: "m2",
+    name: "Vegetable Spring Rolls",
+    aliases: ["spring roll", "veggie rolls"],
+    category: "Starters",
+    price: 350,
+    veg: true,
+    available: true,
+  },
+  {
+    id: "m3",
+    name: "Chicken Wings",
+    aliases: ["wings", "kuku wings"],
+    category: "Starters",
+    price: 600,
+    veg: false,
+    available: true,
+    spiceLevels: ["Mild", "Medium", "Hot"],
+  },
+  {
+    id: "m4",
+    name: "Bhajia",
+    aliases: ["potato bhajia", "crisps"],
+    category: "Starters",
+    price: 250,
+    veg: true,
+    available: true,
+  },
+  {
+    id: "m5",
+    name: "Kachumbari Salad",
+    aliases: ["salad", "kachumbari"],
+    category: "Starters",
+    price: 200,
+    veg: true,
+    available: true,
+  },
+  // Mains
+  {
+    id: "m6",
+    name: "Ugali with Sukuma & Beef Stew",
+    aliases: ["ugali", "ugali sukuma", "ugali beef"],
+    category: "Mains",
+    price: 550,
+    veg: false,
+    available: true,
+  },
+  {
+    id: "m7",
+    name: "Pilau",
+    aliases: ["pilau rice", "spiced rice"],
+    category: "Mains",
+    price: 500,
+    veg: false,
+    available: true,
+  },
+  {
+    id: "m8",
+    name: "Chapati & Beans",
+    aliases: ["chapo", "chapo beans"],
+    category: "Mains",
+    price: 400,
+    veg: true,
+    available: true,
+  },
+  {
+    id: "m9",
+    name: "Beef Biryani",
+    aliases: ["biryani", "biriani"],
+    category: "Mains",
+    price: 650,
+    veg: false,
+    available: true,
+    spiceLevels: ["Mild", "Medium", "Hot"],
+  },
+  {
+    id: "m10",
+    name: "Vegetable Curry & Rice",
+    aliases: ["veg curry", "curry rice"],
+    category: "Mains",
+    price: 450,
+    veg: true,
+    available: true,
+  },
+  {
+    id: "m11",
+    name: "Grilled Tilapia & Ugali",
+    aliases: ["fish", "tilapia", "samaki"],
+    category: "Mains",
+    price: 750,
+    veg: false,
+    available: true,
+  },
+  // Grills
+  {
+    id: "m12",
+    name: "Nyama Choma (Goat, 1kg)",
+    aliases: ["nyama choma", "goat meat", "choma"],
+    category: "Grills",
+    price: 1800,
+    veg: false,
+    available: true,
+  },
+  {
+    id: "m13",
+    name: "Grilled Chicken Half",
+    aliases: ["chicken", "kuku choma"],
+    category: "Grills",
+    price: 700,
+    veg: false,
+    available: true,
+    spiceLevels: ["Mild", "Medium", "Hot"],
+  },
+  {
+    id: "m14",
+    name: "Mixed Grill Platter",
+    aliases: ["mixed grill", "platter", "grill combo"],
+    category: "Grills",
+    price: 2200,
+    veg: false,
+    available: true,
+    comboTag: "Combo",
+    comboComponents: [
+      { name: "Grilled Chicken", qty: "1/2 chicken" },
+      { name: "Beef Sausages", qty: "4 pieces" },
+      { name: "Grilled Ribs", qty: "300g" },
+      { name: "Kachumbari", qty: "1 serving" },
+      { name: "Ugali", qty: "2 servings" },
+    ],
+  },
+  {
+    id: "m15",
+    name: "Grilled Pork Chops",
+    aliases: ["pork", "pork chops"],
+    category: "Grills",
+    price: 900,
+    veg: false,
+    available: true,
+  },
+  // Beverages
+  {
+    id: "m16",
+    name: "Tusker Lager",
+    aliases: ["tusker", "beer"],
+    category: "Beverages",
+    price: 300,
+    veg: true,
+    available: true,
+  },
+  {
+    id: "m17",
+    name: "Fresh Passion Juice",
+    aliases: ["passion juice", "juice"],
+    category: "Beverages",
+    price: 250,
+    veg: true,
+    available: true,
+  },
+  {
+    id: "m18",
+    name: "Dawa Cocktail",
+    aliases: ["dawa", "cocktail"],
+    category: "Beverages",
+    price: 550,
+    veg: true,
+    available: true,
+  },
+  {
+    id: "m19",
+    name: "Kenyan Coffee",
+    aliases: ["coffee", "kahawa"],
+    category: "Beverages",
+    price: 200,
+    veg: true,
+    available: true,
+  },
+  {
+    id: "m20",
+    name: "Soda (350ml)",
+    aliases: ["soda", "coke", "fanta", "sprite"],
+    category: "Beverages",
+    price: 150,
+    veg: true,
+    available: true,
+  },
+  {
+    id: "m21",
+    name: "Mineral Water",
+    aliases: ["water"],
+    category: "Beverages",
+    price: 150,
+    veg: true,
+    available: true,
+  },
+  // Desserts
+  {
+    id: "m22",
+    name: "Mandazi (3pc)",
+    aliases: ["mandazi", "donut"],
+    category: "Desserts",
+    price: 200,
+    veg: true,
+    available: true,
+  },
+  {
+    id: "m23",
+    name: "Chocolate Fudge Cake",
+    aliases: ["cake", "chocolate cake"],
+    category: "Desserts",
+    price: 400,
+    veg: true,
+    available: true,
+  },
+  {
+    id: "m24",
+    name: "Vanilla Ice Cream",
+    aliases: ["ice cream"],
+    category: "Desserts",
+    price: 300,
+    veg: true,
+    available: true,
+  },
+  {
+    id: "m25",
+    name: "Fruit Salad",
+    aliases: ["fruits", "fruit"],
+    category: "Desserts",
+    price: 300,
+    veg: true,
+    available: true,
+  },
+];
+
+export const seedIngredients: Ingredient[] = [
+  { id: "i1", name: "Unga (Maize Flour)", unit: "kg", stock: 40, reorderThreshold: 15, unitCost: 120 },
+  { id: "i2", name: "Sukuma Wiki", unit: "kg", stock: 8, reorderThreshold: 10, unitCost: 60 },
+  { id: "i3", name: "Beef", unit: "kg", stock: 25, reorderThreshold: 10, unitCost: 650 },
+  { id: "i4", name: "Cooking Oil", unit: "litre", stock: 18, reorderThreshold: 8, unitCost: 280 },
+  { id: "i5", name: "Rice", unit: "kg", stock: 35, reorderThreshold: 15, unitCost: 180 },
+  { id: "i6", name: "Whole Chicken", unit: "pc", stock: 6, reorderThreshold: 8, unitCost: 750 },
+  { id: "i7", name: "Tilapia (fresh)", unit: "pc", stock: 12, reorderThreshold: 10, unitCost: 450 },
+  { id: "i8", name: "Tomatoes", unit: "kg", stock: 14, reorderThreshold: 6, unitCost: 90 },
+  { id: "i9", name: "Onions", unit: "kg", stock: 20, reorderThreshold: 8, unitCost: 80 },
+  { id: "i10", name: "Goat Meat", unit: "kg", stock: 15, reorderThreshold: 10, unitCost: 850 },
+];
+
+export const seedVendors: Vendor[] = [
+  { id: "v1", name: "Wangige Grain Millers", category: "Grains & Flour", paymentMethod: "mpesa", lastPaymentAmount: 24000, lastPaymentDate: "2026-08-18" },
+  { id: "v2", name: "Kiambu Fresh Greens", category: "Vegetables", paymentMethod: "cash", lastPaymentAmount: 8500, lastPaymentDate: "2026-08-22" },
+  { id: "v3", name: "Farmers Choice Butchery", category: "Meat & Poultry", paymentMethod: "mpesa", lastPaymentAmount: 62000, lastPaymentDate: "2026-08-20" },
+  { id: "v4", name: "Bidco Oil Distributors", category: "Cooking Oil", paymentMethod: "cash", lastPaymentAmount: 15400, lastPaymentDate: "2026-08-15" },
+  { id: "v5", name: "Lake Naivasha Fish Suppliers", category: "Fish", paymentMethod: "mpesa", lastPaymentAmount: 18000, lastPaymentDate: "2026-08-19" },
+];
+
+export const seedRecipes: Recipe[] = [
+  {
+    id: "r1",
+    dishName: "Ugali with Sukuma & Beef Stew",
+    menuPrice: 550,
+    components: [
+      { ingredientId: "i1", qty: 0.3 },
+      { ingredientId: "i2", qty: 0.2 },
+      { ingredientId: "i3", qty: 0.25 },
+      { ingredientId: "i4", qty: 0.05 },
+    ],
+  },
+  {
+    id: "r2",
+    dishName: "Beef Biryani",
+    menuPrice: 650,
+    components: [
+      { ingredientId: "i5", qty: 0.35 },
+      { ingredientId: "i3", qty: 0.2 },
+      { ingredientId: "i9", qty: 0.1 },
+      { ingredientId: "i4", qty: 0.06 },
+    ],
+  },
+  {
+    id: "r3",
+    dishName: "Grilled Tilapia & Ugali",
+    menuPrice: 750,
+    components: [
+      { ingredientId: "i7", qty: 1 },
+      { ingredientId: "i1", qty: 0.25 },
+      { ingredientId: "i8", qty: 0.1 },
+      { ingredientId: "i4", qty: 0.04 },
+    ],
+  },
+  {
+    id: "r4",
+    dishName: "Nyama Choma (Goat, 1kg)",
+    menuPrice: 1800,
+    components: [
+      { ingredientId: "i10", qty: 1 },
+      { ingredientId: "i9", qty: 0.1 },
+    ],
+  },
+  {
+    id: "r5",
+    dishName: "Grilled Chicken Half",
+    menuPrice: 700,
+    components: [
+      { ingredientId: "i6", qty: 0.5 },
+      { ingredientId: "i8", qty: 0.08 },
+      { ingredientId: "i9", qty: 0.05 },
+    ],
+  },
+];
+
+export const seedStaff: StaffMember[] = [
+  { id: "s1", name: "Amina Otieno", role: "Waiter", payType: "daily", rate: 900 },
+  { id: "s2", name: "Brian Kiptoo", role: "Waiter", payType: "daily", rate: 900 },
+  { id: "s3", name: "Cynthia Wanjiru", role: "Waiter", payType: "daily", rate: 850 },
+  { id: "s4", name: "Dennis Mwangi", role: "Bar Staff", payType: "daily", rate: 950 },
+  { id: "s5", name: "Esther Chebet", role: "Bar Staff", payType: "daily", rate: 950 },
+  { id: "s6", name: "Felix Omondi", role: "Chef", payType: "monthly", rate: 45000 },
+  { id: "s7", name: "Grace Njeri", role: "Chef", payType: "monthly", rate: 42000 },
+  { id: "s8", name: "Harun Abdi", role: "Manager", payType: "monthly", rate: 65000 },
+];
+
+function at(dateStr: string, hour: number, minute = 0): number {
+  const d = new Date(dateStr);
+  d.setHours(hour, minute, 0, 0);
+  return d.getTime();
+}
+
+// Demo history: a couple of completed daily shifts earlier this week, plus
+// Amina currently clocked in so the Staff & Payroll screen has an "On Shift" example.
+export const seedShifts: ShiftEntry[] = [
+  { id: "sh1", staffId: "s1", clockIn: at("2026-08-24", 8), clockOut: at("2026-08-24", 17) },
+  { id: "sh2", staffId: "s2", clockIn: at("2026-08-24", 9), clockOut: at("2026-08-24", 18) },
+  { id: "sh3", staffId: "s2", clockIn: at("2026-08-25", 9), clockOut: at("2026-08-25", 18) },
+  { id: "sh4", staffId: "s4", clockIn: at("2026-08-24", 12), clockOut: at("2026-08-24", 22) },
+  { id: "sh5", staffId: "s1", clockIn: at("2026-08-25", 8, 15) },
+];
