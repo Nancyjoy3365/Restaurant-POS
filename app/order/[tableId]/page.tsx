@@ -77,7 +77,7 @@ export default function OrderEntryPage() {
   return (
     <div className="flex-1 flex flex-col lg:flex-row lg:overflow-hidden">
       <div className="flex flex-col min-w-0 lg:flex-1">
-        <header className="flex items-center gap-3 px-6 h-16 border-b border-slate-200 bg-white">
+        <header className="flex items-center gap-3 px-6 h-16 border-b border-warm-200 bg-white">
           <button
             onClick={() => router.push("/")}
             className="rounded-full p-2 hover:bg-slate-100 text-slate-600"
@@ -91,7 +91,7 @@ export default function OrderEntryPage() {
           <StatusBadge status={table.status} />
         </header>
 
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-6 py-3 border-b border-slate-200 bg-white">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-6 py-3 border-b border-warm-200 bg-white">
           <CategoryTabs
             active={displayCategory}
             onChange={(c) => {

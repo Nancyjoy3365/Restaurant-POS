@@ -15,7 +15,7 @@ export function BillSummary({
   const lines = flattenOrderItems(order);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5">
+    <div className="rounded-xl border border-warm-200 bg-white p-5">
       <h2 className="font-extrabold text-slate-900 mb-3">
         Consolidated Bill{" "}
         <span className="text-slate-400 font-semibold text-sm">
@@ -50,7 +50,7 @@ export function BillSummary({
           ))
         )}
       </div>
-      <div className="border-t border-slate-200 mt-3 pt-3 space-y-1.5">
+      <div className="border-t border-warm-200 mt-3 pt-3 space-y-1.5">
         <div className="flex justify-between text-sm font-semibold text-slate-600">
           <span>Subtotal</span>
           <span>{formatKES(subtotal)}</span>

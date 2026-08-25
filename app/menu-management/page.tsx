@@ -2,27 +2,51 @@
 
 import { Fragment, useState } from "react";
 import clsx from "clsx";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { usePosStore } from "@/lib/store";
 import { Toggle } from "@/components/shared/Toggle";
+import { FoodImage } from "@/components/shared/FoodImage";
+import { AddMenuItemModal } from "@/components/menu-management/AddMenuItemModal";
 import { formatKES } from "@/lib/utils";
+import type { MenuCategory } from "@/lib/types";
+
+const CATEGORY_ORDER: MenuCategory[] = [
+  "Starters",
+  "Mains",
+  "Grills",
+  "Beverages",
+  "Desserts",
+];
 
 export default function MenuManagementPage() {
-  const menu = usePosStore((s) => s.menu);
+  const rawMenu = usePosStore((s) => s.menu);
+  const menu = [...rawMenu].sort(
+    (a, b) =>
+      CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category)
+  );
   const toggleMenuAvailability = usePosStore((s) => s.toggleMenuAvailability);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   return (
     <div className="flex-1 flex flex-col">
-      <header className="h-16 flex items-center px-6 border-b border-slate-200 bg-white">
+      <header className="h-20 flex items-center justify-between px-6 border-b border-warm-200 bg-white">
         <h1 className="text-xl font-black text-slate-900">Menu Management</h1>
+        <button
+          type="button"
+          onClick={() => setShowAddModal(true)}
+          className="flex items-center gap-2 rounded-xl bg-accent-600 hover:bg-accent-700 text-white font-extrabold px-5 py-3 transition-colors"
+        >
+          <Plus size={18} strokeWidth={3} /> Add Item
+        </button>
       </header>
       <main className="flex-1 overflow-y-auto p-6">
-        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+        <div className="rounded-2xl border border-warm-200 bg-white overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
+            <thead className="bg-warm-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
               <tr>
                 <th className="text-left px-4 py-3 w-8"></th>
+                <th className="text-left px-2 py-3"></th>
                 <th className="text-left px-2 py-3">Item</th>
                 <th className="text-left px-2 py-3">Category</th>
                 <th className="text-right px-2 py-3">Price</th>
@@ -42,7 +66,7 @@ export default function MenuManagementPage() {
                   <Fragment key={item.id}>
                     <tr
                       className={clsx(
-                        "border-t border-slate-100",
+                        "border-t border-warm-100",
                         !item.available && "opacity-50"
                       )}
                     >
@@ -61,6 +85,15 @@ export default function MenuManagementPage() {
                             )}
                           </button>
                         )}
+                      </td>
+                      <td className="px-2 py-2">
+                        <FoodImage
+                          imageUrl={item.imageUrl}
+                          category={item.category}
+                          name={item.name}
+                          className="h-10 w-10 rounded-lg"
+                          emojiClassName="text-lg"
+                        />
                       </td>
                       <td className="px-2 py-3 font-bold text-slate-900">
                         <span className="flex items-center gap-1.5">
@@ -104,7 +137,7 @@ export default function MenuManagementPage() {
                     {expanded && item.comboComponents && (
                       <tr className="bg-accent-50/50 border-t border-accent-100">
                         <td></td>
-                        <td colSpan={6} className="px-2 py-3">
+                        <td colSpan={7} className="px-2 py-3">
                           <div className="text-xs font-extrabold uppercase tracking-wide text-accent-700 mb-2">
                             {item.name} — Combo Breakdown
                           </div>
@@ -131,6 +164,10 @@ export default function MenuManagementPage() {
           </table>
         </div>
       </main>
+
+      {showAddModal && (
+        <AddMenuItemModal onClose={() => setShowAddModal(false)} />
+      )}
     </div>
   );
 }

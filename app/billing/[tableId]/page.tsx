@@ -1,15 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { usePosStore, getOrderTotal } from "@/lib/store";
 import { BillSummary } from "@/components/billing/BillSummary";
-import { SplitPanel, type SplitMode } from "@/components/billing/SplitPanel";
+import { BillPreview } from "@/components/billing/BillPreview";
 import { PaymentMethodPicker } from "@/components/billing/PaymentMethodPicker";
 import { ReceiptModal } from "@/components/billing/ReceiptModal";
-import { tableLabel, computeEqualSplit, computeItemSplit } from "@/lib/utils";
-import type { PaymentMethod, Receipt, SplitSummary } from "@/lib/types";
+import { tableLabel, formatKES } from "@/lib/utils";
+import type { PaymentMethod, Receipt } from "@/lib/types";
+
+const METHOD_LABEL: Record<PaymentMethod, string> = {
+  mpesa: "M-Pesa",
+  card: "Card",
+  cash: "Cash",
+};
 
 export default function BillingPage() {
   const params = useParams<{ tableId: string }>();
@@ -18,17 +24,34 @@ export default function BillingPage() {
 
   const table = usePosStore((s) => s.tables.find((t) => t.id === tableId));
   const order = usePosStore((s) => s.orders[tableId]);
-  const confirmPayment = usePosStore((s) => s.confirmPayment);
+  const allPayments = usePosStore((s) => s.payments);
+  const startBilling = usePosStore((s) => s.startBilling);
+  const recordPayment = usePosStore((s) => s.recordPayment);
+  const finalizeReceipt = usePosStore((s) => s.finalizeReceipt);
 
-  const [splitMode, setSplitMode] = useState<SplitMode>("none");
   const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [finalizing, setFinalizing] = useState(false);
 
-  const { subtotal, vat, total } = getOrderTotal(order);
+  useEffect(() => {
+    if (order && !order.billTotals) {
+      startBilling(tableId);
+    }
+  }, [order, tableId, startBilling]);
+
+  const billTotals = order?.billTotals ?? getOrderTotal(order);
+  const { subtotal, vat, total } = billTotals;
   const itemCount =
     order?.rounds.reduce(
       (sum, r) => sum + r.items.reduce((s2, i) => s2 + i.qty, 0),
       0
     ) ?? 0;
+
+  const orderPayments = order
+    ? allPayments.filter((p) => p.orderId === order.id)
+    : [];
+  const paidSoFar = orderPayments.reduce((sum, p) => sum + p.amount, 0);
+  const balanceDue = Math.max(0, total - paidSoFar);
+  const paymentStatus = order?.paymentStatus ?? "unpaid";
 
   if (!table) {
     return (
@@ -44,31 +67,19 @@ export default function BillingPage() {
     );
   }
 
-  const guestCount = order?.guestCount ?? 1;
-  const unassigned =
-    splitMode === "item" ? computeItemSplit(order, guestCount).unassigned : 0;
-  const blockedBySplit = splitMode === "item" && unassigned > 0;
-
-  function buildSplitSummary(): SplitSummary | undefined {
-    if (splitMode === "none") return undefined;
-    if (splitMode === "equal") {
-      const amounts = computeEqualSplit(total, guestCount);
-      return {
-        mode: "equal",
-        guestCount,
-        guestTotals: amounts.map((amount, i) => ({
-          guestId: `G${i + 1}`,
-          amount,
-        })),
-      };
+  async function handleRecordPayment(payment: {
+    method: PaymentMethod;
+    amount: number;
+    reference: string;
+  }) {
+    recordPayment(tableId, payment);
+    const updatedOrder = usePosStore.getState().orders[tableId];
+    if (updatedOrder?.paymentStatus === "paid") {
+      setFinalizing(true);
+      const r = await finalizeReceipt(tableId);
+      setFinalizing(false);
+      setReceipt(r);
     }
-    const { guestTotals } = computeItemSplit(order, guestCount);
-    return { mode: "item", guestCount, guestTotals };
-  }
-
-  async function handlePaymentConfirmed(method: PaymentMethod, ref: string) {
-    const r = await confirmPayment(tableId, method, ref, buildSplitSummary());
-    setReceipt(r);
   }
 
   function handleCloseTable() {
@@ -79,7 +90,7 @@ export default function BillingPage() {
 
   return (
     <div className="flex-1 flex flex-col">
-      <header className="flex items-center gap-3 px-6 h-16 border-b border-slate-200 bg-white">
+      <header className="flex items-center gap-3 px-6 h-16 border-b border-warm-200 bg-white">
         <button
           onClick={() => router.push(`/order/${tableId}`)}
           className="rounded-full p-2 hover:bg-slate-100 text-slate-600"
@@ -106,25 +117,60 @@ export default function BillingPage() {
                 vat={vat}
                 total={total}
               />
-              <SplitPanel
-                tableId={tableId}
-                order={order}
-                total={total}
-                mode={splitMode}
-                onModeChange={setSplitMode}
-              />
             </div>
-            <div>
-              {blockedBySplit && (
-                <p className="mb-3 text-xs font-extrabold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  Assign every item to a guest before taking payment.
-                </p>
-              )}
-              <PaymentMethodPicker
+            <div className="space-y-6">
+              <BillPreview
+                order={order}
+                tableLabel={tableLabel(table)}
+                subtotal={subtotal}
+                vat={vat}
                 total={total}
-                disabled={itemCount === 0 || blockedBySplit}
-                onConfirmed={handlePaymentConfirmed}
+                paymentStatus={paymentStatus}
+                balanceDue={balanceDue}
               />
+
+              {orderPayments.length > 0 && (
+                <div className="rounded-xl border border-warm-200 bg-white p-5">
+                  <h2 className="font-extrabold text-slate-900 mb-3">
+                    Payments Recorded
+                  </h2>
+                  <div className="space-y-2 mb-4">
+                    {orderPayments.map((p) => (
+                      <div
+                        key={p.id}
+                        className="flex items-center justify-between text-sm"
+                      >
+                        <span className="font-bold text-slate-700">
+                          {METHOD_LABEL[p.method]}
+                        </span>
+                        <span className="font-extrabold text-slate-900">
+                          {formatKES(p.amount)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between text-sm font-semibold text-slate-600 border-t border-warm-200 pt-2">
+                    <span>Paid so far</span>
+                    <span>{formatKES(paidSoFar)}</span>
+                  </div>
+                  <div className="flex justify-between text-base font-black text-slate-900">
+                    <span>Balance due</span>
+                    <span>{formatKES(balanceDue)}</span>
+                  </div>
+                </div>
+              )}
+
+              {balanceDue === 0 ? (
+                <div className="rounded-xl border border-status-free bg-white p-5 flex items-center gap-2 text-status-free font-extrabold">
+                  <CheckCircle2 size={20} />
+                  {finalizing ? "Finalizing receipt…" : "Fully paid"}
+                </div>
+              ) : (
+                <PaymentMethodPicker
+                  balanceDue={balanceDue}
+                  onRecorded={handleRecordPayment}
+                />
+              )}
             </div>
           </div>
         )}

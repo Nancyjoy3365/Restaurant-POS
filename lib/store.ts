@@ -4,16 +4,19 @@ import type {
   RestaurantTable,
   MenuItem,
   TableOrder,
+  TableSession,
   Round,
   OrderLineItem,
   Ingredient,
   Vendor,
   Recipe,
   StaffMember,
+  StaffRole,
   Receipt,
+  Payment,
+  OrderPaymentStatus,
   TableStatus,
   PaymentMethod,
-  SplitSummary,
   AddOn,
   ShiftEntry,
 } from "./types";
@@ -25,6 +28,7 @@ import {
   seedRecipes,
   seedStaff,
   seedShifts,
+  seedRolePasswords,
 } from "./seed-data";
 import { calcBill, makeId, tableLabel, flattenOrderItems, lineRawTotal } from "./utils";
 import { simulateEtimsSigning } from "./mock-integrations";
@@ -38,6 +42,9 @@ interface PosState {
   recipes: Recipe[];
   staff: StaffMember[];
   shifts: ShiftEntry[];
+  rolePasswords: Record<StaffRole, string>;
+  tableSessions: TableSession[];
+  payments: Payment[];
   receipts: Receipt[];
   invoiceCounter: number;
   currentStaffId: string | null;
@@ -54,19 +61,22 @@ interface PosState {
   ) => void;
   updateItemQty: (tableId: string, itemId: string, qty: number) => void;
   removeItem: (tableId: string, itemId: string) => void;
-  toggleItemGuest: (tableId: string, itemId: string, guestId: string) => void;
-  setGuestCount: (tableId: string, count: number) => void;
   toggleMenuAvailability: (menuItemId: string) => void;
+  addMenuItem: (item: Omit<MenuItem, "id">) => void;
   clockIn: (staffId: string) => void;
   clockOut: (staffId: string) => void;
   login: (staffId: string) => void;
   logout: () => void;
-  confirmPayment: (
+  startBilling: (tableId: string) => void;
+  recordPayment: (
     tableId: string,
-    method: PaymentMethod,
-    paymentRef: string,
-    splitSummary?: SplitSummary
-  ) => Promise<Receipt>;
+    payment: {
+      method: PaymentMethod;
+      amount: number;
+      reference: string;
+    }
+  ) => void;
+  finalizeReceipt: (tableId: string) => Promise<Receipt>;
   closeTable: (tableId: string) => void;
 }
 
@@ -87,6 +97,9 @@ export const usePosStore = create<PosState>()(
       recipes: seedRecipes,
       staff: seedStaff,
       shifts: seedShifts,
+      rolePasswords: seedRolePasswords,
+      tableSessions: [],
+      payments: [],
       receipts: [],
       invoiceCounter: 10482,
       currentStaffId: null,
@@ -112,11 +125,26 @@ export const usePosStore = create<PosState>()(
             createdAt: Date.now(),
             items: [],
           };
+          const waiterId = s.currentStaffId ?? undefined;
+          const session: TableSession = {
+            id: makeId("session"),
+            tableId,
+            waiterId: waiterId ?? "unknown",
+            openedAt: Date.now(),
+          };
           return {
             orders: {
               ...s.orders,
-              [tableId]: { tableId, rounds: [firstRound], guestCount: 1 },
+              [tableId]: {
+                id: makeId("order"),
+                tableId,
+                sessionId: session.id,
+                waiterId,
+                rounds: [firstRound],
+                paymentStatus: "unpaid",
+              },
             },
+            tableSessions: [...s.tableSessions, session],
           };
         }),
 
@@ -152,7 +180,6 @@ export const usePosStore = create<PosState>()(
             comboTag: menuItem.comboTag,
             spiceLevel: opts.spiceLevel,
             addOns: opts.addOns ?? [],
-            assignedGuests: [],
           };
           const rounds = order.rounds.map((r) =>
             r.id === roundId ? { ...r, items: [...r.items, newLine] } : r
@@ -185,43 +212,16 @@ export const usePosStore = create<PosState>()(
           return { orders: { ...s.orders, [tableId]: { ...order, rounds } } };
         }),
 
-      toggleItemGuest: (tableId, itemId, guestId) =>
-        set((s) => {
-          const order = s.orders[tableId];
-          if (!order) return s;
-          const rounds = order.rounds.map((r) => ({
-            ...r,
-            items: r.items.map((i) => {
-              if (i.id !== itemId) return i;
-              const has = i.assignedGuests.includes(guestId);
-              return {
-                ...i,
-                assignedGuests: has
-                  ? i.assignedGuests.filter((g) => g !== guestId)
-                  : [...i.assignedGuests, guestId],
-              };
-            }),
-          }));
-          return { orders: { ...s.orders, [tableId]: { ...order, rounds } } };
-        }),
-
-      setGuestCount: (tableId, count) =>
-        set((s) => {
-          const order = s.orders[tableId];
-          if (!order) return s;
-          return {
-            orders: {
-              ...s.orders,
-              [tableId]: { ...order, guestCount: Math.max(1, count) },
-            },
-          };
-        }),
-
       toggleMenuAvailability: (menuItemId) =>
         set((s) => ({
           menu: s.menu.map((m) =>
             m.id === menuItemId ? { ...m, available: !m.available } : m
           ),
+        })),
+
+      addMenuItem: (item) =>
+        set((s) => ({
+          menu: [...s.menu, { ...item, id: makeId("menu") }],
         })),
 
       clockIn: (staffId) =>
@@ -250,17 +250,72 @@ export const usePosStore = create<PosState>()(
       login: (staffId) => set({ currentStaffId: staffId }),
       logout: () => set({ currentStaffId: null }),
 
-      confirmPayment: async (tableId, method, paymentRef, splitSummary) => {
+      startBilling: (tableId) =>
+        set((s) => {
+          const order = s.orders[tableId];
+          if (!order) return s;
+          const billTotals = order.billTotals ?? getOrderTotal(order);
+          return {
+            orders: {
+              ...s.orders,
+              [tableId]: { ...order, billTotals },
+            },
+            tables: s.tables.map((t) =>
+              t.id === tableId ? { ...t, status: "needs-bill" } : t
+            ),
+          };
+        }),
+
+      recordPayment: (tableId, payment) =>
+        set((s) => {
+          const order = s.orders[tableId];
+          if (!order) return s;
+          const waiterId = order.waiterId ?? s.currentStaffId ?? undefined;
+          const newPayment: Payment = {
+            id: makeId("payment"),
+            orderId: order.id,
+            sessionId: order.sessionId,
+            tableId,
+            waiterId,
+            method: payment.method,
+            amount: payment.amount,
+            reference: payment.reference,
+            paidAt: Date.now(),
+          };
+          const allPayments = [...s.payments, newPayment];
+          const paidForOrder = allPayments
+            .filter((p) => p.orderId === order.id)
+            .reduce((sum, p) => sum + p.amount, 0);
+          const billTotal = order.billTotals?.total ?? 0;
+          const paymentStatus: OrderPaymentStatus =
+            paidForOrder >= billTotal
+              ? "paid"
+              : paidForOrder > 0
+              ? "partially_paid"
+              : "unpaid";
+          return {
+            payments: allPayments,
+            orders: {
+              ...s.orders,
+              [tableId]: { ...order, paymentStatus },
+            },
+          };
+        }),
+
+      finalizeReceipt: async (tableId) => {
         const s = get();
         const table = s.tables.find((t) => t.id === tableId);
         const order = s.orders[tableId];
         const lines = flattenOrderItems(order);
-        const { subtotal, vat, total } = getOrderTotal(order);
+        const billTotals = order?.billTotals ?? getOrderTotal(order);
+        const orderPayments = order
+          ? s.payments.filter((p) => p.orderId === order.id)
+          : [];
         const invoiceNumber = `KRA-ETIMS-${s.invoiceCounter + 1}`;
         const { qrDataUrl } = await simulateEtimsSigning({
           invoiceNumber,
-          invoiceRef: paymentRef,
-          total,
+          invoiceRef: orderPayments.map((p) => p.reference).join(", ") || "N/A",
+          total: billTotals.total,
         });
         const receipt: Receipt = {
           id: makeId("receipt"),
@@ -268,6 +323,7 @@ export const usePosStore = create<PosState>()(
           tableId,
           tableLabel: table ? tableLabel(table) : "Table",
           items: lines.map(({ item, roundIndex }) => ({
+            menuItemId: item.menuItemId,
             name: item.name,
             qty: item.qty,
             price:
@@ -277,21 +333,20 @@ export const usePosStore = create<PosState>()(
               item.qty,
             roundIndex,
           })),
-          subtotal,
-          vat,
-          total,
-          paymentMethod: method,
-          paymentRef,
+          subtotal: billTotals.subtotal,
+          vat: billTotals.vat,
+          total: billTotals.total,
+          payments: orderPayments.map((p) => ({
+            method: p.method,
+            amount: p.amount,
+            reference: p.reference,
+          })),
           qrDataUrl,
           issuedAt: Date.now(),
-          splitSummary,
         };
         set((st) => ({
           receipts: [...st.receipts, receipt],
           invoiceCounter: st.invoiceCounter + 1,
-          tables: st.tables.map((t) =>
-            t.id === tableId ? { ...t, status: "needs-bill" } : t
-          ),
         }));
         return receipt;
       },
@@ -303,6 +358,11 @@ export const usePosStore = create<PosState>()(
           );
           return {
             orders: restOrders,
+            tableSessions: s.tableSessions.map((sess) =>
+              sess.tableId === tableId && sess.closedAt === undefined
+                ? { ...sess, closedAt: Date.now() }
+                : sess
+            ),
             tables: s.tables.map((t) =>
               t.id === tableId
                 ? { ...t, status: "free", customName: undefined }
@@ -313,7 +373,48 @@ export const usePosStore = create<PosState>()(
     }),
     {
       name: "pos-storage",
-      version: 1,
+      version: 7,
+      migrate: (persistedState) => {
+        const state = persistedState as Partial<PosState> & {
+          ingredients?: Array<Record<string, unknown>>;
+          recipes?: Array<Record<string, unknown>>;
+          staff?: Array<Record<string, unknown>>;
+          orders?: Record<string, Record<string, unknown>>;
+          payments?: Array<Record<string, unknown>>;
+        };
+        const hasCurrentIngredientShape = state.ingredients?.every(
+          (ing) => typeof ing.totalCost === "number"
+        );
+        const hasCurrentRecipeShape = state.recipes?.every(
+          (r) => typeof r.menuItemId === "string"
+        );
+        const hasCurrentStaffShape = state.staff?.some(
+          (m) => m.role === "Cashier"
+        );
+        const hasCurrentOrderShape = Object.values(state.orders ?? {}).every(
+          (o) =>
+            typeof o.paymentStatus === "string" &&
+            typeof o.id === "string" &&
+            typeof o.sessionId === "string"
+        );
+        const hasCurrentPaymentShape = state.payments?.every(
+          (p) => typeof p.orderId === "string" && typeof p.sessionId === "string"
+        );
+        return {
+          ...state,
+          ingredients: hasCurrentIngredientShape
+            ? state.ingredients
+            : seedIngredients,
+          recipes: hasCurrentRecipeShape ? state.recipes : seedRecipes,
+          staff: hasCurrentStaffShape ? state.staff : seedStaff,
+          orders: hasCurrentOrderShape ? state.orders : {},
+          payments: hasCurrentPaymentShape ? state.payments : [],
+          // Demo-grade role passwords have no in-app way to change them yet,
+          // so always trust the latest seed values rather than whatever got
+          // persisted from an earlier version of this file.
+          rolePasswords: seedRolePasswords,
+        };
+      },
     }
   )
 );

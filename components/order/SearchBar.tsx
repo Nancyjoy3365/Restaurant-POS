@@ -19,7 +19,7 @@ export function SearchBar({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search menu (try “fish”, “chapo”…)"
-        className="w-full rounded-full border border-slate-200 bg-white pl-9 pr-8 py-2 text-sm font-semibold outline-none focus:border-accent-400"
+        className="w-full rounded-full border border-warm-200 bg-white pl-9 pr-8 py-2 text-sm font-semibold outline-none focus:border-accent-400"
       />
       {value && (
         <button

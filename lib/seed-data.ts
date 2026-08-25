@@ -6,9 +6,21 @@ import type {
   Recipe,
   StaffMember,
   ShiftEntry,
+  StaffRole,
 } from "./types";
 
 export const SECTIONS = ["Patio", "Main Hall", "Bar"] as const;
+
+// Demo-grade shared passwords, one per role — same security level as the
+// old 4-digit PIN (not real auth). A manager settings screen to change
+// these is a reasonable follow-up if ever needed.
+export const seedRolePasswords: Record<StaffRole, string> = {
+  Waiter: "waiter123",
+  "Bar Staff": "bar123",
+  Chef: "chef123",
+  Manager: "manager123",
+  Cashier: "cashier123",
+};
 
 export const seedTables: RestaurantTable[] = [
   { id: "t1", number: 1, seats: 2, section: "Patio", status: "free" },
@@ -270,19 +282,116 @@ export const seedMenu: MenuItem[] = [
     veg: true,
     available: true,
   },
+  // Additional Starters
+  {
+    id: "m26",
+    name: "Beef Mishkaki Skewers",
+    aliases: ["mishkaki", "skewers", "beef skewers"],
+    category: "Starters",
+    price: 450,
+    veg: false,
+    available: true,
+  },
+  {
+    id: "m27",
+    name: "Onion Rings",
+    aliases: ["onion rings"],
+    category: "Starters",
+    price: 280,
+    veg: true,
+    available: true,
+  },
+  // Additional Mains
+  {
+    id: "m28",
+    name: "Matoke (Plantain Stew)",
+    aliases: ["matoke", "plantain", "green banana stew"],
+    category: "Mains",
+    price: 480,
+    veg: true,
+    available: true,
+  },
+  {
+    id: "m29",
+    name: "Coconut Fish Curry & Rice",
+    aliases: ["fish curry", "coconut curry"],
+    category: "Mains",
+    price: 700,
+    veg: false,
+    available: true,
+    spiceLevels: ["Mild", "Medium", "Hot"],
+  },
+  // Additional Grills
+  {
+    id: "m30",
+    name: "Grilled Beef Ribs",
+    aliases: ["ribs", "beef ribs"],
+    category: "Grills",
+    price: 950,
+    veg: false,
+    available: true,
+  },
+  {
+    id: "m31",
+    name: "BBQ Chicken Wings",
+    aliases: ["bbq wings", "grilled wings"],
+    category: "Grills",
+    price: 650,
+    veg: false,
+    available: true,
+    spiceLevels: ["Mild", "Medium", "Hot"],
+  },
+  // Additional Beverages
+  {
+    id: "m32",
+    name: "Iced Tea",
+    aliases: ["ice tea", "iced tea"],
+    category: "Beverages",
+    price: 220,
+    veg: true,
+    available: true,
+  },
+  {
+    id: "m33",
+    name: "Chocolate Milkshake",
+    aliases: ["milkshake", "shake"],
+    category: "Beverages",
+    price: 350,
+    veg: true,
+    available: true,
+  },
+  // Additional Desserts
+  {
+    id: "m34",
+    name: "Baked Cheesecake",
+    aliases: ["cheesecake"],
+    category: "Desserts",
+    price: 450,
+    veg: true,
+    available: true,
+  },
+  {
+    id: "m35",
+    name: "Tropical Fruit Parfait",
+    aliases: ["parfait"],
+    category: "Desserts",
+    price: 350,
+    veg: true,
+    available: true,
+  },
 ];
 
 export const seedIngredients: Ingredient[] = [
-  { id: "i1", name: "Unga (Maize Flour)", unit: "kg", stock: 40, reorderThreshold: 15, unitCost: 120 },
-  { id: "i2", name: "Sukuma Wiki", unit: "kg", stock: 8, reorderThreshold: 10, unitCost: 60 },
-  { id: "i3", name: "Beef", unit: "kg", stock: 25, reorderThreshold: 10, unitCost: 650 },
-  { id: "i4", name: "Cooking Oil", unit: "litre", stock: 18, reorderThreshold: 8, unitCost: 280 },
-  { id: "i5", name: "Rice", unit: "kg", stock: 35, reorderThreshold: 15, unitCost: 180 },
-  { id: "i6", name: "Whole Chicken", unit: "pc", stock: 6, reorderThreshold: 8, unitCost: 750 },
-  { id: "i7", name: "Tilapia (fresh)", unit: "pc", stock: 12, reorderThreshold: 10, unitCost: 450 },
-  { id: "i8", name: "Tomatoes", unit: "kg", stock: 14, reorderThreshold: 6, unitCost: 90 },
-  { id: "i9", name: "Onions", unit: "kg", stock: 20, reorderThreshold: 8, unitCost: 80 },
-  { id: "i10", name: "Goat Meat", unit: "kg", stock: 15, reorderThreshold: 10, unitCost: 850 },
+  { id: "i1", name: "Unga (Maize Flour)", sku: "UNG-001", packaging: "Bale", quantity: 6, piecesPerPackage: 12, totalCost: 17280, unit: "kg", reorderThreshold: 2, unitCost: 120 },
+  { id: "i2", name: "Sukuma Wiki", sku: "SUK-002", packaging: "Crate", quantity: 4, piecesPerPackage: 10, totalCost: 2400, unit: "kg", reorderThreshold: 5, unitCost: 60 },
+  { id: "i3", name: "Beef", sku: "BEF-003", packaging: "Carton", quantity: 5, piecesPerPackage: 4, totalCost: 16250, unit: "kg", reorderThreshold: 3, unitCost: 650 },
+  { id: "i4", name: "Cooking Oil", sku: "OIL-004", packaging: "Carton (12x2L)", quantity: 3, piecesPerPackage: 12, totalCost: 20160, unit: "litre", reorderThreshold: 2, unitCost: 280 },
+  { id: "i5", name: "Rice", sku: "RIC-005", packaging: "Bag", quantity: 7, piecesPerPackage: 1, totalCost: 22680, unit: "kg", reorderThreshold: 3, unitCost: 180 },
+  { id: "i6", name: "Whole Chicken", sku: "CHK-006", packaging: "Tray", quantity: 6, piecesPerPackage: 1, totalCost: 4500, unit: "pc", reorderThreshold: 8, unitCost: 750 },
+  { id: "i7", name: "Tilapia (fresh)", sku: "FSH-007", packaging: "Iced Tray", quantity: 12, piecesPerPackage: 1, totalCost: 5400, unit: "pc", reorderThreshold: 10, unitCost: 450 },
+  { id: "i8", name: "Tomatoes", sku: "TOM-008", packaging: "Crate", quantity: 4, piecesPerPackage: 8, totalCost: 1260, unit: "kg", reorderThreshold: 3, unitCost: 90 },
+  { id: "i9", name: "Onions", sku: "ONI-009", packaging: "Net Bag", quantity: 5, piecesPerPackage: 1, totalCost: 1600, unit: "kg", reorderThreshold: 3, unitCost: 80 },
+  { id: "i10", name: "Goat Meat", sku: "GTM-010", packaging: "Carton", quantity: 3, piecesPerPackage: 5, totalCost: 12750, unit: "kg", reorderThreshold: 2, unitCost: 850 },
 ];
 
 export const seedVendors: Vendor[] = [
@@ -296,8 +405,7 @@ export const seedVendors: Vendor[] = [
 export const seedRecipes: Recipe[] = [
   {
     id: "r1",
-    dishName: "Ugali with Sukuma & Beef Stew",
-    menuPrice: 550,
+    menuItemId: "m6", // Ugali with Sukuma & Beef Stew
     components: [
       { ingredientId: "i1", qty: 0.3 },
       { ingredientId: "i2", qty: 0.2 },
@@ -307,8 +415,7 @@ export const seedRecipes: Recipe[] = [
   },
   {
     id: "r2",
-    dishName: "Beef Biryani",
-    menuPrice: 650,
+    menuItemId: "m9", // Beef Biryani
     components: [
       { ingredientId: "i5", qty: 0.35 },
       { ingredientId: "i3", qty: 0.2 },
@@ -318,8 +425,7 @@ export const seedRecipes: Recipe[] = [
   },
   {
     id: "r3",
-    dishName: "Grilled Tilapia & Ugali",
-    menuPrice: 750,
+    menuItemId: "m11", // Grilled Tilapia & Ugali
     components: [
       { ingredientId: "i7", qty: 1 },
       { ingredientId: "i1", qty: 0.25 },
@@ -329,8 +435,7 @@ export const seedRecipes: Recipe[] = [
   },
   {
     id: "r4",
-    dishName: "Nyama Choma (Goat, 1kg)",
-    menuPrice: 1800,
+    menuItemId: "m12", // Nyama Choma (Goat, 1kg)
     components: [
       { ingredientId: "i10", qty: 1 },
       { ingredientId: "i9", qty: 0.1 },
@@ -338,8 +443,7 @@ export const seedRecipes: Recipe[] = [
   },
   {
     id: "r5",
-    dishName: "Grilled Chicken Half",
-    menuPrice: 700,
+    menuItemId: "m13", // Grilled Chicken Half
     components: [
       { ingredientId: "i6", qty: 0.5 },
       { ingredientId: "i8", qty: 0.08 },
@@ -349,14 +453,15 @@ export const seedRecipes: Recipe[] = [
 ];
 
 export const seedStaff: StaffMember[] = [
-  { id: "s1", name: "Amina Otieno", role: "Waiter", payType: "daily", rate: 900 },
-  { id: "s2", name: "Brian Kiptoo", role: "Waiter", payType: "daily", rate: 900 },
-  { id: "s3", name: "Cynthia Wanjiru", role: "Waiter", payType: "daily", rate: 850 },
+  { id: "s1", name: "Amina Otieno", role: "Waiter", payType: "commission", rate: 0, commissionType: "percent_of_sales", commissionValue: 10 },
+  { id: "s2", name: "Brian Kiptoo", role: "Waiter", payType: "commission", rate: 0, commissionType: "percent_of_sales", commissionValue: 10 },
+  { id: "s3", name: "Cynthia Wanjiru", role: "Waiter", payType: "commission", rate: 0, commissionType: "percent_of_sales", commissionValue: 8 },
   { id: "s4", name: "Dennis Mwangi", role: "Bar Staff", payType: "daily", rate: 950 },
   { id: "s5", name: "Esther Chebet", role: "Bar Staff", payType: "daily", rate: 950 },
   { id: "s6", name: "Felix Omondi", role: "Chef", payType: "monthly", rate: 45000 },
   { id: "s7", name: "Grace Njeri", role: "Chef", payType: "monthly", rate: 42000 },
   { id: "s8", name: "Harun Abdi", role: "Manager", payType: "monthly", rate: 65000 },
+  { id: "s9", name: "Peter Mwangi", role: "Cashier", payType: "daily", rate: 1000 },
 ];
 
 function at(dateStr: string, hour: number, minute = 0): number {

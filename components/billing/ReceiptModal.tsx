@@ -2,10 +2,10 @@
 
 import Image from "next/image";
 import { Printer, DoorOpen, CheckCircle2 } from "lucide-react";
-import type { Receipt } from "@/lib/types";
+import type { Receipt, PaymentMethod } from "@/lib/types";
 import { formatKES, formatDateTime } from "@/lib/utils";
 
-const METHOD_LABEL: Record<Receipt["paymentMethod"], string> = {
+const METHOD_LABEL: Record<PaymentMethod, string> = {
   mpesa: "M-Pesa",
   card: "Card",
   cash: "Cash",
@@ -65,15 +65,23 @@ export function ReceiptModal({
               <span>{formatKES(receipt.total)}</span>
             </div>
           </div>
-          <div className="border-t border-dashed border-slate-300 mt-2 pt-2 text-[11px]">
-            <div className="flex justify-between">
-              <span>Paid via</span>
-              <span>{METHOD_LABEL[receipt.paymentMethod]}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Reference</span>
-              <span>{receipt.paymentRef}</span>
-            </div>
+          <div className="border-t border-dashed border-slate-300 mt-2 pt-2 text-[11px] space-y-1.5">
+            {receipt.payments.map((p, i) => (
+              <div key={i} className="flex justify-between gap-3">
+                <span className="shrink-0">
+                  {receipt.payments.length > 1
+                    ? `Partial payment ${i + 1}`
+                    : "Payment"}{" "}
+                  · {METHOD_LABEL[p.method]}
+                </span>
+                <span className="text-right">
+                  {formatKES(p.amount)}
+                  <span className="block text-slate-400 break-all">
+                    {p.reference}
+                  </span>
+                </span>
+              </div>
+            ))}
           </div>
           <div className="mt-3 flex flex-col items-center gap-1">
             <Image

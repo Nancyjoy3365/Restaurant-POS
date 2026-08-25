@@ -1,24 +1,28 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: oklch(98% 0.012 55);
+  --foreground: #1c1410;
 
-  --color-accent-50: oklch(96% 0.02 195);
-  --color-accent-100: oklch(92% 0.045 195);
-  --color-accent-200: oklch(85% 0.07 195);
-  --color-accent-300: oklch(76% 0.09 195);
-  --color-accent-400: oklch(68% 0.11 195);
-  --color-accent-500: oklch(58% 0.11 195);
-  --color-accent-600: oklch(49% 0.1 195);
-  --color-accent-700: oklch(40% 0.09 195);
-  --color-accent-800: oklch(32% 0.07 195);
-  --color-accent-900: oklch(25% 0.05 195);
+  --color-accent-50: oklch(97% 0.02 40);
+  --color-accent-100: oklch(93% 0.05 40);
+  --color-accent-200: oklch(87% 0.09 40);
+  --color-accent-300: oklch(80% 0.14 40);
+  --color-accent-400: oklch(73% 0.18 40);
+  --color-accent-500: oklch(67% 0.2 40);
+  --color-accent-600: oklch(60% 0.2 38);
+  --color-accent-700: oklch(52% 0.18 36);
+  --color-accent-800: oklch(44% 0.15 34);
+  --color-accent-900: oklch(36% 0.12 32);
 
-  --color-status-free: oklch(58% 0.15 155);
-  --color-status-occupied: oklch(55% 0.12 195);
-  --color-status-needsbill: oklch(62% 0.18 45);
-  --color-status-reserved: oklch(50% 0.14 300);
+  --color-warm-50: oklch(97% 0.018 55);
+  --color-warm-100: oklch(94% 0.03 55);
+  --color-warm-200: oklch(89% 0.045 55);
+
+  --color-status-free: oklch(62% 0.17 150);
+  --color-status-occupied: oklch(58% 0.13 200);
+  --color-status-needsbill: oklch(72% 0.18 75);
+  --color-status-reserved: oklch(53% 0.18 310);
 }
 
 @theme inline {
@@ -36,6 +40,10 @@
   --color-accent-700: var(--color-accent-700);
   --color-accent-800: var(--color-accent-800);
   --color-accent-900: var(--color-accent-900);
+
+  --color-warm-50: var(--color-warm-50);
+  --color-warm-100: var(--color-warm-100);
+  --color-warm-200: var(--color-warm-200);
 
   --color-status-free: var(--color-status-free);
   --color-status-occupied: var(--color-status-occupied);

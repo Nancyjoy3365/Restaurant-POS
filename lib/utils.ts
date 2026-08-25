@@ -18,49 +18,6 @@ export function lineRawTotal(item: {
   return (item.price + addOnTotal) * item.qty;
 }
 
-export interface GuestSplitResult {
-  guestTotals: { guestId: string; amount: number }[];
-  unassigned: number;
-}
-
-export function computeEqualSplit(total: number, guestCount: number): number[] {
-  const n = Math.max(1, guestCount);
-  const base = Math.floor(total / n);
-  const remainder = total - base * n;
-  return Array.from({ length: n }, (_, i) => base + (i < remainder ? 1 : 0));
-}
-
-export function computeItemSplit(
-  order: TableOrder | undefined,
-  guestCount: number
-): GuestSplitResult {
-  const lines = flattenOrderItems(order);
-  const guestRaw: Record<string, number> = {};
-  for (let i = 1; i <= guestCount; i++) guestRaw[`G${i}`] = 0;
-  let unassignedRaw = 0;
-
-  for (const { item } of lines) {
-    const raw = lineRawTotal(item);
-    const assigned = item.assignedGuests.filter(
-      (g) => guestRaw[g] !== undefined
-    );
-    if (assigned.length === 0) {
-      unassignedRaw += raw;
-    } else {
-      const share = raw / assigned.length;
-      for (const g of assigned) guestRaw[g] += share;
-    }
-  }
-
-  const guestTotals = Object.entries(guestRaw).map(([guestId, raw]) => ({
-    guestId,
-    amount: Math.round(raw * (1 + VAT_RATE)),
-  }));
-  const unassigned = Math.round(unassignedRaw * (1 + VAT_RATE));
-
-  return { guestTotals, unassigned };
-}
-
 export function formatKES(amount: number): string {
   return `KES ${amount.toLocaleString("en-KE", {
     minimumFractionDigits: 0,

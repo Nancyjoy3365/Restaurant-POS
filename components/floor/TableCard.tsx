@@ -13,9 +13,15 @@ export function TableCard({ table }: { table: RestaurantTable }) {
   const router = useRouter();
   const renameTable = usePosStore((s) => s.renameTable);
   const setTableStatus = usePosStore((s) => s.setTableStatus);
+  const order = usePosStore((s) => s.orders[table.id]);
+  const staff = usePosStore((s) => s.staff);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(table.customName ?? "");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const servingWaiter = order?.waiterId
+    ? staff.find((m) => m.id === order.waiterId)
+    : undefined;
 
   useEffect(() => {
     if (editing) inputRef.current?.focus();
@@ -104,6 +110,11 @@ export function TableCard({ table }: { table: RestaurantTable }) {
             <div className="flex items-center gap-1 text-xs font-bold opacity-90">
               <Users size={12} /> {table.seats} seats
             </div>
+            {servingWaiter && (
+              <div className="text-[10px] font-bold opacity-80 truncate max-w-[8rem]">
+                Opened by {servingWaiter.name.split(" ")[0]}
+              </div>
+            )}
           </div>
           <span className="text-[11px] font-extrabold uppercase tracking-wide text-white/90">
             {cfg.label}

@@ -38,6 +38,7 @@ export interface MenuItem {
   comboComponents?: ComboComponent[];
   spiceLevels?: string[];
   addOns?: AddOn[];
+  imageUrl?: string;
 }
 
 export interface OrderLineItem {
@@ -50,7 +51,6 @@ export interface OrderLineItem {
   comboTag?: string;
   spiceLevel?: string;
   addOns: AddOn[];
-  assignedGuests: string[];
 }
 
 export interface Round {
@@ -60,17 +60,41 @@ export interface Round {
   items: OrderLineItem[];
 }
 
+export type OrderPaymentStatus = "unpaid" | "partially_paid" | "paid";
+
+export interface BillTotals {
+  subtotal: number;
+  vat: number;
+  total: number;
+}
+
 export interface TableOrder {
+  id: string;
   tableId: string;
+  sessionId: string;
+  waiterId?: string;
   rounds: Round[];
-  guestCount: number;
+  paymentStatus: OrderPaymentStatus;
+  billTotals?: BillTotals;
+}
+
+export interface TableSession {
+  id: string;
+  tableId: string;
+  waiterId: string;
+  openedAt: number;
+  closedAt?: number;
 }
 
 export interface Ingredient {
   id: string;
   name: string;
+  sku: string;
+  packaging: string;
+  quantity: number;
+  piecesPerPackage: number;
+  totalCost: number;
   unit: string;
-  stock: number;
   reorderThreshold: number;
   unitCost: number;
 }
@@ -93,13 +117,13 @@ export interface RecipeComponent {
 
 export interface Recipe {
   id: string;
-  dishName: string;
-  menuPrice: number;
+  menuItemId: string;
   components: RecipeComponent[];
 }
 
-export type PayType = "daily" | "monthly";
-export type StaffRole = "Waiter" | "Bar Staff" | "Manager" | "Chef";
+export type PayType = "daily" | "monthly" | "commission";
+export type StaffRole = "Waiter" | "Bar Staff" | "Manager" | "Chef" | "Cashier";
+export type CommissionType = "percent_of_sales" | "flat_per_order";
 
 export interface ShiftEntry {
   id: string;
@@ -114,27 +138,37 @@ export interface StaffMember {
   role: StaffRole;
   payType: PayType;
   rate: number;
+  commissionType?: CommissionType;
+  commissionValue?: number;
 }
 
 export type PaymentMethod = "mpesa" | "card" | "cash";
 
-export interface GuestTotal {
-  guestId: string;
-  amount: number;
-}
-
-export interface SplitSummary {
-  mode: "none" | "equal" | "item";
-  guestCount?: number;
-  guestTotals?: GuestTotal[];
-}
-
 export interface ReceiptLineItem {
+  menuItemId: string;
   name: string;
   qty: number;
   price: number;
   lineTotal: number;
   roundIndex: number;
+}
+
+export interface Payment {
+  id: string;
+  orderId: string;
+  sessionId: string;
+  tableId: string;
+  waiterId?: string;
+  method: PaymentMethod;
+  amount: number;
+  reference: string;
+  paidAt: number;
+}
+
+export interface ReceiptPaymentLine {
+  method: PaymentMethod;
+  amount: number;
+  reference: string;
 }
 
 export interface Receipt {
@@ -146,9 +180,7 @@ export interface Receipt {
   subtotal: number;
   vat: number;
   total: number;
-  paymentMethod: PaymentMethod;
-  paymentRef: string;
+  payments: ReceiptPaymentLine[];
   qrDataUrl: string;
   issuedAt: number;
-  splitSummary?: SplitSummary;
 }

@@ -11,13 +11,6 @@ function randomDigits(n: number): string {
   return out;
 }
 
-export async function simulateMpesaPayment(phone: string): Promise<{ ref: string }> {
-  await new Promise((r) => setTimeout(r, 1400));
-  const lastFour = phone.replace(/\D/g, "").slice(-4).padStart(4, "0");
-  const ref = `S${randomDigits(2).toUpperCase()}${Date.now().toString(36).toUpperCase().slice(-4)}${lastFour}`;
-  return { ref: `MPESA-${ref}` };
-}
-
 export async function simulateCardPayment(): Promise<{ ref: string }> {
   await new Promise((r) => setTimeout(r, 1200));
   return { ref: `CARD-AUTH-${randomDigits(6)}` };

@@ -10,21 +10,23 @@ import {
   isOnShift,
   openShift,
   daysWorkedThisWeek,
+  commissionEarned,
 } from "@/lib/payroll";
 
 export default function StaffPage() {
   const staff = usePosStore((s) => s.staff);
   const shifts = usePosStore((s) => s.shifts);
+  const payments = usePosStore((s) => s.payments);
   const clockIn = usePosStore((s) => s.clockIn);
   const clockOut = usePosStore((s) => s.clockOut);
 
   return (
     <div className="flex-1 flex flex-col">
-      <header className="h-16 flex items-center px-6 border-b border-slate-200 bg-white">
+      <header className="h-16 flex items-center px-6 border-b border-warm-200 bg-white">
         <h1 className="text-xl font-black text-slate-900">Staff & Payroll</h1>
       </header>
       <main className="flex-1 overflow-y-auto p-6">
-        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+        <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
               <tr>
@@ -43,12 +45,14 @@ export default function StaffPage() {
                 const onShift = isOnShift(shifts, member.id);
                 const shift = openShift(shifts, member.id);
                 const period =
-                  member.payType === "daily"
-                    ? getCurrentWeekLabel()
-                    : getCurrentMonthLabel();
+                  member.payType === "monthly"
+                    ? getCurrentMonthLabel()
+                    : getCurrentWeekLabel();
                 const earned =
                   member.payType === "daily"
                     ? member.rate * daysWorkedThisWeek(shifts, member.id)
+                    : member.payType === "commission"
+                    ? commissionEarned(payments, member)
                     : member.rate;
 
                 return (
@@ -67,8 +71,11 @@ export default function StaffPage() {
                       </div>
                     </td>
                     <td className="px-2 py-3 text-right font-semibold text-slate-700">
-                      {formatKES(member.rate)}
-                      {member.payType === "daily" ? "/day" : "/mo"}
+                      {member.payType === "commission"
+                        ? `${member.commissionValue}% of sales`
+                        : `${formatKES(member.rate)}${
+                            member.payType === "daily" ? "/day" : "/mo"
+                          }`}
                     </td>
                     <td className="px-2 py-3 text-slate-500 font-semibold text-xs">
                       {period}

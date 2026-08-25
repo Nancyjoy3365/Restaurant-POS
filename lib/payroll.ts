@@ -1,4 +1,4 @@
-import type { ShiftEntry } from "./types";
+import type { ShiftEntry, Payment, StaffMember } from "./types";
 
 function startOfWeek(d: Date): Date {
   const date = new Date(d);
@@ -15,6 +15,18 @@ function endOfWeek(d: Date): Date {
   end.setDate(start.getDate() + 6);
   end.setHours(23, 59, 59, 999);
   return end;
+}
+
+function startOfDay(d: Date): Date {
+  const date = new Date(d);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function endOfDay(d: Date): Date {
+  const date = new Date(d);
+  date.setHours(23, 59, 59, 999);
+  return date;
 }
 
 const SHORT_DATE = { month: "short", day: "numeric" } as const;
@@ -40,6 +52,106 @@ export function openShift(
   staffId: string
 ): ShiftEntry | undefined {
   return shifts.find((s) => s.staffId === staffId && s.clockOut === undefined);
+}
+
+export function salesThisWeek(
+  payments: Payment[],
+  waiterId: string,
+  now = new Date()
+): number {
+  const start = startOfWeek(now);
+  const end = endOfWeek(now);
+  return payments
+    .filter((p) => p.waiterId === waiterId)
+    .filter((p) => {
+      const paidDate = new Date(p.paidAt);
+      return paidDate >= start && paidDate <= end;
+    })
+    .reduce((sum, p) => sum + p.amount, 0);
+}
+
+export function commissionEarned(
+  payments: Payment[],
+  staff: StaffMember,
+  now = new Date()
+): number {
+  if (!staff.commissionType || staff.commissionValue === undefined) return 0;
+  if (staff.commissionType === "percent_of_sales") {
+    return Math.round(
+      salesThisWeek(payments, staff.id, now) * (staff.commissionValue / 100)
+    );
+  }
+  const start = startOfWeek(now);
+  const end = endOfWeek(now);
+  const orderCount = payments.filter(
+    (p) =>
+      p.waiterId === staff.id &&
+      new Date(p.paidAt) >= start &&
+      new Date(p.paidAt) <= end
+  ).length;
+  return orderCount * staff.commissionValue;
+}
+
+export function salesToday(
+  payments: Payment[],
+  waiterId: string,
+  now = new Date()
+): number {
+  const start = startOfDay(now);
+  const end = endOfDay(now);
+  return payments
+    .filter((p) => p.waiterId === waiterId)
+    .filter((p) => {
+      const paidDate = new Date(p.paidAt);
+      return paidDate >= start && paidDate <= end;
+    })
+    .reduce((sum, p) => sum + p.amount, 0);
+}
+
+// A same-day slice of what each staff member is owed, for a daily P&L
+// summary — daily-rate staff count only if they clocked in today, commission
+// is computed on today's sales only, and a monthly salary is prorated across
+// the days in the current month.
+export function dailyPayout(
+  staff: StaffMember,
+  shifts: ShiftEntry[],
+  payments: Payment[],
+  now = new Date()
+): number {
+  if (staff.payType === "daily") {
+    const start = startOfDay(now);
+    const end = endOfDay(now);
+    const workedToday = shifts.some(
+      (s) =>
+        s.staffId === staff.id &&
+        new Date(s.clockIn) >= start &&
+        new Date(s.clockIn) <= end
+    );
+    return workedToday ? staff.rate : 0;
+  }
+  if (staff.payType === "commission") {
+    if (!staff.commissionType || staff.commissionValue === undefined) return 0;
+    if (staff.commissionType === "percent_of_sales") {
+      return Math.round(
+        salesToday(payments, staff.id, now) * (staff.commissionValue / 100)
+      );
+    }
+    const start = startOfDay(now);
+    const end = endOfDay(now);
+    const orderCount = payments.filter(
+      (p) =>
+        p.waiterId === staff.id &&
+        new Date(p.paidAt) >= start &&
+        new Date(p.paidAt) <= end
+    ).length;
+    return orderCount * staff.commissionValue;
+  }
+  const daysInMonth = new Date(
+    now.getFullYear(),
+    now.getMonth() + 1,
+    0
+  ).getDate();
+  return Math.round(staff.rate / daysInMonth);
 }
 
 export function daysWorkedThisWeek(

@@ -10,7 +10,7 @@ const LEGEND = [
 export default function FloorViewPage() {
   return (
     <div className="flex-1 flex flex-col">
-      <header className="min-h-16 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-3 border-b border-slate-200 bg-white">
+      <header className="min-h-16 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-3 border-b border-warm-200 bg-white">
         <h1 className="text-xl font-black text-slate-900 whitespace-nowrap">
           Floor View
         </h1>
