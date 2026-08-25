@@ -7,6 +7,9 @@ import type {
   StaffMember,
   ShiftEntry,
   StaffRole,
+  TableOrder,
+  TableSession,
+  OrderLineItem,
 } from "./types";
 
 export const SECTIONS = ["Patio", "Main Hall", "Bar"] as const;
@@ -479,3 +482,101 @@ export const seedShifts: ShiftEntry[] = [
   { id: "sh4", staffId: "s4", clockIn: at("2026-08-24", 12), clockOut: at("2026-08-24", 22) },
   { id: "sh5", staffId: "s1", clockIn: at("2026-08-25", 8, 15) },
 ];
+
+// Demo history: a few tables already mid-service or awaiting payment on
+// load, each with a real backing order/session — so the Floor View's
+// "Opened by" label and a click-through into Order Entry both work for
+// these tables out of the box, not just for ones opened during this session.
+export const seedTableSessions: TableSession[] = [
+  { id: "sess-t2", tableId: "t2", waiterId: "s1", openedAt: at("2026-08-25", 12, 30) },
+  { id: "sess-t6", tableId: "t6", waiterId: "s2", openedAt: at("2026-08-25", 11, 15) },
+  { id: "sess-t8", tableId: "t8", waiterId: "s3", openedAt: at("2026-08-25", 12, 45) },
+  { id: "sess-t11", tableId: "t11", waiterId: "s4", openedAt: at("2026-08-25", 13, 0) },
+];
+
+function seedLine(
+  id: string,
+  menuItemId: string,
+  name: string,
+  price: number,
+  qty: number,
+  veg: boolean
+): OrderLineItem {
+  return { id, menuItemId, name, price, qty, veg, addOns: [] };
+}
+
+export const seedOrders: Record<string, TableOrder> = {
+  t2: {
+    id: "order-t2",
+    tableId: "t2",
+    sessionId: "sess-t2",
+    waiterId: "s1",
+    paymentStatus: "unpaid",
+    rounds: [
+      {
+        id: "round-t2-1",
+        index: 1,
+        createdAt: at("2026-08-25", 12, 32),
+        items: [
+          seedLine("line-t2-1", "m1", "Samosa (3pc)", 300, 2, false),
+          seedLine("line-t2-2", "m17", "Fresh Passion Juice", 250, 2, true),
+        ],
+      },
+    ],
+  },
+  t6: {
+    id: "order-t6",
+    tableId: "t6",
+    sessionId: "sess-t6",
+    waiterId: "s2",
+    paymentStatus: "unpaid",
+    billTotals: { subtotal: 1400, vat: 224, total: 1624 },
+    rounds: [
+      {
+        id: "round-t6-1",
+        index: 1,
+        createdAt: at("2026-08-25", 11, 20),
+        items: [
+          seedLine("line-t6-1", "m6", "Ugali with Sukuma & Beef Stew", 550, 2, false),
+          seedLine("line-t6-2", "m20", "Soda (350ml)", 150, 2, true),
+        ],
+      },
+    ],
+  },
+  t8: {
+    id: "order-t8",
+    tableId: "t8",
+    sessionId: "sess-t8",
+    waiterId: "s3",
+    paymentStatus: "unpaid",
+    rounds: [
+      {
+        id: "round-t8-1",
+        index: 1,
+        createdAt: at("2026-08-25", 12, 50),
+        items: [
+          seedLine("line-t8-1", "m12", "Nyama Choma (Goat, 1kg)", 1800, 1, false),
+          seedLine("line-t8-2", "m16", "Tusker Lager", 300, 4, true),
+        ],
+      },
+    ],
+  },
+  t11: {
+    id: "order-t11",
+    tableId: "t11",
+    sessionId: "sess-t11",
+    waiterId: "s4",
+    paymentStatus: "unpaid",
+    rounds: [
+      {
+        id: "round-t11-1",
+        index: 1,
+        createdAt: at("2026-08-25", 13, 5),
+        items: [
+          seedLine("line-t11-1", "m16", "Tusker Lager", 300, 2, true),
+          seedLine("line-t11-2", "m18", "Dawa Cocktail", 550, 1, true),
+        ],
+      },
+    ],
+  },
+};

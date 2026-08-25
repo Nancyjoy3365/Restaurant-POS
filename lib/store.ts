@@ -29,6 +29,8 @@ import {
   seedStaff,
   seedShifts,
   seedRolePasswords,
+  seedOrders,
+  seedTableSessions,
 } from "./seed-data";
 import { calcBill, makeId, tableLabel, flattenOrderItems, lineRawTotal } from "./utils";
 import { simulateEtimsSigning } from "./mock-integrations";
@@ -91,14 +93,14 @@ export const usePosStore = create<PosState>()(
     (set, get) => ({
       tables: seedTables,
       menu: seedMenu,
-      orders: {},
+      orders: seedOrders,
       ingredients: seedIngredients,
       vendors: seedVendors,
       recipes: seedRecipes,
       staff: seedStaff,
       shifts: seedShifts,
       rolePasswords: seedRolePasswords,
-      tableSessions: [],
+      tableSessions: seedTableSessions,
       payments: [],
       receipts: [],
       invoiceCounter: 10482,
@@ -373,13 +375,14 @@ export const usePosStore = create<PosState>()(
     }),
     {
       name: "pos-storage",
-      version: 7,
+      version: 8,
       migrate: (persistedState) => {
         const state = persistedState as Partial<PosState> & {
           ingredients?: Array<Record<string, unknown>>;
           recipes?: Array<Record<string, unknown>>;
           staff?: Array<Record<string, unknown>>;
           orders?: Record<string, Record<string, unknown>>;
+          tableSessions?: unknown[];
           payments?: Array<Record<string, unknown>>;
         };
         const hasCurrentIngredientShape = state.ingredients?.every(
@@ -400,6 +403,10 @@ export const usePosStore = create<PosState>()(
         const hasCurrentPaymentShape = state.payments?.every(
           (p) => typeof p.orderId === "string" && typeof p.sessionId === "string"
         );
+        // Only backfill the demo orders/sessions for T2/T6/T8/T11 into a
+        // session that has never had any real orders of its own — never
+        // clobber a browser that's actually been used to serve tables.
+        const ordersAreEmpty = Object.keys(state.orders ?? {}).length === 0;
         return {
           ...state,
           ingredients: hasCurrentIngredientShape
@@ -407,7 +414,15 @@ export const usePosStore = create<PosState>()(
             : seedIngredients,
           recipes: hasCurrentRecipeShape ? state.recipes : seedRecipes,
           staff: hasCurrentStaffShape ? state.staff : seedStaff,
-          orders: hasCurrentOrderShape ? state.orders : {},
+          orders: !hasCurrentOrderShape
+            ? {}
+            : ordersAreEmpty
+            ? seedOrders
+            : state.orders,
+          tableSessions:
+            ordersAreEmpty && (state.tableSessions?.length ?? 0) === 0
+              ? seedTableSessions
+              : state.tableSessions,
           payments: hasCurrentPaymentShape ? state.payments : [],
           // Demo-grade role passwords have no in-app way to change them yet,
           // so always trust the latest seed values rather than whatever got
