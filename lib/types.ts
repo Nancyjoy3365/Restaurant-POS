@@ -128,7 +128,7 @@ export interface Recipe {
 export type PayType = "daily" | "monthly" | "commission";
 export type StaffRole =
   | "Waiter"
-  | "Manager"
+  | "Admin"
   | "Chef"
   | "Cashier"
   | "Kitchen Assistant";
@@ -145,6 +145,11 @@ export interface StaffMember {
   id: string;
   name: string;
   role: StaffRole;
+  // Optional, display-only job title (e.g. "Admin Chef", "Admin CX") shown
+  // alongside the coarse `role` — never used for access control, since
+  // every Admin gets the exact same dashboard/permissions regardless of
+  // title.
+  title?: string;
   payType: PayType;
   rate: number;
   phone?: string;

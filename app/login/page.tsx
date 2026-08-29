@@ -20,7 +20,7 @@ const ROLE_ICON: Record<StaffRole, typeof UtensilsCrossed> = {
   Waiter: UtensilsCrossed,
   Chef: ChefHat,
   "Kitchen Assistant": CookingPot,
-  Manager: Briefcase,
+  Admin: Briefcase,
   Cashier: Wallet,
 };
 

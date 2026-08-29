@@ -12,7 +12,8 @@ export const STAFF_CSV_TEMPLATE = [
 
 const ROLE_ALIASES: Record<string, StaffRole> = {
   waiter: "Waiter",
-  manager: "Manager",
+  admin: "Admin",
+  manager: "Admin",
   chef: "Chef",
   "kitchen assistant": "Kitchen Assistant",
   "kitchen-assistant": "Kitchen Assistant",
@@ -104,7 +105,7 @@ export function parseStaffCsv(text: string): StaffImportResult {
     if (!role) {
       errors.push({
         line: lineNumber,
-        message: `Unrecognized role "${cells[roleCol] ?? ""}" — expected Waiter, Manager, Chef, Kitchen Assistant, or Cashier.`,
+        message: `Unrecognized role "${cells[roleCol] ?? ""}" — expected Waiter, Admin, Chef, Kitchen Assistant, or Cashier.`,
       });
       continue;
     }

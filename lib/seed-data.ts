@@ -467,9 +467,9 @@ export const seedRecipes: Recipe[] = [
 // never collide with a staff id an existing browser's persisted tickets
 // might still reference from the old placeholder roster.
 export const seedStaff: StaffMember[] = [
-  { id: "st1", name: "Linda O.", role: "Manager", payType: "monthly", rate: 0, phone: "0723021511" },
-  { id: "st2", name: "Halima. K", role: "Manager", payType: "monthly", rate: 0, phone: "0723303712" },
-  { id: "st3", name: "Hadija. K", role: "Manager", payType: "monthly", rate: 0, phone: "0748360567" },
+  { id: "st1", name: "Linda O.", role: "Admin", payType: "monthly", rate: 0, phone: "0723021511" },
+  { id: "st2", name: "Halima. K", role: "Admin", title: "Admin CX", payType: "monthly", rate: 0, phone: "0723303712" },
+  { id: "st3", name: "Hadija. K", role: "Admin", title: "Admin Chef", payType: "monthly", rate: 0, phone: "0748360567" },
   { id: "st4", name: "Nancy Obuya", role: "Cashier", payType: "monthly", rate: 0, phone: "0702491234" },
   { id: "st5", name: "Innocent Bakabwa", role: "Chef", payType: "monthly", rate: 0, phone: "0707792054" },
   { id: "st6", name: "Idah Nyakio", role: "Waiter", payType: "monthly", rate: 0, phone: "0716221718" },

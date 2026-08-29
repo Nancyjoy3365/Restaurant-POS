@@ -35,7 +35,7 @@ const ROLE_OPTIONS: StaffRole[] = [
   "Chef",
   "Kitchen Assistant",
   "Cashier",
-  "Manager",
+  "Admin",
 ];
 const PAY_TYPE_OPTIONS: PayType[] = ["daily", "monthly", "commission"];
 
@@ -221,7 +221,7 @@ export default function StaffPage() {
                       {member.name}
                     </td>
                     <td className="px-2 py-3 text-slate-600 font-semibold">
-                      {member.role}
+                      {member.title ?? member.role}
                     </td>
                     <td className="px-2 py-3 text-slate-600 font-semibold">
                       {member.phone ?? "—"}
