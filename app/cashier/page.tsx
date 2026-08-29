@@ -96,6 +96,7 @@ export default function CashierPage() {
 
   async function handleComplete(
     ticketId: string,
+    waiterId: string | undefined,
     recordedCash: number,
     mpesaAmount: number,
     total: number
@@ -105,6 +106,11 @@ export default function CashierPage() {
     const delta = draftAmount - recordedCash;
     if (delta > 0) {
       recordPayment(ticketId, { method: "cash", amount: delta, reference: "Cash drop" });
+      // The cashier is entering and taking custody of this cash in the same
+      // motion — record it as already dropped/reconciled immediately,
+      // rather than making them enter the same figure again in the
+      // separate per-waiter Drop reconciliation below.
+      if (waiterId) recordCashDrop(waiterId, delta, delta);
     }
     setCashDrafts((d) => {
       const next = { ...d };
@@ -379,6 +385,7 @@ export default function CashierPage() {
                                     onClick={() =>
                                       handleComplete(
                                         ticket.id,
+                                        order.waiterId,
                                         recordedCash,
                                         mpesaAmount,
                                         total
