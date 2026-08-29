@@ -467,7 +467,32 @@ export const usePosStore = create<PosState>()(
         })),
 
       login: (staffId) => set({ currentStaffId: staffId }),
-      logout: () => set({ currentStaffId: null }),
+      logout: () =>
+        set((s) => {
+          const staffId = s.currentStaffId;
+          if (!staffId) return { currentStaffId: null };
+          // An order started (e.g. via "+ New Order") but abandoned before
+          // any item was ever added shouldn't linger as a dangling empty
+          // ticket once its owner logs out.
+          const emptyTicketIds = new Set(
+            s.tickets
+              .filter(
+                (t) =>
+                  t.waiterId === staffId &&
+                  t.status === "open" &&
+                  s.orders[t.id]?.rounds.every((r) => r.items.length === 0)
+              )
+              .map((t) => t.id)
+          );
+          if (emptyTicketIds.size === 0) return { currentStaffId: null };
+          return {
+            currentStaffId: null,
+            tickets: s.tickets.filter((t) => !emptyTicketIds.has(t.id)),
+            orders: Object.fromEntries(
+              Object.entries(s.orders).filter(([id]) => !emptyTicketIds.has(id))
+            ),
+          };
+        }),
 
       startBilling: (ticketId) =>
         set((s) => {

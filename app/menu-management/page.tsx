@@ -49,16 +49,11 @@ export default function MenuManagementPage() {
                 <th className="text-left px-2 py-3">Item</th>
                 <th className="text-left px-2 py-3">Category</th>
                 <th className="text-right px-2 py-3">Price</th>
-                <th className="text-left px-2 py-3">Modifiers</th>
                 <th className="text-center px-4 py-3">Available</th>
               </tr>
             </thead>
             <tbody>
               {menu.map((item) => {
-                const modifiers = [
-                  ...(item.spiceLevels ?? []),
-                  ...(item.addOns?.map((a) => a.name) ?? []),
-                ].join(", ");
                 return (
                   <tr
                     key={item.id}
@@ -92,9 +87,6 @@ export default function MenuManagementPage() {
                     </td>
                     <td className="px-2 py-3 text-right font-bold text-slate-900">
                       {formatKES(item.price)}
-                    </td>
-                    <td className="px-2 py-3 text-slate-500 font-semibold text-xs">
-                      {modifiers || "—"}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-center">

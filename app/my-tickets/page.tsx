@@ -47,9 +47,6 @@ export default function MyTicketsPage() {
           <h1 className="text-xl font-black text-slate-900 whitespace-nowrap">
             My Orders
           </h1>
-          <p className="text-xs font-semibold text-slate-400">
-            Only orders you opened — nothing from other waiters.
-          </p>
         </div>
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-4 flex-wrap">
