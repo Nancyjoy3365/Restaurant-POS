@@ -21,6 +21,7 @@ export function AddMenuItemModal({ onClose }: { onClose: () => void }) {
   const [price, setPrice] = useState("");
   const [veg, setVeg] = useState(false);
   const [aliases, setAliases] = useState("");
+  const [modifiers, setModifiers] = useState("");
   const [imageUrl, setImageUrl] = useState("");
 
   const priceNum = Number(price);
@@ -28,6 +29,10 @@ export function AddMenuItemModal({ onClose }: { onClose: () => void }) {
 
   function handleSave() {
     if (!canSave) return;
+    const spiceLevels = modifiers
+      .split(",")
+      .map((m) => m.trim())
+      .filter(Boolean);
     addMenuItem({
       name: name.trim(),
       category,
@@ -38,6 +43,7 @@ export function AddMenuItemModal({ onClose }: { onClose: () => void }) {
         .split(",")
         .map((a) => a.trim().toLowerCase())
         .filter(Boolean),
+      spiceLevels: spiceLevels.length > 0 ? spiceLevels : undefined,
       imageUrl: imageUrl.trim() || undefined,
     });
     onClose();
@@ -112,6 +118,22 @@ export function AddMenuItemModal({ onClose }: { onClose: () => void }) {
               placeholder="e.g. biryani, biriani"
               className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400"
             />
+          </div>
+
+          <div>
+            <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
+              Modifiers (comma separated, optional)
+            </label>
+            <input
+              value={modifiers}
+              onChange={(e) => setModifiers(e.target.value)}
+              placeholder="e.g. Wet, Dry, Special, Dry Special"
+              className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400"
+            />
+            <p className="mt-1 text-[11px] text-slate-400 font-semibold">
+              Shown as tap-to-choose options before adding the item to an
+              order — e.g. preparation style for fish.
+            </p>
           </div>
 
           <div>
