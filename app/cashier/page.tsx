@@ -168,13 +168,16 @@ export default function CashierPage() {
         waiterDropTarget.substitutionAmount -
         waiterDropTarget.alreadyDropped
     );
-    const hasVariance = amount !== expectedNow;
-    if (hasVariance && !waiterDropNote.trim()) return;
+    // Bringing less than the full amount is a normal partial drop — the
+    // waiter can clear the rest later, no explanation needed. Only bringing
+    // MORE than expected is the genuinely unusual case worth a note.
+    const isOverage = amount > expectedNow;
+    if (isOverage && !waiterDropNote.trim()) return;
     recordCashDrop(
       waiterDropTarget.waiterId,
       amount,
       expectedNow,
-      hasVariance ? waiterDropNote : undefined
+      isOverage ? waiterDropNote : undefined
     );
     setWaiterDropTarget(null);
     setWaiterDropAmount("");
@@ -528,8 +531,12 @@ export default function CashierPage() {
         const counted = Math.max(0, Number(waiterDropAmount) || 0);
         const hasAmount = waiterDropAmount.trim() !== "";
         const variance = counted - expectedNow;
-        const hasVariance = hasAmount && variance !== 0;
-        const canConfirm = counted > 0 && (!hasVariance || waiterDropNote.trim() !== "");
+        // Bringing less than expected is a normal partial drop, not an
+        // error — only bringing more than expected is unusual enough to
+        // require an explanation.
+        const isPartial = hasAmount && variance < 0;
+        const isOverage = hasAmount && variance > 0;
+        const canConfirm = counted > 0 && (!isOverage || waiterDropNote.trim() !== "");
         return (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
@@ -567,7 +574,7 @@ export default function CashierPage() {
               </div>
 
               <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-                Counted amount
+                Amount being dropped now
               </label>
               <input
                 type="number"
@@ -576,15 +583,26 @@ export default function CashierPage() {
                 onChange={(e) => setWaiterDropAmount(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-bold outline-none focus:border-accent-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
+              <p className="mt-1.5 text-[11px] text-slate-400 font-semibold">
+                Bringing only part of it is fine — the rest stays pending
+                until they drop again.
+              </p>
 
-              {hasVariance && (
+              {isPartial && (
+                <div className="mt-3 flex items-start gap-1.5 rounded-lg bg-amber-50 text-amber-700 text-xs font-bold px-3 py-2">
+                  <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                  Partial drop — KES{" "}
+                  {Math.abs(variance).toLocaleString("en-KE")} will still be
+                  pending after this.
+                </div>
+              )}
+
+              {isOverage && (
                 <div className="mt-3">
                   <div className="flex items-start gap-1.5 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold px-3 py-2 mb-2">
                     <AlertCircle size={14} className="shrink-0 mt-0.5" />
-                    {variance > 0
-                      ? `KES ${variance.toLocaleString("en-KE")} over expected`
-                      : `KES ${Math.abs(variance).toLocaleString("en-KE")} short of expected`}{" "}
-                    — a note is required to record this.
+                    KES {variance.toLocaleString("en-KE")} over expected — a
+                    note is required to record this.
                   </div>
                   <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
                     Note

@@ -321,6 +321,8 @@ export const usePosStore = create<PosState>()(
         set((s) => {
           const order = s.orders[ticketId];
           if (!order || order.onHold) return s;
+          const hasItems = order.rounds.some((r) => r.items.length > 0);
+          if (!hasItems) return s;
           const heldCount = Object.values(s.orders).filter(
             (o) => o.onHold && o.waiterId === order.waiterId
           ).length;
@@ -349,6 +351,8 @@ export const usePosStore = create<PosState>()(
         set((s) => {
           const order = s.orders[ticketId];
           if (!order) return s;
+          const targetRound = order.rounds.find((r) => r.id === roundId);
+          if (!targetRound || targetRound.items.length === 0) return s;
           const sentRounds = order.rounds.map((r) =>
             r.id === roundId
               ? {
