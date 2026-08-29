@@ -110,7 +110,7 @@ export function CartPanel({ ticketId }: { ticketId: string }) {
                         >
                           <FoodImage
                             imageUrl={menuItem?.imageUrl}
-                            category={menuItem?.category ?? "Mains"}
+                            category={menuItem?.category ?? "Main"}
                             name={item.name}
                             className="h-14 w-14 rounded-lg shrink-0"
                             emojiClassName="text-xl"

@@ -6,18 +6,19 @@ import { usePosStore } from "@/lib/store";
 import type { MenuCategory } from "@/lib/types";
 
 const CATEGORY_OPTIONS: MenuCategory[] = [
-  "Starters",
-  "Mains",
-  "Grills",
-  "Beverages",
-  "Desserts",
+  "Main",
+  "Extra",
+  "Drinks",
+  "Water",
+  "Juice",
+  "Packaging",
 ];
 
 export function AddMenuItemModal({ onClose }: { onClose: () => void }) {
   const addMenuItem = usePosStore((s) => s.addMenuItem);
 
   const [name, setName] = useState("");
-  const [category, setCategory] = useState<MenuCategory>("Mains");
+  const [category, setCategory] = useState<MenuCategory>("Main");
   const [price, setPrice] = useState("");
   const [veg, setVeg] = useState(false);
   const [aliases, setAliases] = useState("");

@@ -653,7 +653,7 @@ export const usePosStore = create<PosState>()(
     }),
     {
       name: "pos-storage",
-      version: 16,
+      version: 17,
       migrate: (persistedState) => {
         const state = persistedState as Partial<PosState> & {
           menu?: Array<Record<string, unknown>>;
@@ -668,10 +668,21 @@ export const usePosStore = create<PosState>()(
         // (this is how a new imageUrl, price, etc. actually reaches a
         // browser that already has a persisted menu) — any item a manager
         // added by hand through "Add Item" isn't a seed id, so it's kept
-        // untouched rather than wiped.
+        // untouched rather than wiped. The category taxonomy itself was
+        // also fully replaced (Starters/Mains/... → Main/Extra/...), so a
+        // persisted item carrying an old category string is stale leftover
+        // menu data, not a genuine manager-added item — discard those too.
+        const validCategories = new Set([
+          "Main",
+          "Extra",
+          "Drinks",
+          "Water",
+          "Juice",
+          "Packaging",
+        ]);
         const seedIds = new Set(seedMenu.map((m) => m.id));
         const customMenuItems = (state.menu ?? []).filter(
-          (m) => !seedIds.has(m.id as string)
+          (m) => !seedIds.has(m.id as string) && validCategories.has(m.category as string)
         );
         const hasCurrentIngredientShape = state.ingredients?.every(
           (ing) => typeof ing.totalCost === "number"

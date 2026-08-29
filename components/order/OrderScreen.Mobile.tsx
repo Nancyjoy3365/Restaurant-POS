@@ -93,7 +93,7 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
   const [noteTarget, setNoteTarget] = useState<OrderLineItem | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerCategory, setPickerCategory] = useState<MenuCategory>("Starters");
+  const [pickerCategory, setPickerCategory] = useState<MenuCategory>("Main");
   const [pickerQuery, setPickerQuery] = useState("");
 
   const bottomBarRef = useRef<HTMLDivElement>(null);
@@ -318,7 +318,7 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
                             <div className="shrink-0" {...longPress}>
                               <FoodImage
                                 imageUrl={menuItem?.imageUrl}
-                                category={menuItem?.category ?? "Mains"}
+                                category={menuItem?.category ?? "Main"}
                                 name={item.name}
                                 className="h-14 w-14 rounded-xl"
                                 emojiClassName="text-xl"

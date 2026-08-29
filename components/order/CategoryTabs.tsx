@@ -1,15 +1,16 @@
 "use client";
 
 import clsx from "clsx";
-import { Soup, UtensilsCrossed, Flame, CupSoda, IceCreamCone } from "lucide-react";
+import { UtensilsCrossed, Salad, CupSoda, Droplet, Citrus, Package } from "lucide-react";
 import type { MenuCategory } from "@/lib/types";
 
-const CATEGORIES: { name: MenuCategory; icon: typeof Soup }[] = [
-  { name: "Starters", icon: Soup },
-  { name: "Mains", icon: UtensilsCrossed },
-  { name: "Grills", icon: Flame },
-  { name: "Beverages", icon: CupSoda },
-  { name: "Desserts", icon: IceCreamCone },
+const CATEGORIES: { name: MenuCategory; icon: typeof UtensilsCrossed }[] = [
+  { name: "Main", icon: UtensilsCrossed },
+  { name: "Extra", icon: Salad },
+  { name: "Drinks", icon: CupSoda },
+  { name: "Water", icon: Droplet },
+  { name: "Juice", icon: Citrus },
+  { name: "Packaging", icon: Package },
 ];
 
 export function CategoryTabs({

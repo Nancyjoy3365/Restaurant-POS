@@ -1,9 +1,10 @@
 export type MenuCategory =
-  | "Starters"
-  | "Mains"
-  | "Grills"
-  | "Beverages"
-  | "Desserts";
+  | "Main"
+  | "Extra"
+  | "Drinks"
+  | "Water"
+  | "Juice"
+  | "Packaging";
 
 export interface AddOn {
   name: string;

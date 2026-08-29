@@ -28,7 +28,7 @@ export function BillPreview({
             SAMAKI MJINI RESTAURANT
           </div>
           <div className="text-[11px] text-slate-500">
-            Utawala Estate, Eastern Bypass - Nairobi
+            Utawala - Next to Quickmart Kwa Chief
           </div>
           <div className="text-[11px] text-slate-500">
             PIN: P000000000A

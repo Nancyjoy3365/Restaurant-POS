@@ -21,7 +21,7 @@ export default function TicketPage() {
   const menu = usePosStore((s) => s.menu);
   const addItem = usePosStore((s) => s.addItem);
 
-  const [activeCategory, setActiveCategory] = useState<MenuCategory>("Starters");
+  const [activeCategory, setActiveCategory] = useState<MenuCategory>("Main");
   const [query, setQuery] = useState("");
 
   const searchMatches = useMemo(() => {
