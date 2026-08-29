@@ -17,11 +17,7 @@ export function BillPreview({
 
   return (
     <div className="rounded-xl border border-warm-200 bg-white p-5">
-      <h2 className="font-extrabold text-slate-900 mb-3">Bill Preview</h2>
-      <p className="text-xs text-slate-500 font-semibold mb-4">
-        Print this for the customer to review before collecting payment
-        below.
-      </p>
+      <h2 className="font-extrabold text-slate-900 mb-3">Bill</h2>
 
       <div
         id="receipt-print"
@@ -32,7 +28,10 @@ export function BillPreview({
             SAMAKI MJINI RESTAURANT
           </div>
           <div className="text-[11px] text-slate-500">
-            Nairobi, Kenya · PIN: P000000000A
+            Utawala Estate, Eastern Bypass - Nairobi
+          </div>
+          <div className="text-[11px] text-slate-500">
+            PIN: P000000000A
           </div>
           <div className="text-[11px] text-slate-500">Tel: 0719 877 022</div>
           <div className="text-[11px] text-slate-500">
@@ -58,7 +57,7 @@ export function BillPreview({
           ))}
         </div>
         <div className="border-t border-dashed border-slate-300 mt-2 pt-2 text-center text-[11px] font-bold">
-          Till Number: 1111111
+          Till Number: 4983794
         </div>
       </div>
 

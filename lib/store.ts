@@ -70,6 +70,7 @@ interface PosState {
   voidItem: (ticketId: string, itemId: string, reason: string) => void;
   toggleMenuAvailability: (menuItemId: string) => void;
   addMenuItem: (item: Omit<MenuItem, "id">) => void;
+  addStaffMember: (member: Omit<StaffMember, "id">) => string;
   clockIn: (staffId: string) => void;
   clockOut: (staffId: string) => void;
   login: (staffId: string) => void;
@@ -431,6 +432,12 @@ export const usePosStore = create<PosState>()(
         set((s) => ({
           menu: [...s.menu, { ...item, id: makeId("menu") }],
         })),
+
+      addStaffMember: (member) => {
+        const id = makeId("staff");
+        set((s) => ({ staff: [...s.staff, { ...member, id }] }));
+        return id;
+      },
 
       clockIn: (staffId) =>
         set((s) => {

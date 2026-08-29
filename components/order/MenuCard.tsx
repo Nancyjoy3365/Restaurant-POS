@@ -33,7 +33,7 @@ export function MenuCard({
     <div
       id={`menu-item-${item.id}`}
       className={clsx(
-        "rounded-2xl border bg-white flex items-center gap-3 p-3 transition-shadow",
+        "rounded-2xl border bg-white flex items-center gap-2 p-2 lg:gap-3 lg:p-3 transition-shadow",
         highlighted
           ? "border-accent-400 ring-2 ring-accent-200 shadow-md"
           : "border-warm-200",
@@ -45,14 +45,14 @@ export function MenuCard({
         disabled={!item.available}
         onClick={() => onAdd({ spiceLevel, addOns })}
         aria-label={`Add ${item.name}`}
-        className="relative shrink-0 w-36 aspect-square rounded-xl overflow-hidden hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:hover:opacity-100 transition"
+        className="relative shrink-0 w-20 lg:w-36 aspect-square rounded-xl overflow-hidden hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:hover:opacity-100 transition"
       >
         <FoodImage
           imageUrl={item.imageUrl}
           category={item.category}
           name={item.name}
           className="h-full w-full"
-          emojiClassName="text-3xl"
+          emojiClassName="text-xl lg:text-3xl"
         />
         <span
           className={clsx(
@@ -63,12 +63,12 @@ export function MenuCard({
         />
       </button>
 
-      <div className="min-w-0 flex-1 flex flex-col gap-2.5">
+      <div className="min-w-0 flex-1 flex flex-col gap-1.5 lg:gap-2.5">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-extrabold text-lg text-slate-900 leading-tight">
+          <h3 className="font-extrabold text-sm lg:text-lg text-slate-900 leading-tight">
             {item.name}
           </h3>
-          <span className="text-lg font-black text-accent-700 whitespace-nowrap">
+          <span className="text-sm lg:text-lg font-black text-accent-700 whitespace-nowrap">
             {formatKES(item.price)}
           </span>
         </div>
@@ -127,9 +127,9 @@ export function MenuCard({
           type="button"
           disabled={!item.available}
           onClick={() => onAdd({ spiceLevel, addOns })}
-          className="mt-auto flex items-center justify-center gap-2 rounded-full border-2 border-accent-600 text-accent-700 hover:bg-accent-600 hover:text-white active:bg-accent-700 disabled:border-slate-200 disabled:text-slate-300 text-base font-extrabold py-3.5 transition-colors"
+          className="mt-auto flex items-center justify-center gap-1.5 lg:gap-2 rounded-full border-2 border-accent-600 text-accent-700 hover:bg-accent-600 hover:text-white active:bg-accent-700 disabled:border-slate-200 disabled:text-slate-300 text-sm lg:text-base font-extrabold py-2 lg:py-3.5 transition-colors"
         >
-          <Plus size={18} strokeWidth={3} />
+          <Plus size={16} strokeWidth={3} />
           {item.available ? "Add" : "Unavailable"}
         </button>
       </div>

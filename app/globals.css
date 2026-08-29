@@ -70,4 +70,15 @@ body {
     inset: 0;
     width: 100%;
   }
+  /* visibility:hidden keeps hidden elements in the layout, and any
+     scrollable panel behind the receipt (e.g. the billing page's
+     overflow-y-auto main content) gets unrolled to its full height for
+     print — without this, that invisible leftover height paginates into
+     extra blank sheets alongside the one page that actually shows the
+     receipt. */
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
 }
