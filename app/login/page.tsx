@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import {
   UtensilsCrossed,
-  Wine,
   ChefHat,
   CookingPot,
   Briefcase,
@@ -19,7 +18,6 @@ import type { StaffRole } from "@/lib/types";
 
 const ROLE_ICON: Record<StaffRole, typeof UtensilsCrossed> = {
   Waiter: UtensilsCrossed,
-  "Bar Staff": Wine,
   Chef: ChefHat,
   "Kitchen Assistant": CookingPot,
   Manager: Briefcase,

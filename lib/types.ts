@@ -128,7 +128,6 @@ export interface Recipe {
 export type PayType = "daily" | "monthly" | "commission";
 export type StaffRole =
   | "Waiter"
-  | "Bar Staff"
   | "Manager"
   | "Chef"
   | "Cashier"

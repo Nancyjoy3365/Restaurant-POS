@@ -5,13 +5,11 @@ export const ROLE_ALLOWED_PATHS: Record<StaffRole, string[]> = {
   Chef: ["/", "/menu-management", "/inventory"],
   "Kitchen Assistant": ["/", "/menu-management", "/inventory"],
   Cashier: ["/", "/cashier"],
-  "Bar Staff": ["/my-tickets"],
   Waiter: ["/my-tickets"],
 };
 
 export const ROLE_LOGIN_ORDER: StaffRole[] = [
   "Waiter",
-  "Bar Staff",
   "Chef",
   "Kitchen Assistant",
   "Manager",
@@ -19,8 +17,8 @@ export const ROLE_LOGIN_ORDER: StaffRole[] = [
 ];
 
 // Where each role lands right after picking themselves off the staff grid.
-// No dedicated Kitchen View or Bar View exists yet, so Chef/Bar Staff land
-// on the closest existing screen for their role.
+// No dedicated Kitchen View exists yet, so Chef/Kitchen Assistant land on
+// the closest existing screen for their role.
 export function getDefaultRouteForRole(role: StaffRole): string {
   switch (role) {
     case "Manager":
@@ -42,9 +40,9 @@ export function canAccessPath(role: StaffRole, pathname: string): boolean {
   return ROLE_ALLOWED_PATHS[role].includes(pathname);
 }
 
-// Waiters/bar staff can prepare and print a bill, but only cashiers and
-// managers are allowed to actually record money coming in — keeps cash
-// handling auditable and separate from order-taking.
+// Waiters can prepare and print a bill, but only cashiers and managers are
+// allowed to actually record money coming in — keeps cash handling
+// auditable and separate from order-taking.
 export function canRecordPayments(role: StaffRole): boolean {
   return role === "Cashier" || role === "Manager";
 }

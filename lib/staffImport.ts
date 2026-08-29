@@ -6,15 +6,12 @@ export const STAFF_CSV_HEADER =
 export const STAFF_CSV_TEMPLATE = [
   STAFF_CSV_HEADER,
   "Amina Otieno,Waiter,daily,800,,",
-  "Brian Kiptoo,Bar Staff,commission,0,percent_of_sales,10",
+  "Brian Kiptoo,Kitchen Assistant,commission,0,percent_of_sales,10",
   "Cynthia Wanjiru,Chef,monthly,35000,,",
 ].join("\n");
 
 const ROLE_ALIASES: Record<string, StaffRole> = {
   waiter: "Waiter",
-  "bar staff": "Bar Staff",
-  barstaff: "Bar Staff",
-  "bar-staff": "Bar Staff",
   manager: "Manager",
   chef: "Chef",
   "kitchen assistant": "Kitchen Assistant",
@@ -107,7 +104,7 @@ export function parseStaffCsv(text: string): StaffImportResult {
     if (!role) {
       errors.push({
         line: lineNumber,
-        message: `Unrecognized role "${cells[roleCol] ?? ""}" — expected Waiter, Bar Staff, Manager, Chef, Kitchen Assistant, or Cashier.`,
+        message: `Unrecognized role "${cells[roleCol] ?? ""}" — expected Waiter, Manager, Chef, Kitchen Assistant, or Cashier.`,
       });
       continue;
     }

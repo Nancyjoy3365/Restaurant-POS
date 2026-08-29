@@ -32,7 +32,6 @@ import type { CommissionType, PayType, StaffRole } from "@/lib/types";
 
 const ROLE_OPTIONS: StaffRole[] = [
   "Waiter",
-  "Bar Staff",
   "Chef",
   "Kitchen Assistant",
   "Cashier",

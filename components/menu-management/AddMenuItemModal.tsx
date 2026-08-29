@@ -103,7 +103,7 @@ export function AddMenuItemModal({ onClose }: { onClose: () => void }) {
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="500"
-                className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400"
+                className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
             </div>
           </div>
