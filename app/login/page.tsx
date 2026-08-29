@@ -7,6 +7,7 @@ import {
   UtensilsCrossed,
   Wine,
   ChefHat,
+  CookingPot,
   Briefcase,
   Wallet,
   ArrowLeft,
@@ -20,6 +21,7 @@ const ROLE_ICON: Record<StaffRole, typeof UtensilsCrossed> = {
   Waiter: UtensilsCrossed,
   "Bar Staff": Wine,
   Chef: ChefHat,
+  "Kitchen Assistant": CookingPot,
   Manager: Briefcase,
   Cashier: Wallet,
 };

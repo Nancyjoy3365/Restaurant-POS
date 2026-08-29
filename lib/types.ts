@@ -126,7 +126,13 @@ export interface Recipe {
 }
 
 export type PayType = "daily" | "monthly" | "commission";
-export type StaffRole = "Waiter" | "Bar Staff" | "Manager" | "Chef" | "Cashier";
+export type StaffRole =
+  | "Waiter"
+  | "Bar Staff"
+  | "Manager"
+  | "Chef"
+  | "Cashier"
+  | "Kitchen Assistant";
 export type CommissionType = "percent_of_sales" | "flat_per_order";
 
 export interface ShiftEntry {
@@ -142,6 +148,7 @@ export interface StaffMember {
   role: StaffRole;
   payType: PayType;
   rate: number;
+  phone?: string;
   commissionType?: CommissionType;
   commissionValue?: number;
 }

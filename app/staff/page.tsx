@@ -34,6 +34,7 @@ const ROLE_OPTIONS: StaffRole[] = [
   "Waiter",
   "Bar Staff",
   "Chef",
+  "Kitchen Assistant",
   "Cashier",
   "Manager",
 ];
@@ -191,6 +192,7 @@ export default function StaffPage() {
               <tr>
                 <th className="text-left px-4 py-3">Name</th>
                 <th className="text-left px-2 py-3">Role</th>
+                <th className="text-left px-2 py-3">Phone</th>
                 <th className="text-center px-2 py-3">Pay Type</th>
                 <th className="text-right px-2 py-3">Rate</th>
                 <th className="text-left px-2 py-3">Pay Period</th>
@@ -221,6 +223,9 @@ export default function StaffPage() {
                     </td>
                     <td className="px-2 py-3 text-slate-600 font-semibold">
                       {member.role}
+                    </td>
+                    <td className="px-2 py-3 text-slate-600 font-semibold">
+                      {member.phone ?? "—"}
                     </td>
                     <td className="px-2 py-3">
                       <div className="flex justify-center">

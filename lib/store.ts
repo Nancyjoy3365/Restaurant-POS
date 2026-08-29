@@ -649,7 +649,7 @@ export const usePosStore = create<PosState>()(
     }),
     {
       name: "pos-storage",
-      version: 13,
+      version: 14,
       migrate: (persistedState) => {
         const state = persistedState as Partial<PosState> & {
           menu?: Array<Record<string, unknown>>;
@@ -675,8 +675,11 @@ export const usePosStore = create<PosState>()(
         const hasCurrentRecipeShape = state.recipes?.every(
           (r) => typeof r.menuItemId === "string"
         );
+        // "Kitchen Assistant" only exists in the current real-roster seed —
+        // any persisted staff list without one is the old placeholder
+        // roster and should be replaced, not kept.
         const hasCurrentStaffShape = state.staff?.some(
-          (m) => m.role === "Cashier"
+          (m) => m.role === "Kitchen Assistant"
         );
 
         // The table/session/tab model was replaced with a single flat

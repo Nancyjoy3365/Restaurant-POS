@@ -7,7 +7,6 @@ import type {
   ShiftEntry,
   TicketOrder,
   Ticket,
-  OrderLineItem,
 } from "./types";
 
 // Demo-grade shared PIN, same for every account (not real auth). A manager
@@ -462,125 +461,31 @@ export const seedRecipes: Recipe[] = [
   },
 ];
 
+// Pay Type / Rate weren't part of the roster supplied — everyone defaults to
+// a placeholder monthly rate of 0 until real compensation figures are set.
+// Ids use an "st" prefix (rather than continuing "s1".."s9") so they can
+// never collide with a staff id an existing browser's persisted tickets
+// might still reference from the old placeholder roster.
 export const seedStaff: StaffMember[] = [
-  { id: "s1", name: "Amina Otieno", role: "Waiter", payType: "commission", rate: 0, commissionType: "percent_of_sales", commissionValue: 10 },
-  { id: "s2", name: "Brian Kiptoo", role: "Waiter", payType: "commission", rate: 0, commissionType: "percent_of_sales", commissionValue: 10 },
-  { id: "s3", name: "Cynthia Wanjiru", role: "Waiter", payType: "commission", rate: 0, commissionType: "percent_of_sales", commissionValue: 8 },
-  { id: "s4", name: "Dennis Mwangi", role: "Bar Staff", payType: "daily", rate: 950 },
-  { id: "s5", name: "Esther Chebet", role: "Bar Staff", payType: "daily", rate: 950 },
-  { id: "s6", name: "Felix Omondi", role: "Chef", payType: "monthly", rate: 45000 },
-  { id: "s7", name: "Grace Njeri", role: "Chef", payType: "monthly", rate: 42000 },
-  { id: "s8", name: "Harun Abdi", role: "Manager", payType: "monthly", rate: 65000 },
-  { id: "s9", name: "Peter Mwangi", role: "Cashier", payType: "daily", rate: 1000 },
+  { id: "st1", name: "Linda O.", role: "Manager", payType: "monthly", rate: 0, phone: "0723021511" },
+  { id: "st2", name: "Halima. K", role: "Manager", payType: "monthly", rate: 0, phone: "0723303712" },
+  { id: "st3", name: "Hadija. K", role: "Manager", payType: "monthly", rate: 0, phone: "0748360567" },
+  { id: "st4", name: "Nancy Obuya", role: "Cashier", payType: "monthly", rate: 0, phone: "0702491234" },
+  { id: "st5", name: "Innocent Bakabwa", role: "Chef", payType: "monthly", rate: 0, phone: "0707792054" },
+  { id: "st6", name: "Idah Nyakio", role: "Waiter", payType: "monthly", rate: 0, phone: "0716221718" },
+  { id: "st7", name: "Loise Wairimu", role: "Waiter", payType: "monthly", rate: 0, phone: "0705670040" },
+  { id: "st8", name: "Collins Odhiambo", role: "Waiter", payType: "monthly", rate: 0, phone: "0725750785" },
+  { id: "st9", name: "Sylvia Muthike", role: "Kitchen Assistant", payType: "monthly", rate: 0, phone: "0715703928" },
+  { id: "st10", name: "Robin Lukaku", role: "Kitchen Assistant", payType: "monthly", rate: 0, phone: "0704046663" },
+  { id: "st11", name: "Ephy Anyango", role: "Kitchen Assistant", payType: "monthly", rate: 0, phone: "0710474882" },
 ];
 
-function at(dateStr: string, hour: number, minute = 0): number {
-  const d = new Date(dateStr);
-  d.setHours(hour, minute, 0, 0);
-  return d.getTime();
-}
+// No demo shift/ticket/order history is seeded against this real roster —
+// the previous placeholder staff's ids are gone, and there's no ticket/shift
+// data to remap onto the new roster, so the app just starts with an empty
+// queue that staff populate normally through the UI.
+export const seedShifts: ShiftEntry[] = [];
 
-// Demo history: a couple of completed daily shifts earlier this week, plus
-// Amina currently clocked in so the Staff & Payroll screen has an "On Shift" example.
-export const seedShifts: ShiftEntry[] = [
-  { id: "sh1", staffId: "s1", clockIn: at("2026-08-24", 8), clockOut: at("2026-08-24", 17) },
-  { id: "sh2", staffId: "s2", clockIn: at("2026-08-24", 9), clockOut: at("2026-08-24", 18) },
-  { id: "sh3", staffId: "s2", clockIn: at("2026-08-25", 9), clockOut: at("2026-08-25", 18) },
-  { id: "sh4", staffId: "s4", clockIn: at("2026-08-24", 12), clockOut: at("2026-08-24", 22) },
-  { id: "sh5", staffId: "s1", clockIn: at("2026-08-25", 8, 15) },
-];
+export const seedTickets: Ticket[] = [];
 
-// Demo history: a few tickets already mid-service or awaiting payment on
-// load, each with a real backing order — so a waiter's ticket list and a
-// click-through into the order screen both work out of the box, not just
-// for tickets opened during this session. `locationNote` is a free-text
-// breadcrumb only, never structured data.
-export const seedTickets: Ticket[] = [
-  { id: "tk1", displayNumber: 1, waiterId: "s1", locationNote: "Patio, by the door", status: "open", openedAt: at("2026-08-25", 12, 30) },
-  { id: "tk2", displayNumber: 2, waiterId: "s2", locationNote: "Main Hall, corner booth", status: "open", openedAt: at("2026-08-25", 11, 15) },
-  { id: "tk3", displayNumber: 3, waiterId: "s3", locationNote: "Main Hall, by the bar", status: "open", openedAt: at("2026-08-25", 12, 45) },
-  { id: "tk4", displayNumber: 4, waiterId: "s4", locationNote: "Bar seating", status: "open", openedAt: at("2026-08-25", 13, 0) },
-];
-
-function seedLine(
-  id: string,
-  menuItemId: string,
-  name: string,
-  price: number,
-  qty: number,
-  veg: boolean
-): OrderLineItem {
-  return { id, menuItemId, name, price, qty, veg, addOns: [] };
-}
-
-export const seedOrders: Record<string, TicketOrder> = {
-  tk1: {
-    id: "order-1",
-    ticketId: "tk1",
-    waiterId: "s1",
-    paymentStatus: "unpaid",
-    rounds: [
-      {
-        id: "round-1-1",
-        index: 1,
-        createdAt: at("2026-08-25", 12, 32),
-        items: [
-          seedLine("line-1-1", "m1", "Samosa (3pc)", 300, 2, false),
-          seedLine("line-1-2", "m17", "Fresh Passion Juice", 250, 2, true),
-        ],
-      },
-    ],
-  },
-  tk2: {
-    id: "order-2",
-    ticketId: "tk2",
-    waiterId: "s2",
-    paymentStatus: "unpaid",
-    billTotals: { subtotal: 1400, vat: 224, total: 1624 },
-    rounds: [
-      {
-        id: "round-2-1",
-        index: 1,
-        createdAt: at("2026-08-25", 11, 20),
-        items: [
-          seedLine("line-2-1", "m6", "Ugali with Sukuma & Beef Stew", 550, 2, false),
-          seedLine("line-2-2", "m20", "Soda (350ml)", 150, 2, true),
-        ],
-      },
-    ],
-  },
-  tk3: {
-    id: "order-3",
-    ticketId: "tk3",
-    waiterId: "s3",
-    paymentStatus: "unpaid",
-    rounds: [
-      {
-        id: "round-3-1",
-        index: 1,
-        createdAt: at("2026-08-25", 12, 50),
-        items: [
-          seedLine("line-3-1", "m12", "Nyama Choma (Goat, 1kg)", 1800, 1, false),
-          seedLine("line-3-2", "m16", "Tusker Lager", 300, 4, true),
-        ],
-      },
-    ],
-  },
-  tk4: {
-    id: "order-4",
-    ticketId: "tk4",
-    waiterId: "s4",
-    paymentStatus: "unpaid",
-    rounds: [
-      {
-        id: "round-4-1",
-        index: 1,
-        createdAt: at("2026-08-25", 13, 5),
-        items: [
-          seedLine("line-4-1", "m16", "Tusker Lager", 300, 2, true),
-          seedLine("line-4-2", "m18", "Dawa Cocktail", 550, 1, true),
-        ],
-      },
-    ],
-  },
-};
+export const seedOrders: Record<string, TicketOrder> = {};

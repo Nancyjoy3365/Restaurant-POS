@@ -3,6 +3,7 @@ import type { StaffRole } from "./types";
 export const ROLE_ALLOWED_PATHS: Record<StaffRole, string[]> = {
   Manager: ["/", "/menu-management", "/inventory", "/staff", "/cashier", "/reports"],
   Chef: ["/", "/menu-management", "/inventory"],
+  "Kitchen Assistant": ["/", "/menu-management", "/inventory"],
   Cashier: ["/", "/cashier"],
   "Bar Staff": ["/my-tickets"],
   Waiter: ["/my-tickets"],
@@ -12,6 +13,7 @@ export const ROLE_LOGIN_ORDER: StaffRole[] = [
   "Waiter",
   "Bar Staff",
   "Chef",
+  "Kitchen Assistant",
   "Manager",
   "Cashier",
 ];
@@ -26,6 +28,7 @@ export function getDefaultRouteForRole(role: StaffRole): string {
     case "Cashier":
       return "/cashier";
     case "Chef":
+    case "Kitchen Assistant":
       return "/inventory";
     default:
       return "/my-tickets";
