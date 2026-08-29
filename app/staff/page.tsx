@@ -68,6 +68,7 @@ export default function StaffPage() {
 
   const [form, setForm] = useState({
     name: "",
+    phone: "",
     role: "Waiter" as StaffRole,
     payType: "daily" as PayType,
     rate: "",
@@ -78,6 +79,7 @@ export default function StaffPage() {
   function resetForm() {
     setForm({
       name: "",
+      phone: "",
       role: "Waiter",
       payType: "daily",
       rate: "",
@@ -96,6 +98,7 @@ export default function StaffPage() {
     if (!canAddStaff) return;
     addStaffMember({
       name: form.name.trim(),
+      phone: form.phone.trim() || undefined,
       role: form.role,
       payType: form.payType,
       rate: form.payType === "commission" ? 0 : Number(form.rate) || 0,
@@ -324,6 +327,21 @@ export default function StaffPage() {
                   }
                   placeholder="e.g. John Otieno"
                   autoFocus
+                  className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-bold outline-none focus:border-accent-400"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
+                  Phone (optional)
+                </label>
+                <input
+                  type="tel"
+                  value={form.phone}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, phone: e.target.value }))
+                  }
+                  placeholder="e.g. 0712345678"
                   className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-bold outline-none focus:border-accent-400"
                 />
               </div>
