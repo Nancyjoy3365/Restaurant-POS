@@ -1,46 +1,18 @@
 import type {
-  RestaurantTable,
   MenuItem,
   Ingredient,
   Vendor,
   Recipe,
   StaffMember,
   ShiftEntry,
-  StaffRole,
-  TableOrder,
-  TableSession,
+  TicketOrder,
+  Ticket,
   OrderLineItem,
 } from "./types";
 
-export const SECTIONS = ["Patio", "Main Hall", "Bar"] as const;
-
-// Demo-grade shared passwords, one per role — same security level as the
-// old 4-digit PIN (not real auth). A manager settings screen to change
-// these is a reasonable follow-up if ever needed.
-export const seedRolePasswords: Record<StaffRole, string> = {
-  Waiter: "waiter123",
-  "Bar Staff": "bar123",
-  Chef: "chef123",
-  Manager: "manager123",
-  Cashier: "cashier123",
-};
-
-export const seedTables: RestaurantTable[] = [
-  { id: "t1", number: 1, seats: 2, section: "Patio", status: "free" },
-  { id: "t2", number: 2, seats: 4, section: "Patio", status: "occupied" },
-  { id: "t3", number: 3, seats: 4, section: "Patio", status: "free" },
-  { id: "t4", number: 4, seats: 6, section: "Patio", status: "reserved" },
-  { id: "t5", number: 5, seats: 2, section: "Main Hall", status: "free" },
-  { id: "t6", number: 6, seats: 4, section: "Main Hall", status: "needs-bill" },
-  { id: "t7", number: 7, seats: 4, section: "Main Hall", status: "free" },
-  { id: "t8", number: 8, seats: 8, section: "Main Hall", status: "occupied" },
-  { id: "t9", number: 9, seats: 2, section: "Main Hall", status: "free" },
-  { id: "t10", number: 10, seats: 4, section: "Main Hall", status: "free" },
-  { id: "t11", number: 11, seats: 2, section: "Bar", status: "occupied" },
-  { id: "t12", number: 12, seats: 2, section: "Bar", status: "free" },
-  { id: "t13", number: 13, seats: 4, section: "Bar", status: "reserved" },
-  { id: "t14", number: 14, seats: 6, section: "Bar", status: "free" },
-];
+// Demo-grade shared PIN, same for every account (not real auth). A manager
+// settings screen to change this is a reasonable follow-up if ever needed.
+export const STAFF_PIN = "123";
 
 export const seedMenu: MenuItem[] = [
   // Starters
@@ -53,6 +25,7 @@ export const seedMenu: MenuItem[] = [
     veg: false,
     available: true,
     addOns: [{ name: "Extra chili sauce", price: 0 }],
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Chicken_samosas_and_lemon_slices.jpg/330px-Chicken_samosas_and_lemon_slices.jpg",
   },
   {
     id: "m2",
@@ -62,6 +35,7 @@ export const seedMenu: MenuItem[] = [
     price: 350,
     veg: true,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Golden_Vegetable_Spring_Rolls_Served_with_Dipping_Sauce.jpg/330px-Golden_Vegetable_Spring_Rolls_Served_with_Dipping_Sauce.jpg",
   },
   {
     id: "m3",
@@ -72,6 +46,7 @@ export const seedMenu: MenuItem[] = [
     veg: false,
     available: true,
     spiceLevels: ["Mild", "Medium", "Hot"],
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f4/Chicken_Wings_%287069003341%29.jpg/330px-Chicken_Wings_%287069003341%29.jpg",
   },
   {
     id: "m4",
@@ -81,6 +56,7 @@ export const seedMenu: MenuItem[] = [
     price: 250,
     veg: true,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Fritters.jpg/330px-Fritters.jpg",
   },
   {
     id: "m5",
@@ -90,6 +66,7 @@ export const seedMenu: MenuItem[] = [
     price: 200,
     veg: true,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Kachumbari.jpg/330px-Kachumbari.jpg",
   },
   // Mains
   {
@@ -100,6 +77,7 @@ export const seedMenu: MenuItem[] = [
     price: 550,
     veg: false,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/Ugali_beef_stew_with_sukuma_n_fresh_tomatoes_taken_in_Nanyuki%2C_Kenya.jpg/330px-Ugali_beef_stew_with_sukuma_n_fresh_tomatoes_taken_in_Nanyuki%2C_Kenya.jpg",
   },
   {
     id: "m7",
@@ -109,6 +87,7 @@ export const seedMenu: MenuItem[] = [
     price: 500,
     veg: false,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Swahili_Pilau.jpg/330px-Swahili_Pilau.jpg",
   },
   {
     id: "m8",
@@ -118,6 +97,7 @@ export const seedMenu: MenuItem[] = [
     price: 400,
     veg: true,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/Chapati_and_maharage.jpg/330px-Chapati_and_maharage.jpg",
   },
   {
     id: "m9",
@@ -126,6 +106,7 @@ export const seedMenu: MenuItem[] = [
     category: "Mains",
     price: 650,
     veg: false,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Short_rib_biryani%2C_Oasis_Hotel_and_Guest_House%2C_Voi%2C_2025_%2801%29.jpg/330px-Short_rib_biryani%2C_Oasis_Hotel_and_Guest_House%2C_Voi%2C_2025_%2801%29.jpg",
     available: true,
     spiceLevels: ["Mild", "Medium", "Hot"],
   },
@@ -137,6 +118,7 @@ export const seedMenu: MenuItem[] = [
     price: 450,
     veg: true,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Vegetable_curry_rice_%2814974664885%29.jpg/330px-Vegetable_curry_rice_%2814974664885%29.jpg",
   },
   {
     id: "m11",
@@ -146,6 +128,7 @@ export const seedMenu: MenuItem[] = [
     price: 750,
     veg: false,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Fried_Tilapia%2C_Ugali%2C_Sukuma_Wiki_and_Kachumbari_%28From_Kisumu%29.JPG/330px-Fried_Tilapia%2C_Ugali%2C_Sukuma_Wiki_and_Kachumbari_%28From_Kisumu%29.JPG",
   },
   // Grills
   {
@@ -156,6 +139,7 @@ export const seedMenu: MenuItem[] = [
     price: 1800,
     veg: false,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Nyama_choma_ya_mbuzi.jpg/330px-Nyama_choma_ya_mbuzi.jpg",
   },
   {
     id: "m13",
@@ -166,6 +150,7 @@ export const seedMenu: MenuItem[] = [
     veg: false,
     available: true,
     spiceLevels: ["Mild", "Medium", "Hot"],
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Flame-grilled_PERi-PERi_chicken.jpg/330px-Flame-grilled_PERi-PERi_chicken.jpg",
   },
   {
     id: "m14",
@@ -183,6 +168,7 @@ export const seedMenu: MenuItem[] = [
       { name: "Kachumbari", qty: "1 serving" },
       { name: "Ugali", qty: "2 servings" },
     ],
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/Mixed_grill_on_sizzling_plate.JPG/330px-Mixed_grill_on_sizzling_plate.JPG",
   },
   {
     id: "m15",
@@ -192,6 +178,7 @@ export const seedMenu: MenuItem[] = [
     price: 900,
     veg: false,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Grilled_pork_chops.jpg/330px-Grilled_pork_chops.jpg",
   },
   // Beverages
   {
@@ -202,6 +189,7 @@ export const seedMenu: MenuItem[] = [
     price: 300,
     veg: true,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Tusker_Lager.jpg/330px-Tusker_Lager.jpg",
   },
   {
     id: "m17",
@@ -211,6 +199,7 @@ export const seedMenu: MenuItem[] = [
     price: 250,
     veg: true,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/Passion_Fruit_juice.jpg/330px-Passion_Fruit_juice.jpg",
   },
   {
     id: "m18",
@@ -220,6 +209,7 @@ export const seedMenu: MenuItem[] = [
     price: 550,
     veg: true,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Dawa_at_the_Carnivore_Restaurant_01.jpg/330px-Dawa_at_the_Carnivore_Restaurant_01.jpg",
   },
   {
     id: "m19",
@@ -229,6 +219,7 @@ export const seedMenu: MenuItem[] = [
     price: 200,
     veg: true,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Java_Coffee.jpg/330px-Java_Coffee.jpg",
   },
   {
     id: "m20",
@@ -238,6 +229,7 @@ export const seedMenu: MenuItem[] = [
     price: 150,
     veg: true,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Fanta_Orange_Glass_Bottle.jpg/330px-Fanta_Orange_Glass_Bottle.jpg",
   },
   {
     id: "m21",
@@ -247,6 +239,7 @@ export const seedMenu: MenuItem[] = [
     price: 150,
     veg: true,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Bottled_water_%286972595593%29.jpg/330px-Bottled_water_%286972595593%29.jpg",
   },
   // Desserts
   {
@@ -257,6 +250,7 @@ export const seedMenu: MenuItem[] = [
     price: 200,
     veg: true,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Bowl_of_mandazi.jpg/330px-Bowl_of_mandazi.jpg",
   },
   {
     id: "m23",
@@ -266,6 +260,7 @@ export const seedMenu: MenuItem[] = [
     price: 400,
     veg: true,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Chocolate_fudge_cake.jpg/330px-Chocolate_fudge_cake.jpg",
   },
   {
     id: "m24",
@@ -275,6 +270,7 @@ export const seedMenu: MenuItem[] = [
     price: 300,
     veg: true,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Vanilla_ice_cream_cone.JPG/330px-Vanilla_ice_cream_cone.JPG",
   },
   {
     id: "m25",
@@ -284,6 +280,7 @@ export const seedMenu: MenuItem[] = [
     price: 300,
     veg: true,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Fruit_salad_flanked_by_Sabre_flatware.jpg/330px-Fruit_salad_flanked_by_Sabre_flatware.jpg",
   },
   // Additional Starters
   {
@@ -294,6 +291,7 @@ export const seedMenu: MenuItem[] = [
     price: 450,
     veg: false,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Mishkaki_at_Coco_Beach%2C_Oysterbay..jpg/330px-Mishkaki_at_Coco_Beach%2C_Oysterbay..jpg",
   },
   {
     id: "m27",
@@ -303,6 +301,7 @@ export const seedMenu: MenuItem[] = [
     price: 280,
     veg: true,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/Beer_Battered_Onion_Rings_%287306368212%29.jpg/330px-Beer_Battered_Onion_Rings_%287306368212%29.jpg",
   },
   // Additional Mains
   {
@@ -313,6 +312,7 @@ export const seedMenu: MenuItem[] = [
     price: 480,
     veg: true,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Matoke-Meat_Stew-Sukuma_Wiki.jpg/330px-Matoke-Meat_Stew-Sukuma_Wiki.jpg",
   },
   {
     id: "m29",
@@ -323,6 +323,7 @@ export const seedMenu: MenuItem[] = [
     veg: false,
     available: true,
     spiceLevels: ["Mild", "Medium", "Hot"],
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Fish_curry_Rice_plate_%2813476259935%29.jpg/330px-Fish_curry_Rice_plate_%2813476259935%29.jpg",
   },
   // Additional Grills
   {
@@ -333,6 +334,7 @@ export const seedMenu: MenuItem[] = [
     price: 950,
     veg: false,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Interstate_Beef_Ribs.jpg/330px-Interstate_Beef_Ribs.jpg",
   },
   {
     id: "m31",
@@ -343,6 +345,7 @@ export const seedMenu: MenuItem[] = [
     veg: false,
     available: true,
     spiceLevels: ["Mild", "Medium", "Hot"],
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Bbq_chicken_wings.JPG/330px-Bbq_chicken_wings.JPG",
   },
   // Additional Beverages
   {
@@ -353,6 +356,7 @@ export const seedMenu: MenuItem[] = [
     price: 220,
     veg: true,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/NCI_iced_tea.jpg/330px-NCI_iced_tea.jpg",
   },
   {
     id: "m33",
@@ -362,6 +366,7 @@ export const seedMenu: MenuItem[] = [
     price: 350,
     veg: true,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Chocolate_milkshake.jpg/330px-Chocolate_milkshake.jpg",
   },
   // Additional Desserts
   {
@@ -372,6 +377,7 @@ export const seedMenu: MenuItem[] = [
     price: 450,
     veg: true,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Baked_cheesecake_with_raspberries_and_blueberries.jpg/330px-Baked_cheesecake_with_raspberries_and_blueberries.jpg",
   },
   {
     id: "m35",
@@ -381,6 +387,7 @@ export const seedMenu: MenuItem[] = [
     price: 350,
     veg: true,
     available: true,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Yogurt_parfait_with_granola_and_blueberries_in_shot_glasses_with_silverware_spoons_%2817098581522%29.jpg/330px-Yogurt_parfait_with_granola_and_blueberries_in_shot_glasses_with_silverware_spoons_%2817098581522%29.jpg",
   },
 ];
 
@@ -483,15 +490,16 @@ export const seedShifts: ShiftEntry[] = [
   { id: "sh5", staffId: "s1", clockIn: at("2026-08-25", 8, 15) },
 ];
 
-// Demo history: a few tables already mid-service or awaiting payment on
-// load, each with a real backing order/session — so the Floor View's
-// "Opened by" label and a click-through into Order Entry both work for
-// these tables out of the box, not just for ones opened during this session.
-export const seedTableSessions: TableSession[] = [
-  { id: "sess-t2", tableId: "t2", waiterId: "s1", openedAt: at("2026-08-25", 12, 30) },
-  { id: "sess-t6", tableId: "t6", waiterId: "s2", openedAt: at("2026-08-25", 11, 15) },
-  { id: "sess-t8", tableId: "t8", waiterId: "s3", openedAt: at("2026-08-25", 12, 45) },
-  { id: "sess-t11", tableId: "t11", waiterId: "s4", openedAt: at("2026-08-25", 13, 0) },
+// Demo history: a few tickets already mid-service or awaiting payment on
+// load, each with a real backing order — so a waiter's ticket list and a
+// click-through into the order screen both work out of the box, not just
+// for tickets opened during this session. `locationNote` is a free-text
+// breadcrumb only, never structured data.
+export const seedTickets: Ticket[] = [
+  { id: "tk1", displayNumber: 1, waiterId: "s1", locationNote: "Patio, by the door", status: "open", openedAt: at("2026-08-25", 12, 30) },
+  { id: "tk2", displayNumber: 2, waiterId: "s2", locationNote: "Main Hall, corner booth", status: "open", openedAt: at("2026-08-25", 11, 15) },
+  { id: "tk3", displayNumber: 3, waiterId: "s3", locationNote: "Main Hall, by the bar", status: "open", openedAt: at("2026-08-25", 12, 45) },
+  { id: "tk4", displayNumber: 4, waiterId: "s4", locationNote: "Bar seating", status: "open", openedAt: at("2026-08-25", 13, 0) },
 ];
 
 function seedLine(
@@ -505,76 +513,72 @@ function seedLine(
   return { id, menuItemId, name, price, qty, veg, addOns: [] };
 }
 
-export const seedOrders: Record<string, TableOrder> = {
-  t2: {
-    id: "order-t2",
-    tableId: "t2",
-    sessionId: "sess-t2",
+export const seedOrders: Record<string, TicketOrder> = {
+  tk1: {
+    id: "order-1",
+    ticketId: "tk1",
     waiterId: "s1",
     paymentStatus: "unpaid",
     rounds: [
       {
-        id: "round-t2-1",
+        id: "round-1-1",
         index: 1,
         createdAt: at("2026-08-25", 12, 32),
         items: [
-          seedLine("line-t2-1", "m1", "Samosa (3pc)", 300, 2, false),
-          seedLine("line-t2-2", "m17", "Fresh Passion Juice", 250, 2, true),
+          seedLine("line-1-1", "m1", "Samosa (3pc)", 300, 2, false),
+          seedLine("line-1-2", "m17", "Fresh Passion Juice", 250, 2, true),
         ],
       },
     ],
   },
-  t6: {
-    id: "order-t6",
-    tableId: "t6",
-    sessionId: "sess-t6",
+  tk2: {
+    id: "order-2",
+    ticketId: "tk2",
     waiterId: "s2",
     paymentStatus: "unpaid",
     billTotals: { subtotal: 1400, vat: 224, total: 1624 },
     rounds: [
       {
-        id: "round-t6-1",
+        id: "round-2-1",
         index: 1,
         createdAt: at("2026-08-25", 11, 20),
         items: [
-          seedLine("line-t6-1", "m6", "Ugali with Sukuma & Beef Stew", 550, 2, false),
-          seedLine("line-t6-2", "m20", "Soda (350ml)", 150, 2, true),
+          seedLine("line-2-1", "m6", "Ugali with Sukuma & Beef Stew", 550, 2, false),
+          seedLine("line-2-2", "m20", "Soda (350ml)", 150, 2, true),
         ],
       },
     ],
   },
-  t8: {
-    id: "order-t8",
-    tableId: "t8",
-    sessionId: "sess-t8",
+  tk3: {
+    id: "order-3",
+    ticketId: "tk3",
     waiterId: "s3",
     paymentStatus: "unpaid",
     rounds: [
       {
-        id: "round-t8-1",
+        id: "round-3-1",
         index: 1,
         createdAt: at("2026-08-25", 12, 50),
         items: [
-          seedLine("line-t8-1", "m12", "Nyama Choma (Goat, 1kg)", 1800, 1, false),
-          seedLine("line-t8-2", "m16", "Tusker Lager", 300, 4, true),
+          seedLine("line-3-1", "m12", "Nyama Choma (Goat, 1kg)", 1800, 1, false),
+          seedLine("line-3-2", "m16", "Tusker Lager", 300, 4, true),
         ],
       },
     ],
   },
-  t11: {
-    id: "order-t11",
-    tableId: "t11",
-    sessionId: "sess-t11",
+  tk4: {
+    id: "order-4",
+    ticketId: "tk4",
     waiterId: "s4",
     paymentStatus: "unpaid",
     rounds: [
       {
-        id: "round-t11-1",
+        id: "round-4-1",
         index: 1,
         createdAt: at("2026-08-25", 13, 5),
         items: [
-          seedLine("line-t11-1", "m16", "Tusker Lager", 300, 2, true),
-          seedLine("line-t11-2", "m18", "Dawa Cocktail", 550, 1, true),
+          seedLine("line-4-1", "m16", "Tusker Lager", 300, 2, true),
+          seedLine("line-4-2", "m18", "Dawa Cocktail", 550, 1, true),
         ],
       },
     ],

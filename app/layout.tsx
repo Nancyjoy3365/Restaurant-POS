@@ -10,7 +10,7 @@ const lato = Lato({
 });
 
 export const metadata: Metadata = {
-  title: "Baraka Grill POS",
+  title: "Samaki Mjini Restaurant POS",
   description: "Restaurant POS & Hotel ERP",
 };
 

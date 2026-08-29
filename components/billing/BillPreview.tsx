@@ -2,35 +2,18 @@
 
 import { useState } from "react";
 import { Printer } from "lucide-react";
-import type { OrderPaymentStatus, TableOrder } from "@/lib/types";
+import type { TicketOrder } from "@/lib/types";
 import { flattenOrderItems, lineRawTotal, formatKES, formatDateTime } from "@/lib/utils";
 
 export function BillPreview({
   order,
-  tableLabel,
-  subtotal,
-  vat,
   total,
-  paymentStatus,
-  balanceDue,
 }: {
-  order: TableOrder | undefined;
-  tableLabel: string;
-  subtotal: number;
-  vat: number;
+  order: TicketOrder | undefined;
   total: number;
-  paymentStatus: OrderPaymentStatus;
-  balanceDue: number;
 }) {
   const lines = flattenOrderItems(order);
   const [previewedAt] = useState(() => Date.now());
-
-  const statusLabel =
-    paymentStatus === "paid"
-      ? "Paid in Full"
-      : paymentStatus === "partially_paid"
-      ? `Partially Paid — ${formatKES(balanceDue)} remaining`
-      : "Not Yet Paid";
 
   return (
     <div className="rounded-xl border border-warm-200 bg-white p-5">
@@ -45,18 +28,24 @@ export function BillPreview({
         className="rounded-xl border border-dashed border-slate-300 p-5 font-mono text-[13px] text-slate-800"
       >
         <div className="text-center mb-3">
-          <div className="font-black text-base tracking-wide">BARAKA GRILL</div>
+          <div className="font-black text-base tracking-wide">
+            SAMAKI MJINI RESTAURANT
+          </div>
           <div className="text-[11px] text-slate-500">
             Nairobi, Kenya · PIN: P000000000A
           </div>
+          <div className="text-[11px] text-slate-500">Tel: 0719 877 022</div>
           <div className="text-[11px] text-slate-500">
             {formatDateTime(previewedAt)}
           </div>
         </div>
-        <div className="border-t border-b border-dashed border-slate-300 py-2 mb-2 text-[11px] font-bold text-center">
-          {tableLabel} — {statusLabel}
+        <div className="border-t border-dashed border-slate-300 pt-2 mb-2 space-y-0.5">
+          <div className="flex justify-between font-black text-sm">
+            <span>TOTAL</span>
+            <span>{formatKES(total)}</span>
+          </div>
         </div>
-        <div className="space-y-1 mb-2">
+        <div className="border-t border-dashed border-slate-300 pt-2 space-y-1">
           {lines.map(({ item }) => (
             <div key={item.id} className="flex justify-between">
               <span className="truncate pr-2">
@@ -68,19 +57,8 @@ export function BillPreview({
             </div>
           ))}
         </div>
-        <div className="border-t border-dashed border-slate-300 pt-2 space-y-0.5">
-          <div className="flex justify-between">
-            <span>Subtotal</span>
-            <span>{formatKES(subtotal)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>VAT (16%)</span>
-            <span>{formatKES(vat)}</span>
-          </div>
-          <div className="flex justify-between font-black text-sm border-t border-slate-300 mt-1 pt-1">
-            <span>TOTAL</span>
-            <span>{formatKES(total)}</span>
-          </div>
+        <div className="border-t border-dashed border-slate-300 mt-2 pt-2 text-center text-[11px] font-bold">
+          Till Number: 1111111
         </div>
       </div>
 

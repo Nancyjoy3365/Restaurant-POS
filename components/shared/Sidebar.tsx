@@ -2,13 +2,24 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutGrid, UtensilsCrossed, Boxes, Users, Wallet, BarChart3, LogOut } from "lucide-react";
+import {
+  LayoutGrid,
+  Ticket as TicketIcon,
+  UtensilsCrossed,
+  Boxes,
+  Users,
+  Wallet,
+  BarChart3,
+  LogOut,
+  PauseCircle,
+} from "lucide-react";
 import clsx from "clsx";
-import { usePosStore } from "@/lib/store";
+import { usePosStore, MAX_HELD_ORDERS_PER_WAITER } from "@/lib/store";
 import { ROLE_ALLOWED_PATHS } from "@/lib/roles";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Floor View", icon: LayoutGrid },
+  { href: "/", label: "All Orders", icon: LayoutGrid },
+  { href: "/my-tickets", label: "My Orders", icon: TicketIcon },
   { href: "/cashier", label: "Cashier", icon: Wallet },
   { href: "/menu-management", label: "Menu Management", icon: UtensilsCrossed },
   { href: "/inventory", label: "Inventory", icon: Boxes },
@@ -21,12 +32,22 @@ export function Sidebar() {
   const router = useRouter();
   const currentStaffId = usePosStore((s) => s.currentStaffId);
   const staff = usePosStore((s) => s.staff);
+  const tickets = usePosStore((s) => s.tickets);
+  const orders = usePosStore((s) => s.orders);
   const logout = usePosStore((s) => s.logout);
   const currentStaff = staff.find((s) => s.id === currentStaffId);
   const allowedPaths = currentStaff
     ? ROLE_ALLOWED_PATHS[currentStaff.role]
     : ["/"];
   const navItems = NAV_ITEMS.filter((item) => allowedPaths.includes(item.href));
+  const showHeldOrders = allowedPaths.includes("/my-tickets");
+
+  const heldTickets = tickets.filter(
+    (t) =>
+      t.status === "open" &&
+      t.waiterId === currentStaffId &&
+      orders[t.id]?.onHold
+  );
 
   function handleLogout() {
     logout();
@@ -37,14 +58,14 @@ export function Sidebar() {
     <>
       <nav className="hidden lg:flex flex-col w-64 shrink-0 border-r border-warm-200 bg-white">
         <div className="h-20 flex items-center px-6 border-b border-warm-200">
-          <span className="text-xl font-black tracking-tight text-accent-600">
-            Baraka Grill
+          <span className="text-lg font-black tracking-tight text-accent-600 leading-tight">
+            Samaki Mjini Restaurant
           </span>
         </div>
         <div className="flex-1 py-4 px-3 space-y-2">
-          {navItems.map(({ href, label, icon: Icon }) => {
-            const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
-            return (
+          {navItems.flatMap(({ href, label, icon: Icon }) => {
+            const active = pathname === href || (href !== "/" && pathname.startsWith(href));
+            const link = (
               <Link
                 key={href}
                 href={href}
@@ -59,6 +80,37 @@ export function Sidebar() {
                 {label}
               </Link>
             );
+            if (href !== "/my-tickets" || !showHeldOrders) return [link];
+            return [
+              link,
+              <div
+                key="held-orders"
+                className="rounded-2xl bg-warm-50 px-4 py-3.5"
+              >
+                <div className="flex items-center gap-2 text-slate-600 font-extrabold text-xs uppercase tracking-wide">
+                  <PauseCircle size={16} strokeWidth={2.5} className="text-accent-600" />
+                  Held Orders ({heldTickets.length}/{MAX_HELD_ORDERS_PER_WAITER})
+                </div>
+                {heldTickets.length === 0 ? (
+                  <p className="text-[11px] font-semibold text-slate-400 mt-2">
+                    Nothing on hold right now.
+                  </p>
+                ) : (
+                  <div className="space-y-1.5 mt-2.5">
+                    {heldTickets.map((ticket) => (
+                      <Link
+                        key={ticket.id}
+                        href={`/ticket/${ticket.id}`}
+                        className="block rounded-xl bg-white text-slate-600 hover:bg-accent-100 hover:text-accent-700 font-extrabold text-xs px-3 py-2.5 transition-colors"
+                      >
+                        Order No. {ticket.displayNumber}
+                        {ticket.locationNote && ` · ${ticket.locationNote}`}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>,
+            ];
           })}
         </div>
         {currentStaff && (

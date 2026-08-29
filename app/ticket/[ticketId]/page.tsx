@@ -8,28 +8,21 @@ import { CategoryTabs } from "@/components/order/CategoryTabs";
 import { SearchBar } from "@/components/order/SearchBar";
 import { MenuCard } from "@/components/order/MenuCard";
 import { CartPanel } from "@/components/order/CartPanel";
-import { StatusBadge } from "@/components/shared/StatusBadge";
-import { tableLabel } from "@/lib/utils";
+import { OrderScreenMobile } from "@/components/order/OrderScreen.Mobile";
 import type { MenuCategory, AddOn } from "@/lib/types";
 
-export default function OrderEntryPage() {
-  const params = useParams<{ tableId: string }>();
-  const tableId = params.tableId;
+export default function TicketPage() {
+  const params = useParams<{ ticketId: string }>();
+  const ticketId = params.ticketId;
   const router = useRouter();
 
-  const table = usePosStore((s) => s.tables.find((t) => t.id === tableId));
+  const ticket = usePosStore((s) => s.tickets.find((t) => t.id === ticketId));
+  const order = usePosStore((s) => s.orders[ticketId]);
   const menu = usePosStore((s) => s.menu);
-  const order = usePosStore((s) => s.orders[tableId]);
-  const ensureOrder = usePosStore((s) => s.ensureOrder);
   const addItem = usePosStore((s) => s.addItem);
 
   const [activeCategory, setActiveCategory] = useState<MenuCategory>("Starters");
   const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    ensureOrder(tableId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tableId]);
 
   const searchMatches = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -50,15 +43,15 @@ export default function OrderEntryPage() {
 
   const displayCategory = searchMatches?.[0]?.category ?? activeCategory;
 
-  if (!table) {
+  if (!ticket) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3">
-        <p className="text-slate-500 font-bold">Table not found.</p>
+        <p className="text-slate-500 font-bold">Order not found.</p>
         <button
-          onClick={() => router.push("/")}
+          onClick={() => router.push("/my-tickets")}
           className="text-accent-600 font-extrabold"
         >
-          Back to Floor View
+          Back to My Orders
         </button>
       </div>
     );
@@ -71,24 +64,32 @@ export default function OrderEntryPage() {
   function handleAdd(menuItemId: string, opts: { spiceLevel?: string; addOns?: AddOn[] }) {
     const menuItem = menu.find((m) => m.id === menuItemId);
     if (!menuItem || !currentRoundId) return;
-    addItem(tableId, currentRoundId, menuItem, opts);
+    addItem(ticketId, currentRoundId, menuItem, opts);
   }
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row lg:overflow-hidden">
-      <div className="flex flex-col min-w-0 lg:flex-1">
+    <>
+      <OrderScreenMobile ticketId={ticketId} />
+      <div className="flex-1 flex flex-col lg:flex-row lg:h-full lg:overflow-hidden">
+      <div className="flex flex-col min-w-0 lg:flex-1 lg:min-h-0">
         <header className="flex items-center gap-3 px-6 h-16 border-b border-warm-200 bg-white">
           <button
-            onClick={() => router.push("/")}
+            onClick={() => router.back()}
             className="rounded-full p-2 hover:bg-slate-100 text-slate-600"
-            aria-label="Back to Floor View"
+            aria-label="Back"
           >
             <ArrowLeft size={18} />
           </button>
-          <h1 className="text-lg font-black text-slate-900">
-            {tableLabel(table)}
-          </h1>
-          <StatusBadge status={table.status} />
+          <div>
+            <h1 className="text-lg font-black text-slate-900">
+              Order No. {ticket.displayNumber}
+            </h1>
+            {ticket.locationNote && (
+              <p className="text-xs font-semibold text-slate-400">
+                {ticket.locationNote}
+              </p>
+            )}
+          </div>
         </header>
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-6 py-3 border-b border-warm-200 bg-white">
@@ -108,7 +109,7 @@ export default function OrderEntryPage() {
               No items match &ldquo;{query}&rdquo;.
             </p>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {visibleItems.map((item) => (
                 <MenuCard
                   key={item.id}
@@ -122,7 +123,8 @@ export default function OrderEntryPage() {
         </main>
       </div>
 
-      <CartPanel tableId={tableId} />
-    </div>
+      <CartPanel ticketId={ticketId} />
+      </div>
+    </>
   );
 }

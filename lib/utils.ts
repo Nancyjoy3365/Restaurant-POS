@@ -1,8 +1,8 @@
-import type { TableOrder } from "./types";
+import type { TicketOrder } from "./types";
 
 export const VAT_RATE = 0.16;
 
-export function flattenOrderItems(order: TableOrder | undefined) {
+export function flattenOrderItems(order: TicketOrder | undefined) {
   if (!order) return [];
   return order.rounds.flatMap((round) =>
     round.items.map((item) => ({ item, roundIndex: round.index }))
@@ -37,10 +37,6 @@ export function formatDateTime(ts: number): string {
     dateStyle: "medium",
     timeStyle: "short",
   });
-}
-
-export function tableLabel(table: { number: number; customName?: string }): string {
-  return table.customName ? `T${table.number} · ${table.customName}` : `Table ${table.number}`;
 }
 
 let idCounter = 0;

@@ -1,14 +1,3 @@
-export type TableStatus = "free" | "occupied" | "needs-bill" | "reserved";
-
-export interface RestaurantTable {
-  id: string;
-  number: number;
-  seats: number;
-  section: string;
-  status: TableStatus;
-  customName?: string;
-}
-
 export type MenuCategory =
   | "Starters"
   | "Mains"
@@ -51,6 +40,8 @@ export interface OrderLineItem {
   comboTag?: string;
   spiceLevel?: string;
   addOns: AddOn[];
+  note?: string;
+  sentToKitchen?: boolean;
 }
 
 export interface Round {
@@ -68,22 +59,35 @@ export interface BillTotals {
   total: number;
 }
 
-export interface TableOrder {
+export type TicketStatus = "open" | "paid";
+
+// A ticket is one customer group's order and receipt, full stop — there is
+// no physical table underneath it. Two people served at the same physical
+// spot are two unrelated tickets, not two "tabs" sharing a "table"; nothing
+// ties them together in the data. `waiterId` is set once at creation and
+// never reassigned automatically. `locationNote` is a free-text breadcrumb
+// only (e.g. "by the window") — never parsed or relied on for logic.
+export interface Ticket {
   id: string;
-  tableId: string;
-  sessionId: string;
+  displayNumber: number;
+  waiterId: string;
+  locationNote?: string;
+  status: TicketStatus;
+  openedAt: number;
+  closedAt?: number;
+}
+
+export interface TicketOrder {
+  id: string;
+  ticketId: string;
+  // Inherited from the owning ticket at creation and never reassigned — see
+  // Ticket.waiterId for the canonical, single source of truth.
   waiterId?: string;
   rounds: Round[];
   paymentStatus: OrderPaymentStatus;
   billTotals?: BillTotals;
-}
-
-export interface TableSession {
-  id: string;
-  tableId: string;
-  waiterId: string;
-  openedAt: number;
-  closedAt?: number;
+  onHold?: boolean;
+  billedThroughRoundIndex?: number;
 }
 
 export interface Ingredient {
@@ -142,7 +146,7 @@ export interface StaffMember {
   commissionValue?: number;
 }
 
-export type PaymentMethod = "mpesa" | "card" | "cash";
+export type PaymentMethod = "mpesa" | "cash";
 
 export interface ReceiptLineItem {
   menuItemId: string;
@@ -156,26 +160,66 @@ export interface ReceiptLineItem {
 export interface Payment {
   id: string;
   orderId: string;
-  sessionId: string;
-  tableId: string;
+  ticketId: string;
+  // Sales-credit owner — always copied from the ticket/order's waiterId,
+  // never from whoever is logged in. Drives reconciliation and commission.
   waiterId?: string;
+  // Who physically recorded/collected this payment (may be a different
+  // staff member, e.g. a cashier collecting on behalf of the ticket's
+  // waiter). Audit/display only ("Bill collected by ...") — must never
+  // affect sales credit or reconciliation.
+  collectedByStaffId?: string;
   method: PaymentMethod;
   amount: number;
   reference: string;
+  customerName?: string;
+  // An M-Pesa payment that landed on the waiter's/staff's personal number
+  // instead of the business till — functionally cash in the waiter's hand,
+  // so it owes a physical drop to the cashier just like cash does. Never
+  // set for a normal till-bound M-Pesa payment.
+  isCashSubstitution?: boolean;
+  billingCycle: number;
   paidAt: number;
+}
+
+export interface CashDrop {
+  id: string;
+  waiterId: string;
+  // What the cashier actually counted/confirmed in hand.
+  amount: number;
+  // What was owed at the time of this drop: cash payments + M-Pesa
+  // cash-substitution payments. Compared against `amount` to flag variance.
+  expectedAmount: number;
+  // Required whenever amount !== expectedAmount, explaining the discrepancy.
+  note?: string;
+  droppedAt: number;
 }
 
 export interface ReceiptPaymentLine {
   method: PaymentMethod;
   amount: number;
   reference: string;
+  customerName?: string;
+}
+
+export interface VoidEntry {
+  id: string;
+  ticketId: string;
+  orderId: string;
+  itemId: string;
+  itemName: string;
+  qty: number;
+  reason: string;
+  staffId?: string;
+  voidedAt: number;
 }
 
 export interface Receipt {
   id: string;
   invoiceNumber: string;
-  tableId: string;
-  tableLabel: string;
+  ticketId: string;
+  ticketLabel: string;
+  locationNote?: string;
   items: ReceiptLineItem[];
   subtotal: number;
   vat: number;

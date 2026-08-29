@@ -33,44 +33,50 @@ export function MenuCard({
     <div
       id={`menu-item-${item.id}`}
       className={clsx(
-        "rounded-2xl border bg-white flex flex-col gap-2.5 overflow-hidden transition-shadow",
+        "rounded-2xl border bg-white flex items-center gap-3 p-3 transition-shadow",
         highlighted
           ? "border-accent-400 ring-2 ring-accent-200 shadow-md"
           : "border-warm-200",
         !item.available && "opacity-50"
       )}
     >
-      <div className="relative">
+      <button
+        type="button"
+        disabled={!item.available}
+        onClick={() => onAdd({ spiceLevel, addOns })}
+        aria-label={`Add ${item.name}`}
+        className="relative shrink-0 w-36 aspect-square rounded-xl overflow-hidden hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:hover:opacity-100 transition"
+      >
         <FoodImage
           imageUrl={item.imageUrl}
           category={item.category}
           name={item.name}
-          className="w-full aspect-[4/3]"
-          emojiClassName="text-5xl"
+          className="h-full w-full"
+          emojiClassName="text-3xl"
         />
         <span
           className={clsx(
-            "absolute top-2.5 left-2.5 inline-block h-4 w-4 rounded-md border-2 bg-white/90",
+            "absolute top-1.5 left-1.5 inline-block h-3.5 w-3.5 rounded-md border-2 bg-white/90",
             item.veg ? "border-emerald-600" : "border-rose-600"
           )}
           aria-hidden
         />
-        {item.comboTag && (
-          <span className="absolute top-2.5 right-2.5 inline-block rounded-full bg-accent-600 text-white text-[10px] font-extrabold px-2.5 py-1 uppercase tracking-wide shadow-sm">
-            {item.comboTag}
-          </span>
-        )}
-      </div>
+      </button>
 
-      <div className="flex flex-col gap-2.5 px-4 pb-4 flex-1">
+      <div className="min-w-0 flex-1 flex flex-col gap-2.5">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-extrabold text-base text-slate-900 leading-tight">
+          <h3 className="font-extrabold text-lg text-slate-900 leading-tight">
             {item.name}
           </h3>
-          <span className="text-base font-black text-accent-700 whitespace-nowrap">
+          <span className="text-lg font-black text-accent-700 whitespace-nowrap">
             {formatKES(item.price)}
           </span>
         </div>
+        {item.comboTag && (
+          <span className="inline-block -mt-1.5 self-start rounded-full bg-accent-600 text-white text-[10px] font-extrabold px-2.5 py-1 uppercase tracking-wide">
+            {item.comboTag}
+          </span>
+        )}
 
         {item.spiceLevels && (
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -121,7 +127,7 @@ export function MenuCard({
           type="button"
           disabled={!item.available}
           onClick={() => onAdd({ spiceLevel, addOns })}
-          className="mt-auto flex items-center justify-center gap-2 rounded-xl bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white text-base font-extrabold py-3 transition-colors"
+          className="mt-auto flex items-center justify-center gap-2 rounded-full border-2 border-accent-600 text-accent-700 hover:bg-accent-600 hover:text-white active:bg-accent-700 disabled:border-slate-200 disabled:text-slate-300 text-base font-extrabold py-3.5 transition-colors"
         >
           <Plus size={18} strokeWidth={3} />
           {item.available ? "Add" : "Unavailable"}

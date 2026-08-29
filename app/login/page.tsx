@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import clsx from "clsx";
 import {
   UtensilsCrossed,
   Wine,
@@ -32,34 +33,42 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-type Step = "role" | "password" | "staff";
+type Step = "role" | "pin" | "staff";
 
 export default function LoginPage() {
   const router = useRouter();
   const staff = usePosStore((s) => s.staff);
-  const rolePasswords = usePosStore((s) => s.rolePasswords);
+  const staffPin = usePosStore((s) => s.staffPin);
   const login = usePosStore((s) => s.login);
 
   const [step, setStep] = useState<Step>("role");
   const [role, setRole] = useState<StaffRole | null>(null);
-  const [password, setPassword] = useState("");
+  const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
 
   function selectRole(r: StaffRole) {
     setRole(r);
-    setPassword("");
+    setPin("");
     setError(false);
-    setStep("password");
+    setStep("pin");
   }
 
-  function submitPassword() {
+  function submitPin(candidate: string) {
     if (!role) return;
-    if (password === rolePasswords[role]) {
+    if (candidate === staffPin) {
       setError(false);
       setStep("staff");
     } else {
       setError(true);
+      setPin("");
     }
+  }
+
+  function handlePinChange(value: string) {
+    const digits = value.replace(/\D/g, "").slice(0, 3);
+    setPin(digits);
+    setError(false);
+    if (digits.length === 3) submitPin(digits);
   }
 
   function selectStaff(staffId: string) {
@@ -74,11 +83,11 @@ export default function LoginPage() {
       <div className="w-full max-w-md rounded-2xl border border-warm-200 bg-white shadow-sm p-8">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-black text-accent-700 tracking-tight">
-            Baraka Grill
+            Samaki Mjini Restaurant
           </h1>
           <p className="text-sm font-bold text-slate-500 mt-1">
             {step === "role" && "Select your role"}
-            {step === "password" && `${role} Login`}
+            {step === "pin" && `${role} Login`}
             {step === "staff" && `${role} · Who’s clocking in?`}
           </p>
         </div>
@@ -106,37 +115,48 @@ export default function LoginPage() {
           </div>
         )}
 
-        {step === "password" && role && (
+        {step === "pin" && role && (
           <div className="flex flex-col items-center">
             <span className="h-14 w-14 flex items-center justify-center rounded-full bg-accent-600 text-white mb-3">
               <Lock size={22} />
             </span>
             <div className="font-extrabold text-slate-900 mb-4">
-              {role} Password
+              Enter PIN
             </div>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setError(false);
-              }}
-              onKeyDown={(e) => e.key === "Enter" && submitPassword()}
-              autoFocus
-              className="w-full rounded-lg border border-warm-200 px-3.5 py-2.5 text-sm font-bold text-center outline-none focus:border-accent-400 mb-2"
-            />
+            <div className="relative mb-2">
+              <div className="flex items-center gap-3">
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className={clsx(
+                      "h-14 w-12 rounded-lg border-2 flex items-center justify-center text-2xl font-black transition-colors",
+                      error
+                        ? "border-rose-400 text-rose-600"
+                        : pin.length > i
+                        ? "border-accent-500 text-slate-900"
+                        : "border-warm-200 text-slate-300"
+                    )}
+                  >
+                    {pin[i] ? "•" : ""}
+                  </span>
+                ))}
+              </div>
+              <input
+                type="tel"
+                inputMode="numeric"
+                autoComplete="off"
+                value={pin}
+                onChange={(e) => handlePinChange(e.target.value)}
+                autoFocus
+                aria-label="3-digit PIN"
+                className="absolute inset-0 opacity-0 cursor-default"
+              />
+            </div>
             {error && (
               <p className="text-xs font-extrabold text-rose-600 mb-2">
-                Incorrect password — try again.
+                Incorrect PIN — try again.
               </p>
             )}
-            <button
-              type="button"
-              onClick={submitPassword}
-              className="w-full rounded-lg bg-accent-600 hover:bg-accent-700 text-white font-extrabold py-2.5 mt-2 transition-colors"
-            >
-              Unlock
-            </button>
             <button
               type="button"
               onClick={() => setStep("role")}

@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { usePosStore } from "@/lib/store";
 import { useHydrated } from "@/lib/useHydrated";
-import { canAccessPath } from "@/lib/roles";
+import { canAccessPath, getDefaultRouteForRole } from "@/lib/roles";
 import { Sidebar } from "./Sidebar";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -22,7 +22,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return;
     }
     if (currentStaff && !canAccessPath(currentStaff.role, pathname)) {
-      router.replace("/");
+      router.replace(getDefaultRouteForRole(currentStaff.role));
     }
   }, [hydrated, currentStaffId, currentStaff, pathname, router]);
 
@@ -41,7 +41,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Sidebar />
-      <div className="flex-1 min-w-0 flex flex-col pb-16 lg:pb-0">
+      <div className="flex-1 min-w-0 flex flex-col pb-16 lg:pb-0 lg:h-screen lg:overflow-y-auto">
         {children}
       </div>
     </>

@@ -1,4 +1,4 @@
-import type { TableOrder } from "@/lib/types";
+import type { TicketOrder } from "@/lib/types";
 import { flattenOrderItems, lineRawTotal, formatKES } from "@/lib/utils";
 
 export function BillSummary({
@@ -7,7 +7,7 @@ export function BillSummary({
   vat,
   total,
 }: {
-  order: TableOrder | undefined;
+  order: TicketOrder | undefined;
   subtotal: number;
   vat: number;
   total: number;

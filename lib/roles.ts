@@ -4,8 +4,8 @@ export const ROLE_ALLOWED_PATHS: Record<StaffRole, string[]> = {
   Manager: ["/", "/menu-management", "/inventory", "/staff", "/cashier", "/reports"],
   Chef: ["/", "/menu-management", "/inventory"],
   Cashier: ["/", "/cashier"],
-  "Bar Staff": ["/"],
-  Waiter: ["/"],
+  "Bar Staff": ["/my-tickets"],
+  Waiter: ["/my-tickets"],
 };
 
 export const ROLE_LOGIN_ORDER: StaffRole[] = [
@@ -28,12 +28,12 @@ export function getDefaultRouteForRole(role: StaffRole): string {
     case "Chef":
       return "/inventory";
     default:
-      return "/";
+      return "/my-tickets";
   }
 }
 
 export function canAccessPath(role: StaffRole, pathname: string): boolean {
-  if (pathname.startsWith("/order/") || pathname.startsWith("/billing/")) {
+  if (pathname.startsWith("/ticket/") || pathname.startsWith("/billing/")) {
     return true;
   }
   return ROLE_ALLOWED_PATHS[role].includes(pathname);
