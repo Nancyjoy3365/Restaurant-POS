@@ -180,8 +180,13 @@ export default function LoginPage() {
                   <span className="h-12 w-12 flex items-center justify-center rounded-full bg-accent-600 text-white font-black text-sm">
                     {initials(member.name)}
                   </span>
-                  <span className="text-xs font-extrabold text-slate-800 text-center leading-tight">
-                    {member.name.split(" ")[0]}
+                  <span className="text-center leading-tight">
+                    <span className="block text-xs font-extrabold text-slate-800">
+                      {member.name.split(" ")[0]}
+                    </span>
+                    <span className="block text-[10px] font-bold text-slate-400 mt-0.5">
+                      {member.title ?? member.role}
+                    </span>
                   </span>
                 </button>
               ))}

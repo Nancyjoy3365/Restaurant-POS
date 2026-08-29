@@ -461,8 +461,9 @@ export const seedRecipes: Recipe[] = [
   },
 ];
 
-// Pay Type / Rate weren't part of the roster supplied — everyone defaults to
-// a placeholder monthly rate of 0 until real compensation figures are set.
+// Pay Type / Rate: the four Admin/Cashier staff are paid monthly with no
+// rate supplied yet (still a placeholder 0); everyone else is paid a daily
+// rate of KES 500, per the roster.
 // Ids use an "st" prefix (rather than continuing "s1".."s9") so they can
 // never collide with a staff id an existing browser's persisted tickets
 // might still reference from the old placeholder roster.
@@ -471,13 +472,13 @@ export const seedStaff: StaffMember[] = [
   { id: "st2", name: "Halima. K", role: "Admin", title: "Admin CX", payType: "monthly", rate: 0, phone: "0723303712" },
   { id: "st3", name: "Hadija. K", role: "Admin", title: "Admin Chef", payType: "monthly", rate: 0, phone: "0748360567" },
   { id: "st4", name: "Nancy Obuya", role: "Cashier", payType: "monthly", rate: 0, phone: "0702491234" },
-  { id: "st5", name: "Innocent Bakabwa", role: "Chef", payType: "monthly", rate: 0, phone: "0707792054" },
-  { id: "st6", name: "Idah Nyakio", role: "Waiter", payType: "monthly", rate: 0, phone: "0716221718" },
-  { id: "st7", name: "Loise Wairimu", role: "Waiter", payType: "monthly", rate: 0, phone: "0705670040" },
-  { id: "st8", name: "Collins Odhiambo", role: "Waiter", payType: "monthly", rate: 0, phone: "0725750785" },
-  { id: "st9", name: "Sylvia Muthike", role: "Kitchen Assistant", payType: "monthly", rate: 0, phone: "0715703928" },
-  { id: "st10", name: "Robin Lukaku", role: "Kitchen Assistant", payType: "monthly", rate: 0, phone: "0704046663" },
-  { id: "st11", name: "Ephy Anyango", role: "Kitchen Assistant", payType: "monthly", rate: 0, phone: "0710474882" },
+  { id: "st5", name: "Innocent Bakabwa", role: "Chef", payType: "daily", rate: 500, phone: "0707792054" },
+  { id: "st6", name: "Idah Nyakio", role: "Waiter", payType: "daily", rate: 500, phone: "0716221718" },
+  { id: "st7", name: "Loise Wairimu", role: "Waiter", payType: "daily", rate: 500, phone: "0705670040" },
+  { id: "st8", name: "Collins Odhiambo", role: "Waiter", payType: "daily", rate: 500, phone: "0725750785" },
+  { id: "st9", name: "Sylvia Muthike", role: "Kitchen Assistant", payType: "daily", rate: 500, phone: "0715703928" },
+  { id: "st10", name: "Robin Lukaku", role: "Kitchen Assistant", payType: "daily", rate: 500, phone: "0704046663" },
+  { id: "st11", name: "Ephy Anyango", role: "Kitchen Assistant", payType: "daily", rate: 500, phone: "0710474882" },
 ];
 
 // No demo shift/ticket/order history is seeded against this real roster —

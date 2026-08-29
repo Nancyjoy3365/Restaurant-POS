@@ -653,7 +653,7 @@ export const usePosStore = create<PosState>()(
     }),
     {
       name: "pos-storage",
-      version: 15,
+      version: 16,
       migrate: (persistedState) => {
         const state = persistedState as Partial<PosState> & {
           menu?: Array<Record<string, unknown>>;
@@ -680,12 +680,13 @@ export const usePosStore = create<PosState>()(
           (r) => typeof r.menuItemId === "string"
         );
         // "Admin" only exists as a role value in the current seed (it
-        // replaced "Manager") — any persisted staff list without one is
-        // stale (either the old placeholder roster or the previous
-        // "Manager"-based real roster) and should be replaced, not kept.
-        const hasCurrentStaffShape = state.staff?.some(
-          (m) => m.role === "Admin"
-        );
+        // replaced "Manager"), and a real daily rate only exists once the
+        // roster's actual pay data landed (an earlier reseed had everyone
+        // on a placeholder monthly rate of 0) — any persisted staff list
+        // missing either is stale and should be replaced, not kept.
+        const hasCurrentStaffShape =
+          state.staff?.some((m) => m.role === "Admin") &&
+          state.staff?.some((m) => m.payType === "daily");
 
         // The table/session/tab model was replaced with a single flat
         // Ticket entity — a genuine breaking change, not an additive one.
