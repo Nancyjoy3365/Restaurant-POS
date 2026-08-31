@@ -43,7 +43,12 @@ export function Sidebar() {
   const allowedPaths = currentStaff
     ? ROLE_ALLOWED_PATHS[currentStaff.role]
     : ["/"];
-  const navItems = NAV_ITEMS.filter((item) => allowedPaths.includes(item.href));
+  const navItems = NAV_ITEMS.filter((item) => allowedPaths.includes(item.href)).map(
+    (item) =>
+      item.href === "/performance" && currentStaff?.role === "Waiter"
+        ? { ...item, label: "My Performance" }
+        : item
+  );
   const showHeldOrders = allowedPaths.includes("/my-tickets");
 
   const heldTickets = tickets.filter(

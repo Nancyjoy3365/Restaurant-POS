@@ -8,12 +8,20 @@ import { ordersCompletedToday, priorityUnitsSoldToday } from "@/lib/performance"
 
 export default function PerformanceTrackerPage() {
   const staff = usePosStore((s) => s.staff);
+  const currentStaffId = usePosStore((s) => s.currentStaffId);
   const tickets = usePosStore((s) => s.tickets);
   const payments = usePosStore((s) => s.payments);
   const receipts = usePosStore((s) => s.receipts);
   const menu = usePosStore((s) => s.menu);
 
-  const waiters = staff.filter((m) => m.role === "Waiter");
+  const currentStaff = staff.find((m) => m.id === currentStaffId);
+  const allWaiters = staff.filter((m) => m.role === "Waiter");
+  // A waiter only ever sees their own card here — never a colleague's
+  // numbers. Admins (the only other role with access) see everyone.
+  const waiters =
+    currentStaff?.role === "Waiter"
+      ? allWaiters.filter((m) => m.id === currentStaff.id)
+      : allWaiters;
 
   const today = new Date().toLocaleDateString("en-KE", {
     weekday: "long",
@@ -26,7 +34,9 @@ export default function PerformanceTrackerPage() {
     <div className="flex-1 flex flex-col">
       <header className="h-16 flex items-center px-6 border-b border-warm-200 bg-white">
         <h1 className="text-xl font-black text-slate-900">
-          Performance Tracker
+          {currentStaff?.role === "Waiter"
+            ? "My Performance"
+            : "Performance Tracker"}
         </h1>
       </header>
 

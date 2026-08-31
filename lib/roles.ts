@@ -5,7 +5,7 @@ export const ROLE_ALLOWED_PATHS: Record<StaffRole, string[]> = {
   Chef: ["/", "/menu-management", "/inventory", "/kitchen"],
   "Kitchen Assistant": ["/", "/menu-management", "/inventory", "/kitchen"],
   Cashier: ["/", "/cashier"],
-  Waiter: ["/my-tickets"],
+  Waiter: ["/my-tickets", "/performance"],
 };
 
 export const ROLE_LOGIN_ORDER: StaffRole[] = [
