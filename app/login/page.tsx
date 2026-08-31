@@ -40,6 +40,7 @@ export default function LoginPage() {
   const staff = usePosStore((s) => s.staff);
   const staffPin = usePosStore((s) => s.staffPin);
   const login = usePosStore((s) => s.login);
+  const clockIn = usePosStore((s) => s.clockIn);
 
   const [step, setStep] = useState<Step>("role");
   const [role, setRole] = useState<StaffRole | null>(null);
@@ -73,6 +74,10 @@ export default function LoginPage() {
 
   function selectStaff(staffId: string) {
     login(staffId);
+    // Picking yourself off the staff grid is how staff start their shift —
+    // clockIn is already a no-op if they're still clocked in from earlier
+    // today, so this is safe to call every time without double-counting.
+    clockIn(staffId);
     router.push(role ? getDefaultRouteForRole(role) : "/");
   }
 

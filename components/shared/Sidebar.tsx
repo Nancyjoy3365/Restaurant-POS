@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -39,6 +40,8 @@ export function Sidebar() {
   const tickets = usePosStore((s) => s.tickets);
   const orders = usePosStore((s) => s.orders);
   const logout = usePosStore((s) => s.logout);
+  const clockOut = usePosStore((s) => s.clockOut);
+  const [showClockOutPrompt, setShowClockOutPrompt] = useState(false);
   const currentStaff = staff.find((s) => s.id === currentStaffId);
   const allowedPaths = currentStaff
     ? ROLE_ALLOWED_PATHS[currentStaff.role]
@@ -59,7 +62,9 @@ export function Sidebar() {
       orders[t.id]?.rounds.some((round) => round.items.length > 0)
   );
 
-  function handleLogout() {
+  function confirmClockOut(shouldClockOut: boolean) {
+    if (shouldClockOut && currentStaffId) clockOut(currentStaffId);
+    setShowClockOutPrompt(false);
     logout();
     router.push("/login");
   }
@@ -136,7 +141,7 @@ export function Sidebar() {
               </div>
               <button
                 type="button"
-                onClick={handleLogout}
+                onClick={() => setShowClockOutPrompt(true)}
                 className="shrink-0 rounded-full p-2.5 text-slate-400 hover:bg-rose-100 hover:text-rose-600"
                 aria-label="Switch user"
                 title="Switch user"
@@ -166,6 +171,42 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {showClockOutPrompt && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          onClick={() => setShowClockOutPrompt(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-extrabold text-slate-900 mb-1">
+              Clock out for the day?
+            </h3>
+            <p className="text-xs text-slate-500 font-semibold mb-4">
+              Choose &ldquo;No&rdquo; if you&rsquo;re just switching users
+              briefly and still on shift.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => confirmClockOut(false)}
+                className="rounded-xl border-2 border-warm-200 text-slate-600 hover:border-slate-300 font-extrabold py-3 transition-colors"
+              >
+                No
+              </button>
+              <button
+                type="button"
+                onClick={() => confirmClockOut(true)}
+                className="rounded-xl bg-accent-600 hover:bg-accent-700 text-white font-extrabold py-3 transition-colors"
+              >
+                Yes, clock out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
