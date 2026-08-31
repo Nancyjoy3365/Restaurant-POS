@@ -192,7 +192,7 @@ export function Sidebar() {
               <button
                 type="button"
                 onClick={() => confirmClockOut(false)}
-                className="rounded-xl border-2 border-warm-200 text-slate-600 hover:border-slate-300 font-extrabold py-3 transition-colors"
+                className="rounded-xl border-2 border-warm-200 text-slate-600 hover:border-slate-300 hover:bg-warm-50 font-extrabold py-3 transition-colors"
               >
                 No
               </button>
