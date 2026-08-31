@@ -26,6 +26,7 @@ export default function MenuManagementPage() {
       CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category)
   );
   const toggleMenuAvailability = usePosStore((s) => s.toggleMenuAvailability);
+  const toggleMenuPriority = usePosStore((s) => s.toggleMenuPriority);
   const [showAddModal, setShowAddModal] = useState(false);
 
   return (
@@ -49,6 +50,7 @@ export default function MenuManagementPage() {
                 <th className="text-left px-2 py-3">Item</th>
                 <th className="text-left px-2 py-3">Category</th>
                 <th className="text-right px-2 py-3">Price</th>
+                <th className="text-center px-2 py-3">Priority</th>
                 <th className="text-center px-4 py-3">Available</th>
               </tr>
             </thead>
@@ -87,6 +89,15 @@ export default function MenuManagementPage() {
                     </td>
                     <td className="px-2 py-3 text-right font-bold text-slate-900">
                       {formatKES(item.price)}
+                    </td>
+                    <td className="px-2 py-3">
+                      <div className="flex justify-center">
+                        <Toggle
+                          checked={item.isPriority ?? false}
+                          onChange={() => toggleMenuPriority(item.id)}
+                          label={`Toggle priority product for ${item.name}`}
+                        />
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-center">

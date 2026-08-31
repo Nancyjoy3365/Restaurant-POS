@@ -71,6 +71,7 @@ interface PosState {
   updateItemNote: (ticketId: string, itemId: string, note: string) => void;
   voidItem: (ticketId: string, itemId: string, reason: string) => void;
   toggleMenuAvailability: (menuItemId: string) => void;
+  toggleMenuPriority: (menuItemId: string) => void;
   addMenuItem: (item: Omit<MenuItem, "id">) => void;
   addStaffMember: (member: Omit<StaffMember, "id">) => string;
   clockIn: (staffId: string) => void;
@@ -513,6 +514,13 @@ export const usePosStore = create<PosState>()(
         set((s) => ({
           menu: s.menu.map((m) =>
             m.id === menuItemId ? { ...m, available: !m.available } : m
+          ),
+        })),
+
+      toggleMenuPriority: (menuItemId) =>
+        set((s) => ({
+          menu: s.menu.map((m) =>
+            m.id === menuItemId ? { ...m, isPriority: !m.isPriority } : m
           ),
         })),
 

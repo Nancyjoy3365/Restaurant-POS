@@ -37,6 +37,11 @@ export interface MenuItem {
   // changes because of this.
   variantGroup?: string;
   variantLabel?: string;
+  // Admin-toggleable flag marking a product management wants staff
+  // actively pushing — feeds the Performance Tracker's per-waiter
+  // priority-product-units-sold breakdown. Purely a flag; no effect on
+  // ordering, pricing, or receipts.
+  isPriority?: boolean;
 }
 
 export interface OrderLineItem {

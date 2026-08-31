@@ -10,6 +10,7 @@ import {
   Users,
   Wallet,
   BarChart3,
+  Trophy,
   ChefHat,
   LogOut,
   PauseCircle,
@@ -26,7 +27,8 @@ const NAV_ITEMS = [
   { href: "/menu-management", label: "Menu Management", icon: UtensilsCrossed },
   { href: "/inventory", label: "Inventory", icon: Boxes },
   { href: "/staff", label: "Staff & Payroll", icon: Users },
-  { href: "/reports", label: "Daily Summary", icon: BarChart3 },
+  { href: "/reports", label: "Financial Summary", icon: BarChart3 },
+  { href: "/performance", label: "Performance Tracker", icon: Trophy },
 ];
 
 export function Sidebar() {

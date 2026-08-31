@@ -37,7 +37,7 @@ export default function ReportsPage() {
   return (
     <div className="flex-1 flex flex-col">
       <header className="h-16 flex items-center px-6 border-b border-warm-200 bg-white">
-        <h1 className="text-xl font-black text-slate-900">Daily Summary</h1>
+        <h1 className="text-xl font-black text-slate-900">Financial Summary</h1>
       </header>
 
       <main className="flex-1 overflow-y-auto p-6 space-y-6">

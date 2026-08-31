@@ -21,6 +21,7 @@ export function AddMenuItemModal({ onClose }: { onClose: () => void }) {
   const [category, setCategory] = useState<MenuCategory>("Main");
   const [price, setPrice] = useState("");
   const [veg, setVeg] = useState(false);
+  const [isPriority, setIsPriority] = useState(false);
   const [aliases, setAliases] = useState("");
   const [modifiers, setModifiers] = useState("");
   const [imageUrl, setImageUrl] = useState("");
@@ -46,6 +47,7 @@ export function AddMenuItemModal({ onClose }: { onClose: () => void }) {
         .filter(Boolean),
       spiceLevels: spiceLevels.length > 0 ? spiceLevels : undefined,
       imageUrl: imageUrl.trim() || undefined,
+      isPriority: isPriority || undefined,
     });
     onClose();
   }
@@ -161,6 +163,18 @@ export function AddMenuItemModal({ onClose }: { onClose: () => void }) {
             />
             <span className="text-sm font-bold text-slate-700">
               Vegetarian item
+            </span>
+          </label>
+
+          <label className="flex items-center gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isPriority}
+              onChange={(e) => setIsPriority(e.target.checked)}
+              className="h-4 w-4 rounded border-warm-200 accent-accent-600"
+            />
+            <span className="text-sm font-bold text-slate-700">
+              Priority product
             </span>
           </label>
         </div>
