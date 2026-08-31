@@ -27,6 +27,8 @@ import { FoodImage } from "@/components/shared/FoodImage";
 import { CategoryTabs } from "@/components/order/CategoryTabs";
 import { SearchBar } from "@/components/order/SearchBar";
 import { MenuCard } from "@/components/order/MenuCard";
+import { GroupedMenuCard } from "@/components/order/GroupedMenuCard";
+import { groupMenuItems } from "@/lib/menuGrouping";
 import type { MenuCategory, OrderLineItem } from "@/lib/types";
 
 const VOID_REASONS = ["Customer changed mind", "Kitchen error", "Other"];
@@ -130,6 +132,11 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
   }, [pickerQuery, menu]);
   const pickerItems =
     pickerMatches ?? menu.filter((m) => m.category === pickerCategory);
+  // As on the desktop grid, grouping only applies to the default browsing
+  // view — an active search still jumps straight to the specific variant.
+  const pickerGridEntries = pickerMatches
+    ? pickerItems.map((item) => ({ kind: "single" as const, item }))
+    : groupMenuItems(pickerItems);
 
   function selectRound(roundId: string) {
     setActiveRoundId(roundId);
@@ -500,15 +507,28 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
               </p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {pickerItems.map((item) => (
-                  <MenuCard
-                    key={item.id}
-                    item={item}
-                    onAdd={(opts) => {
-                      if (latestRoundId) addItem(ticketId, latestRoundId, item, opts);
-                    }}
-                  />
-                ))}
+                {pickerGridEntries.map((entry) =>
+                  entry.kind === "single" ? (
+                    <MenuCard
+                      key={entry.item.id}
+                      item={entry.item}
+                      onAdd={(opts) => {
+                        if (latestRoundId)
+                          addItem(ticketId, latestRoundId, entry.item, opts);
+                      }}
+                    />
+                  ) : (
+                    <GroupedMenuCard
+                      key={entry.groupName}
+                      groupName={entry.groupName}
+                      variants={entry.variants}
+                      onSelect={(item) => {
+                        if (latestRoundId)
+                          addItem(ticketId, latestRoundId, item, {});
+                      }}
+                    />
+                  )
+                )}
               </div>
             )}
           </div>

@@ -29,6 +29,14 @@ export interface MenuItem {
   spiceLevels?: string[];
   addOns?: AddOn[];
   imageUrl?: string;
+  // Display-only grouping for the waiter-facing order screens: items
+  // sharing the same variantGroup (e.g. "Fish") are shown as one card with
+  // a picker listing each variantLabel (e.g. "Wet") — purely a browsing
+  // convenience. Each variant is still its own full MenuItem with its own
+  // id/price/availability; nothing about ordering, billing, or receipts
+  // changes because of this.
+  variantGroup?: string;
+  variantLabel?: string;
 }
 
 export interface OrderLineItem {

@@ -7,8 +7,10 @@ import { usePosStore } from "@/lib/store";
 import { CategoryTabs } from "@/components/order/CategoryTabs";
 import { SearchBar } from "@/components/order/SearchBar";
 import { MenuCard } from "@/components/order/MenuCard";
+import { GroupedMenuCard } from "@/components/order/GroupedMenuCard";
 import { CartPanel } from "@/components/order/CartPanel";
 import { OrderScreenMobile } from "@/components/order/OrderScreen.Mobile";
+import { groupMenuItems } from "@/lib/menuGrouping";
 import type { MenuCategory, AddOn } from "@/lib/types";
 
 export default function TicketPage() {
@@ -59,6 +61,12 @@ export default function TicketPage() {
 
   const visibleItems =
     searchMatches ?? menu.filter((m) => m.category === activeCategory);
+  // Grouping into one "Fish"-style card only applies to the default
+  // browsing grid — an active search still jumps straight to the specific
+  // matching variant, unaffected by grouping.
+  const gridEntries = searchMatches
+    ? visibleItems.map((item) => ({ kind: "single" as const, item }))
+    : groupMenuItems(visibleItems);
   const currentRoundId = order?.rounds[order.rounds.length - 1]?.id;
 
   function handleAdd(menuItemId: string, opts: { spiceLevel?: string; addOns?: AddOn[] }) {
@@ -110,14 +118,23 @@ export default function TicketPage() {
             </p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {visibleItems.map((item) => (
-                <MenuCard
-                  key={item.id}
-                  item={item}
-                  highlighted={searchMatches?.[0]?.id === item.id}
-                  onAdd={(opts) => handleAdd(item.id, opts)}
-                />
-              ))}
+              {gridEntries.map((entry) =>
+                entry.kind === "single" ? (
+                  <MenuCard
+                    key={entry.item.id}
+                    item={entry.item}
+                    highlighted={searchMatches?.[0]?.id === entry.item.id}
+                    onAdd={(opts) => handleAdd(entry.item.id, opts)}
+                  />
+                ) : (
+                  <GroupedMenuCard
+                    key={entry.groupName}
+                    groupName={entry.groupName}
+                    variants={entry.variants}
+                    onSelect={(item) => handleAdd(item.id, {})}
+                  />
+                )
+              )}
             </div>
           )}
         </main>
