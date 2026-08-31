@@ -741,7 +741,7 @@ export const usePosStore = create<PosState>()(
     }),
     {
       name: "pos-storage",
-      version: 18,
+      version: 19,
       migrate: (persistedState) => {
         const state = persistedState as Partial<PosState> & {
           menu?: Array<Record<string, unknown>>;
