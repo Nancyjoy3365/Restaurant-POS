@@ -471,12 +471,6 @@ export default function CashierPage() {
         </div>
         )}
 
-        {tab === "live" && (
-          <p className="text-slate-400 font-semibold text-center text-sm">
-            Reconciliation tables are hidden here — switch tabs to see them.
-          </p>
-        )}
-
         {tab === "reconciliation" && (
         <>
         <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
@@ -521,24 +515,9 @@ export default function CashierPage() {
                       Sum of all bills (cash &amp; M-Pesa)
                     </th>
                     <th className="text-right px-2 py-3">M-Pesa Amount</th>
-                    <th className="text-right px-2 py-3">
-                      Expected Drop
-                      <div className="normal-case font-semibold text-slate-400 text-[10px]">
-                        cash + M-Pesa substitution
-                      </div>
-                    </th>
-                    <th className="text-right px-2 py-3">
-                      Cash Drop
-                      <div className="normal-case font-semibold text-slate-400 text-[10px]">
-                        forwarded to cashier
-                      </div>
-                    </th>
-                    <th className="text-right px-5 py-3">
-                      Pending
-                      <div className="normal-case font-semibold text-slate-400 text-[10px]">
-                        not yet given to cashier
-                      </div>
-                    </th>
+                    <th className="text-right px-2 py-3">Expected Drop</th>
+                    <th className="text-right px-2 py-3">Cash Drop</th>
+                    <th className="text-right px-5 py-3">Pending</th>
                   </tr>
                 </thead>
                 <tbody>
