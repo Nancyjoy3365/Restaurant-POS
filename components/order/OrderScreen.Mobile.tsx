@@ -522,9 +522,9 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
                       key={entry.groupName}
                       groupName={entry.groupName}
                       variants={entry.variants}
-                      onSelect={(item) => {
+                      onSelect={(item, opts) => {
                         if (latestRoundId)
-                          addItem(ticketId, latestRoundId, item, {});
+                          addItem(ticketId, latestRoundId, item, opts);
                       }}
                     />
                   )

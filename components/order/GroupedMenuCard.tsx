@@ -3,7 +3,7 @@
 import { useState } from "react";
 import clsx from "clsx";
 import { Plus } from "lucide-react";
-import type { MenuItem } from "@/lib/types";
+import type { AddOn, MenuItem } from "@/lib/types";
 import { formatKES } from "@/lib/utils";
 import { FoodImage } from "@/components/shared/FoodImage";
 import { VariantPickerSheet } from "./VariantPickerSheet";
@@ -15,7 +15,10 @@ export function GroupedMenuCard({
 }: {
   groupName: string;
   variants: MenuItem[];
-  onSelect: (item: MenuItem) => void;
+  onSelect: (
+    item: MenuItem,
+    opts: { spiceLevel?: string; addOns?: AddOn[] }
+  ) => void;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const availableVariants = variants.filter((v) => v.available);
@@ -77,8 +80,8 @@ export function GroupedMenuCard({
         <VariantPickerSheet
           groupName={groupName}
           variants={availableVariants}
-          onSelect={(item) => {
-            onSelect(item);
+          onSelect={(item, opts) => {
+            onSelect(item, opts);
             setPickerOpen(false);
           }}
           onClose={() => setPickerOpen(false)}

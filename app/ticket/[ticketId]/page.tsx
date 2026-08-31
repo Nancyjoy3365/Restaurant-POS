@@ -131,7 +131,7 @@ export default function TicketPage() {
                     key={entry.groupName}
                     groupName={entry.groupName}
                     variants={entry.variants}
-                    onSelect={(item) => handleAdd(item.id, {})}
+                    onSelect={(item, opts) => handleAdd(item.id, opts)}
                   />
                 )
               )}
