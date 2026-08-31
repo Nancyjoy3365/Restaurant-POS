@@ -96,8 +96,11 @@ interface PosState {
     waiterId: string,
     amount: number,
     expectedAmount: number,
+    method: PaymentMethod,
+    reference?: string,
     note?: string
   ) => void;
+  deleteCashDrop: (dropId: string) => void;
 }
 
 export const MAX_HELD_ORDERS_PER_WAITER = 3;
@@ -733,7 +736,7 @@ export const usePosStore = create<PosState>()(
           };
         }),
 
-      recordCashDrop: (waiterId, amount, expectedAmount, note) =>
+      recordCashDrop: (waiterId, amount, expectedAmount, method, reference, note) =>
         set((s) => {
           if (amount <= 0) return s;
           const drop: CashDrop = {
@@ -741,15 +744,22 @@ export const usePosStore = create<PosState>()(
             waiterId,
             amount,
             expectedAmount,
+            method,
+            reference: reference?.trim() || undefined,
             note: note?.trim() || undefined,
             droppedAt: Date.now(),
           };
           return { cashDrops: [...s.cashDrops, drop] };
         }),
+
+      deleteCashDrop: (dropId) =>
+        set((s) => ({
+          cashDrops: s.cashDrops.filter((d) => d.id !== dropId),
+        })),
     }),
     {
       name: "pos-storage",
-      version: 20,
+      version: 21,
       migrate: (persistedState) => {
         const state = persistedState as Partial<PosState> & {
           menu?: Array<Record<string, unknown>>;
@@ -759,6 +769,7 @@ export const usePosStore = create<PosState>()(
           orders?: Record<string, Record<string, unknown>>;
           tickets?: Array<Record<string, unknown>>;
           payments?: Array<Record<string, unknown>>;
+          cashDrops?: Array<Record<string, unknown>>;
         };
         // Known seed items always get refreshed to the latest seed fields
         // (this is how a new imageUrl, price, etc. actually reaches a
@@ -833,6 +844,18 @@ export const usePosStore = create<PosState>()(
           ...tickets.map((t) => t.displayNumber ?? 0)
         );
 
+        // A CashDrop recorded before `method` was added has no way to say
+        // how it was settled — rather than guess, drop it. Since the
+        // "Pending" figure is always re-derived from payments/drops, this
+        // only resets already-forwarded cash back to pending, never loses a
+        // sale.
+        const hasCurrentCashDropShape = (state.cashDrops ?? []).every(
+          (d) => typeof d.method === "string"
+        );
+        const cashDrops = hasCurrentCashDropShape
+          ? (state.cashDrops as unknown as CashDrop[])
+          : [];
+
         const staff = (hasCurrentStaffShape ? state.staff : seedStaff) as unknown as StaffMember[];
         // Whenever staff gets reseeded (a role rename, a new roster, etc.)
         // a persisted currentStaffId can end up pointing at an id that no
@@ -856,6 +879,7 @@ export const usePosStore = create<PosState>()(
           tickets,
           ticketCounter,
           payments,
+          cashDrops,
           // Demo-grade PIN has no in-app way to change it yet, so always
           // trust the latest seed value rather than whatever got persisted
           // from an earlier version of this file.

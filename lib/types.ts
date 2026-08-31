@@ -221,6 +221,11 @@ export interface CashDrop {
   // What was owed at the time of this drop: cash payments + M-Pesa
   // cash-substitution payments. Compared against `amount` to flag variance.
   expectedAmount: number;
+  // How this collection was physically settled — reuses the same
+  // cash/mpesa vocabulary as Payment.method.
+  method: PaymentMethod;
+  // Required only when method === "mpesa".
+  reference?: string;
   // Required whenever amount !== expectedAmount, explaining the discrepancy.
   note?: string;
   droppedAt: number;

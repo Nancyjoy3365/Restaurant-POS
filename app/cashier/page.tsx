@@ -8,13 +8,20 @@ import {
   CheckCircle2,
   RotateCcw,
   Search,
+  Smartphone,
+  Trash2,
   X,
   Plus,
 } from "lucide-react";
 import { usePosStore, paymentsForCurrentCycle } from "@/lib/store";
 import { formatKES } from "@/lib/utils";
 import { PaymentSuccessModal } from "@/components/billing/PaymentSuccessModal";
-import type { Payment, Receipt, Ticket, TicketOrder } from "@/lib/types";
+import type { Payment, PaymentMethod, Receipt, Ticket, TicketOrder } from "@/lib/types";
+
+const COLLECTION_METHODS: { id: PaymentMethod; label: string; icon: typeof Banknote }[] = [
+  { id: "cash", label: "Cash", icon: Banknote },
+  { id: "mpesa", label: "M-Pesa", icon: Smartphone },
+];
 
 function formatTime(ts: number): string {
   return new Date(ts).toLocaleTimeString("en-KE", {
@@ -37,20 +44,23 @@ export default function CashierPage() {
   const finalizeReceipt = usePosStore((s) => s.finalizeReceipt);
   const reverseLastPayment = usePosStore((s) => s.reverseLastPayment);
   const recordCashDrop = usePosStore((s) => s.recordCashDrop);
+  const deleteCashDrop = usePosStore((s) => s.deleteCashDrop);
 
+  const [tab, setTab] = useState<"live" | "reconciliation">("live");
   const [search, setSearch] = useState("");
   const [cashDrafts, setCashDrafts] = useState<Record<string, string>>({});
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [finalizing, setFinalizing] = useState(false);
-  const [waiterDropTarget, setWaiterDropTarget] = useState<{
-    waiterId: string;
-    waiterName: string;
-    cashAmount: number;
-    substitutionAmount: number;
-    alreadyDropped: number;
-  } | null>(null);
-  const [waiterDropAmount, setWaiterDropAmount] = useState("");
-  const [waiterDropNote, setWaiterDropNote] = useState("");
+  const [waiterFilter, setWaiterFilter] = useState("");
+
+  const [collectionOpen, setCollectionOpen] = useState(false);
+  const [collectionWaiterId, setCollectionWaiterId] = useState("");
+  const [collectionMethod, setCollectionMethod] = useState<PaymentMethod>("cash");
+  const [collectionAmount, setCollectionAmount] = useState("");
+  const [collectionReference, setCollectionReference] = useState("");
+  const [collectionNote, setCollectionNote] = useState("");
+
+  const waiters = staff.filter((m) => m.role === "Waiter");
 
   const queue: { ticket: Ticket; order: TicketOrder }[] = [];
   for (const ticket of tickets) {
@@ -110,7 +120,7 @@ export default function CashierPage() {
       // motion — record it as already dropped/reconciled immediately,
       // rather than making them enter the same figure again in the
       // separate per-waiter Drop reconciliation below.
-      if (waiterId) recordCashDrop(waiterId, delta, delta);
+      if (waiterId) recordCashDrop(waiterId, delta, delta, "cash");
     }
     setCashDrafts((d) => {
       const next = { ...d };
@@ -136,67 +146,11 @@ export default function CashierPage() {
     });
   }
 
-  function openWaiterDrop(
-    waiterId: string,
-    waiterName: string,
-    cashAmount: number,
-    substitutionAmount: number,
-    alreadyDropped: number
-  ) {
-    const expectedNow = Math.max(
-      0,
-      cashAmount + substitutionAmount - alreadyDropped
-    );
-    setWaiterDropTarget({
-      waiterId,
-      waiterName,
-      cashAmount,
-      substitutionAmount,
-      alreadyDropped,
-    });
-    setWaiterDropAmount(expectedNow > 0 ? String(expectedNow) : "");
-    setWaiterDropNote("");
-  }
-
-  function submitWaiterDrop() {
-    if (!waiterDropTarget) return;
-    const amount = Math.max(0, Number(waiterDropAmount) || 0);
-    if (amount <= 0) return;
-    const expectedNow = Math.max(
-      0,
-      waiterDropTarget.cashAmount +
-        waiterDropTarget.substitutionAmount -
-        waiterDropTarget.alreadyDropped
-    );
-    // Bringing less than the full amount is a normal partial drop — the
-    // waiter can clear the rest later, no explanation needed. Only bringing
-    // MORE than expected is the genuinely unusual case worth a note.
-    const isOverage = amount > expectedNow;
-    if (isOverage && !waiterDropNote.trim()) return;
-    recordCashDrop(
-      waiterDropTarget.waiterId,
-      amount,
-      expectedNow,
-      isOverage ? waiterDropNote : undefined
-    );
-    setWaiterDropTarget(null);
-    setWaiterDropAmount("");
-    setWaiterDropNote("");
-  }
-
   // Summary table: today's totals per waiter.
   const todaysPayments = payments.filter((p) => isToday(p.paidAt));
   const todaysDrops = cashDrops.filter((d) => isToday(d.droppedAt));
-  const summaryWaiterIds = Array.from(
-    new Set<string>([
-      ...(todaysPayments
-        .map((p) => p.waiterId)
-        .filter((id): id is string => Boolean(id)) as string[]),
-      ...todaysDrops.map((d) => d.waiterId),
-    ])
-  );
-  const summaryRows = summaryWaiterIds.map((waiterId) => {
-    const waiter = staff.find((m) => m.id === waiterId);
+
+  function computeWaiterCash(waiterId: string) {
     const wPayments = todaysPayments.filter((p) => p.waiterId === waiterId);
     const mpesaAmount = wPayments
       .filter((p) => p.method === "mpesa")
@@ -216,9 +170,6 @@ export default function CashierPage() {
       .filter((d) => d.waiterId === waiterId)
       .reduce((sum, d) => sum + d.amount, 0);
     return {
-      waiterId,
-      waiterName: waiter?.name ?? "Unknown",
-      sumAll: mpesaAmount + cashAmount,
       mpesaAmount,
       cashAmount,
       substitutionAmount,
@@ -226,15 +177,112 @@ export default function CashierPage() {
       dropAmount,
       pending: Math.max(0, expectedDrop - dropAmount),
     };
+  }
+
+  const summaryWaiterIds = Array.from(
+    new Set<string>([
+      ...(todaysPayments
+        .map((p) => p.waiterId)
+        .filter((id): id is string => Boolean(id)) as string[]),
+      ...todaysDrops.map((d) => d.waiterId),
+    ])
+  );
+  const summaryRows = summaryWaiterIds.map((waiterId) => {
+    const waiter = staff.find((m) => m.id === waiterId);
+    const cash = computeWaiterCash(waiterId);
+    return {
+      waiterId,
+      waiterName: waiter?.name ?? "Unknown",
+      sumAll: cash.mpesaAmount + cash.cashAmount,
+      ...cash,
+    };
   });
+  const filteredSummaryRows = waiterFilter
+    ? summaryRows.filter((r) => r.waiterId === waiterFilter)
+    : summaryRows;
+
+  const historyRows = todaysDrops
+    .filter((d) => !waiterFilter || d.waiterId === waiterFilter)
+    .sort((a, b) => b.droppedAt - a.droppedAt)
+    .map((drop) => ({
+      drop,
+      waiterName: staff.find((m) => m.id === drop.waiterId)?.name ?? "Unknown",
+    }));
+
+  function openAddCollection() {
+    const initialWaiterId = waiterFilter || waiters[0]?.id || "";
+    setCollectionWaiterId(initialWaiterId);
+    setCollectionMethod("cash");
+    const pending = initialWaiterId ? computeWaiterCash(initialWaiterId).pending : 0;
+    setCollectionAmount(pending > 0 ? String(pending) : "");
+    setCollectionReference("");
+    setCollectionNote("");
+    setCollectionOpen(true);
+  }
+
+  function selectCollectionWaiter(waiterId: string) {
+    setCollectionWaiterId(waiterId);
+    const pending = computeWaiterCash(waiterId).pending;
+    setCollectionAmount(pending > 0 ? String(pending) : "");
+    setCollectionNote("");
+  }
+
+  function submitCollection() {
+    if (!collectionWaiterId) return;
+    const amount = Math.max(0, Number(collectionAmount) || 0);
+    if (amount <= 0) return;
+    if (collectionMethod === "mpesa" && !collectionReference.trim()) return;
+    const expectedNow = computeWaiterCash(collectionWaiterId).pending;
+    // Bringing less than the full amount is a normal partial drop — the
+    // waiter can clear the rest later, no explanation needed. Only bringing
+    // MORE than expected is the genuinely unusual case worth a note.
+    const isOverage = amount > expectedNow;
+    if (isOverage && !collectionNote.trim()) return;
+    recordCashDrop(
+      collectionWaiterId,
+      amount,
+      expectedNow,
+      collectionMethod,
+      collectionMethod === "mpesa" ? collectionReference : undefined,
+      isOverage ? collectionNote : undefined
+    );
+    setCollectionOpen(false);
+  }
 
   return (
     <div className="flex-1 flex flex-col">
-      <header className="h-16 flex items-center px-6 border-b border-warm-200 bg-white">
+      <header className="h-16 flex items-center justify-between px-6 border-b border-warm-200 bg-white">
         <h1 className="text-xl font-black text-slate-900">Cashier</h1>
+        <div className="inline-flex items-center rounded-full border border-warm-200 bg-warm-50 p-1">
+          <button
+            type="button"
+            onClick={() => setTab("live")}
+            className={clsx(
+              "rounded-full px-4 py-1.5 text-xs font-extrabold transition-colors",
+              tab === "live"
+                ? "bg-accent-600 text-white"
+                : "text-slate-500 hover:text-slate-700"
+            )}
+          >
+            Live Payments
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("reconciliation")}
+            className={clsx(
+              "rounded-full px-4 py-1.5 text-xs font-extrabold transition-colors",
+              tab === "reconciliation"
+                ? "bg-accent-600 text-white"
+                : "text-slate-500 hover:text-slate-700"
+            )}
+          >
+            Reconciliation
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 overflow-y-auto p-6 space-y-6">
+        {tab === "live" && (
         <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-warm-200">
             <h2 className="font-extrabold text-slate-900">
@@ -421,14 +469,45 @@ export default function CashierPage() {
             </div>
           )}
         </div>
+        )}
 
+        {tab === "live" && (
+          <p className="text-slate-400 font-semibold text-center text-sm">
+            Reconciliation tables are hidden here — switch tabs to see them.
+          </p>
+        )}
+
+        {tab === "reconciliation" && (
+        <>
         <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
-          <div className="px-5 py-4 border-b border-warm-200">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-warm-200">
             <h2 className="font-extrabold text-slate-900">
               Summary — Today&rsquo;s Cash Per Waiter
             </h2>
+            <div className="flex items-center gap-2">
+              <select
+                value={waiterFilter}
+                onChange={(e) => setWaiterFilter(e.target.value)}
+                className="rounded-full border border-warm-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-600 outline-none focus:border-accent-400"
+              >
+                <option value="">All Waiters</option>
+                {waiters.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={openAddCollection}
+                disabled={waiters.length === 0}
+                className="inline-flex items-center gap-1.5 rounded-full bg-accent-600 hover:bg-accent-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-extrabold px-3.5 py-2"
+              >
+                <Plus size={13} /> Add Collection
+              </button>
+            </div>
           </div>
-          {summaryRows.length === 0 ? (
+          {filteredSummaryRows.length === 0 ? (
             <p className="text-slate-400 font-semibold text-center py-12">
               No collections recorded yet today.
             </p>
@@ -454,17 +533,16 @@ export default function CashierPage() {
                         forwarded to cashier
                       </div>
                     </th>
-                    <th className="text-right px-2 py-3">
+                    <th className="text-right px-5 py-3">
                       Pending
                       <div className="normal-case font-semibold text-slate-400 text-[10px]">
                         not yet given to cashier
                       </div>
                     </th>
-                    <th className="text-right px-5 py-3"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {summaryRows.map((row) => (
+                  {filteredSummaryRows.map((row) => (
                     <tr key={row.waiterId} className="border-t border-warm-100">
                       <td className="px-5 py-3 font-extrabold text-slate-900">
                         {row.waiterName}
@@ -489,27 +567,70 @@ export default function CashierPage() {
                       </td>
                       <td
                         className={clsx(
-                          "px-2 py-3 text-right font-extrabold",
+                          "px-5 py-3 text-right font-extrabold",
                           row.pending > 0 ? "text-amber-600" : "text-slate-400"
                         )}
                       >
                         {formatKES(row.pending)}
                       </td>
-                      <td className="px-5 py-3 text-right">
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
+          <div className="px-5 py-4 border-b border-warm-200">
+            <h2 className="font-extrabold text-slate-900">
+              Collections History — Today
+            </h2>
+          </div>
+          {historyRows.length === 0 ? (
+            <p className="text-slate-400 font-semibold text-center py-12">
+              No collections recorded yet today.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[640px]">
+                <thead className="bg-warm-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
+                  <tr>
+                    <th className="text-left px-5 py-3">Date/Time</th>
+                    <th className="text-left px-2 py-3">Waiter</th>
+                    <th className="text-left px-2 py-3">Method</th>
+                    <th className="text-left px-2 py-3">Reference</th>
+                    <th className="text-right px-2 py-3">Amount</th>
+                    <th className="text-center px-5 py-3">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {historyRows.map(({ drop, waiterName }) => (
+                    <tr key={drop.id} className="border-t border-warm-100">
+                      <td className="px-5 py-3 text-slate-600 font-semibold whitespace-nowrap">
+                        {formatTime(drop.droppedAt)}
+                      </td>
+                      <td className="px-2 py-3 font-extrabold text-slate-900">
+                        {waiterName}
+                      </td>
+                      <td className="px-2 py-3 text-slate-700 font-semibold">
+                        {drop.method === "mpesa" ? "M-Pesa" : "Cash"}
+                      </td>
+                      <td className="px-2 py-3 text-slate-600 font-semibold">
+                        {drop.reference || "—"}
+                      </td>
+                      <td className="px-2 py-3 text-right font-black text-slate-900">
+                        {formatKES(drop.amount)}
+                      </td>
+                      <td className="px-5 py-3 text-center">
                         <button
                           type="button"
-                          onClick={() =>
-                            openWaiterDrop(
-                              row.waiterId,
-                              row.waiterName,
-                              row.cashAmount,
-                              row.substitutionAmount,
-                              row.dropAmount
-                            )
-                          }
-                          className="inline-flex items-center gap-1 rounded-full border-2 border-amber-300 text-amber-700 hover:bg-amber-50 text-xs font-extrabold px-3 py-1.5"
+                          onClick={() => deleteCashDrop(drop.id)}
+                          aria-label="Delete collection"
+                          title="Delete collection"
+                          className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-rose-200 text-rose-600 hover:bg-rose-50"
                         >
-                          <Plus size={12} /> Drop
+                          <Trash2 size={14} />
                         </button>
                       </td>
                     </tr>
@@ -519,38 +640,41 @@ export default function CashierPage() {
             </div>
           )}
         </div>
+        </>
+        )}
       </main>
 
-      {waiterDropTarget && (() => {
-        const expectedNow = Math.max(
-          0,
-          waiterDropTarget.cashAmount +
-            waiterDropTarget.substitutionAmount -
-            waiterDropTarget.alreadyDropped
-        );
-        const counted = Math.max(0, Number(waiterDropAmount) || 0);
-        const hasAmount = waiterDropAmount.trim() !== "";
+      {collectionOpen && (() => {
+        const cash = collectionWaiterId ? computeWaiterCash(collectionWaiterId) : null;
+        const expectedNow = cash?.pending ?? 0;
+        const counted = Math.max(0, Number(collectionAmount) || 0);
+        const hasAmount = collectionAmount.trim() !== "";
         const variance = counted - expectedNow;
         // Bringing less than expected is a normal partial drop, not an
         // error — only bringing more than expected is unusual enough to
         // require an explanation.
         const isPartial = hasAmount && variance < 0;
         const isOverage = hasAmount && variance > 0;
-        const canConfirm = counted > 0 && (!isOverage || waiterDropNote.trim() !== "");
+        const referenceOk = collectionMethod === "cash" || collectionReference.trim() !== "";
+        const canConfirm =
+          Boolean(collectionWaiterId) &&
+          counted > 0 &&
+          referenceOk &&
+          (!isOverage || collectionNote.trim() !== "");
         return (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
-            onClick={() => setWaiterDropTarget(null)}
+            onClick={() => setCollectionOpen(false)}
           >
             <div
               className="w-full max-w-sm rounded-2xl bg-white p-5"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-1">
-                <h3 className="font-extrabold text-slate-900">Record Cash Drop</h3>
+                <h3 className="font-extrabold text-slate-900">Add New Collection</h3>
                 <button
                   type="button"
-                  onClick={() => setWaiterDropTarget(null)}
+                  onClick={() => setCollectionOpen(false)}
                   aria-label="Close"
                   className="text-slate-400 hover:text-slate-600"
                 >
@@ -558,19 +682,61 @@ export default function CashierPage() {
                 </button>
               </div>
               <p className="text-xs text-slate-500 font-semibold mb-3">
-                From {waiterDropTarget.waiterName} — cash and M-Pesa sent to
-                their personal number, combined into one drop.
+                Cash and M-Pesa sent to a waiter&rsquo;s personal number are
+                combined into one outstanding balance.
               </p>
 
-              <div className="rounded-lg bg-warm-50 px-3 py-2.5 mb-4">
-                <div className="flex justify-between text-sm font-black text-slate-900">
-                  <span>Expected</span>
-                  <span>{formatKES(expectedNow)}</span>
+              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
+                Waiter
+              </label>
+              <select
+                value={collectionWaiterId}
+                onChange={(e) => selectCollectionWaiter(e.target.value)}
+                className="mt-1 mb-3 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-bold outline-none focus:border-accent-400"
+              >
+                <option value="" disabled>
+                  Select a waiter
+                </option>
+                {waiters.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+
+              {cash && (
+                <div className="rounded-lg bg-warm-50 px-3 py-2.5 mb-4">
+                  <div className="flex justify-between text-sm font-black text-slate-900">
+                    <span>Expected</span>
+                    <span>{formatKES(expectedNow)}</span>
+                  </div>
+                  <div className="text-[11px] font-semibold text-slate-500 mt-0.5">
+                    Cash: {formatKES(cash.cashAmount)} · M-Pesa substitution:{" "}
+                    {formatKES(cash.substitutionAmount)}
+                  </div>
                 </div>
-                <div className="text-[11px] font-semibold text-slate-500 mt-0.5">
-                  Cash: {formatKES(waiterDropTarget.cashAmount)} · M-Pesa
-                  substitution: {formatKES(waiterDropTarget.substitutionAmount)}
-                </div>
+              )}
+
+              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
+                Method
+              </label>
+              <div className="grid grid-cols-2 gap-2 mt-1 mb-3">
+                {COLLECTION_METHODS.map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setCollectionMethod(id)}
+                    className={clsx(
+                      "flex items-center justify-center gap-2 rounded-xl border-2 py-2.5 font-extrabold text-sm transition-colors",
+                      collectionMethod === id
+                        ? "border-accent-600 bg-accent-50 text-accent-700"
+                        : "border-warm-200 text-slate-500 hover:border-accent-300"
+                    )}
+                  >
+                    <Icon size={16} />
+                    {label}
+                  </button>
+                ))}
               </div>
 
               <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
@@ -579,10 +745,24 @@ export default function CashierPage() {
               <input
                 type="number"
                 autoFocus
-                value={waiterDropAmount}
-                onChange={(e) => setWaiterDropAmount(e.target.value)}
+                value={collectionAmount}
+                onChange={(e) => setCollectionAmount(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-bold outline-none focus:border-accent-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
+
+              {collectionMethod === "mpesa" && (
+                <div className="mt-3">
+                  <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
+                    Reference code
+                  </label>
+                  <input
+                    value={collectionReference}
+                    onChange={(e) => setCollectionReference(e.target.value)}
+                    placeholder="e.g. QGH7XJ2K"
+                    className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-bold outline-none focus:border-accent-400"
+                  />
+                </div>
+              )}
 
               {isPartial && (
                 <div className="mt-3 flex items-start gap-1.5 rounded-lg bg-amber-50 text-amber-700 text-xs font-bold px-3 py-2">
@@ -604,8 +784,8 @@ export default function CashierPage() {
                     Note
                   </label>
                   <textarea
-                    value={waiterDropNote}
-                    onChange={(e) => setWaiterDropNote(e.target.value)}
+                    value={collectionNote}
+                    onChange={(e) => setCollectionNote(e.target.value)}
                     placeholder="e.g. Customer overpaid and said keep the change"
                     rows={2}
                     className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-semibold outline-none focus:border-accent-400 resize-none"
@@ -616,10 +796,10 @@ export default function CashierPage() {
               <button
                 type="button"
                 disabled={!canConfirm}
-                onClick={submitWaiterDrop}
+                onClick={submitCollection}
                 className="w-full mt-4 flex items-center justify-center gap-2 rounded-lg bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-3 transition-colors"
               >
-                <Banknote size={16} /> Confirm Drop
+                <Banknote size={16} /> Confirm Collection
               </button>
             </div>
           </div>
