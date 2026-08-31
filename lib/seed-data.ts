@@ -28,7 +28,7 @@ export const seedMenu: MenuItem[] = [
   { id: "mn8", name: "Ugali (Brown)", aliases: ["ugali"], category: "Main", price: 100, veg: true, available: true },
   { id: "mn9", name: "Chips (Fries)", aliases: ["chips", "fries"], category: "Main", price: 150, veg: true, available: true },
   { id: "mn10", name: "Chips (Masala)", aliases: ["chips", "masala chips"], category: "Main", price: 200, veg: true, available: true },
-  { id: "mn11", name: "Chips (Saute)", aliases: ["chips", "saute chips"], category: "Main", price: 200, veg: true, available: true },
+  { id: "mn11", name: "Sate", aliases: ["sate chips"], category: "Main", price: 200, veg: true, available: true },
   { id: "mn12", name: "Ugali Mayai (Eggs)", aliases: ["ugali mayai", "mayai"], category: "Main", price: 250, veg: true, available: true },
 
   // Extra
@@ -55,8 +55,8 @@ export const seedMenu: MenuItem[] = [
   { id: "mn27", name: "Passion (Take away)", aliases: ["passion", "passion juice"], category: "Juice", price: 150, veg: true, available: true },
   { id: "mn28", name: "Hibiscus (Inhouse)", aliases: ["hibiscus"], category: "Juice", price: 100, veg: true, available: true },
   { id: "mn29", name: "Hibiscus (Take away)", aliases: ["hibiscus"], category: "Juice", price: 150, veg: true, available: true },
-  { id: "mn30", name: "Termerind (Inhouse)", aliases: ["tamarind"], category: "Juice", price: 100, veg: true, available: true },
-  { id: "mn31", name: "Termerind (Take away)", aliases: ["tamarind"], category: "Juice", price: 150, veg: true, available: true },
+  { id: "mn30", name: "Tamarind (Inhouse)", aliases: ["tamarind"], category: "Juice", price: 100, veg: true, available: true },
+  { id: "mn31", name: "Tamarind (Take away)", aliases: ["tamarind"], category: "Juice", price: 150, veg: true, available: true },
   { id: "mn32", name: "Sugar cane (Inhouse)", aliases: ["sugarcane"], category: "Juice", price: 150, veg: true, available: true },
   { id: "mn33", name: "Sugar cane (Take away)", aliases: ["sugarcane"], category: "Juice", price: 200, veg: true, available: true },
 

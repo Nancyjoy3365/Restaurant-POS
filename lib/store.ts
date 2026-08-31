@@ -66,6 +66,8 @@ interface PosState {
   resumeOrder: (ticketId: string) => void;
   heldOrderCountForWaiter: (waiterId: string | null) => number;
   sendRoundToKitchen: (ticketId: string, roundId: string) => void;
+  toggleItemReady: (ticketId: string, itemId: string) => void;
+  markAllItemsReady: (ticketId: string) => void;
   updateItemNote: (ticketId: string, itemId: string, note: string) => void;
   voidItem: (ticketId: string, itemId: string, reason: string) => void;
   toggleMenuAvailability: (menuItemId: string) => void;
@@ -75,6 +77,7 @@ interface PosState {
   clockOut: (staffId: string) => void;
   login: (staffId: string) => void;
   logout: () => void;
+  cancelEmptyTickets: () => void;
   startBilling: (ticketId: string) => void;
   recordPayment: (
     ticketId: string,
@@ -143,6 +146,32 @@ function withRefreshedBillTotals(order: TicketOrder): TicketOrder {
   return { ...order, billTotals: unbilledOrderTotal(order) };
 }
 
+// An order that never received a single item (e.g. "+ New Order" tapped
+// then abandoned) isn't a real order — it should never persist as a
+// visible open ticket, held or otherwise. Shared by the logout cleanup and
+// the general sweep run from the ticket-listing pages.
+function purgeEmptyTickets(s: {
+  tickets: Ticket[];
+  orders: Record<string, TicketOrder>;
+}): Pick<PosState, "tickets" | "orders"> | null {
+  const emptyTicketIds = new Set(
+    s.tickets
+      .filter(
+        (t) =>
+          t.status === "open" &&
+          s.orders[t.id]?.rounds.every((r) => r.items.length === 0)
+      )
+      .map((t) => t.id)
+  );
+  if (emptyTicketIds.size === 0) return null;
+  return {
+    tickets: s.tickets.filter((t) => !emptyTicketIds.has(t.id)),
+    orders: Object.fromEntries(
+      Object.entries(s.orders).filter(([id]) => !emptyTicketIds.has(id))
+    ),
+  };
+}
+
 export const usePosStore = create<PosState>()(
   persist(
     (set, get) => ({
@@ -201,6 +230,13 @@ export const usePosStore = create<PosState>()(
         set((s) => {
           const order = s.orders[ticketId];
           if (!order) return s;
+          // Reuse the trailing round if it's already empty (e.g. the fresh
+          // round sendRoundToKitchen just created) instead of piling on
+          // another unused one — otherwise round numbers inflate with
+          // throwaway empty rounds every time this is clicked without an
+          // item actually landing in the previous one.
+          const lastRound = order.rounds[order.rounds.length - 1];
+          if (lastRound && lastRound.items.length === 0) return s;
           const newRound: Round = {
             id: makeId("round"),
             index: order.rounds.length + 1,
@@ -357,6 +393,7 @@ export const usePosStore = create<PosState>()(
             r.id === roundId
               ? {
                   ...r,
+                  sentAt: Date.now(),
                   items: r.items.map((i) => ({ ...i, sentToKitchen: true })),
                 }
               : r
@@ -378,6 +415,53 @@ export const usePosStore = create<PosState>()(
                 rounds: [...sentRounds, freshRound],
                 onHold: true,
               },
+            },
+          };
+        }),
+
+      toggleItemReady: (ticketId, itemId) =>
+        set((s) => {
+          const order = s.orders[ticketId];
+          if (!order) return s;
+          const rounds = order.rounds.map((r) => ({
+            ...r,
+            items: r.items.map((i) =>
+              i.id === itemId ? { ...i, kitchenReady: !i.kitchenReady } : i
+            ),
+          }));
+          // The moment every sent item is ready, the kitchen's part is
+          // done — hand the ticket back to the waiter automatically rather
+          // than requiring a separate "Mark All Ready" click.
+          const allSentItemsReady = rounds
+            .flatMap((r) => r.items)
+            .filter((i) => i.sentToKitchen)
+            .every((i) => i.kitchenReady);
+          return {
+            orders: {
+              ...s.orders,
+              [ticketId]: {
+                ...order,
+                rounds,
+                onHold: allSentItemsReady ? false : order.onHold,
+              },
+            },
+          };
+        }),
+
+      markAllItemsReady: (ticketId) =>
+        set((s) => {
+          const order = s.orders[ticketId];
+          if (!order) return s;
+          const rounds = order.rounds.map((r) => ({
+            ...r,
+            items: r.items.map((i) =>
+              i.sentToKitchen ? { ...i, kitchenReady: true } : i
+            ),
+          }));
+          return {
+            orders: {
+              ...s.orders,
+              [ticketId]: { ...order, rounds, onHold: false },
             },
           };
         }),
@@ -468,31 +552,10 @@ export const usePosStore = create<PosState>()(
 
       login: (staffId) => set({ currentStaffId: staffId }),
       logout: () =>
-        set((s) => {
-          const staffId = s.currentStaffId;
-          if (!staffId) return { currentStaffId: null };
-          // An order started (e.g. via "+ New Order") but abandoned before
-          // any item was ever added shouldn't linger as a dangling empty
-          // ticket once its owner logs out.
-          const emptyTicketIds = new Set(
-            s.tickets
-              .filter(
-                (t) =>
-                  t.waiterId === staffId &&
-                  t.status === "open" &&
-                  s.orders[t.id]?.rounds.every((r) => r.items.length === 0)
-              )
-              .map((t) => t.id)
-          );
-          if (emptyTicketIds.size === 0) return { currentStaffId: null };
-          return {
-            currentStaffId: null,
-            tickets: s.tickets.filter((t) => !emptyTicketIds.has(t.id)),
-            orders: Object.fromEntries(
-              Object.entries(s.orders).filter(([id]) => !emptyTicketIds.has(id))
-            ),
-          };
-        }),
+        set((s) => ({ currentStaffId: null, ...(purgeEmptyTickets(s) ?? {}) })),
+
+      cancelEmptyTickets: () =>
+        set((s) => purgeEmptyTickets(s) ?? s),
 
       startBilling: (ticketId) =>
         set((s) => {
@@ -678,7 +741,7 @@ export const usePosStore = create<PosState>()(
     }),
     {
       name: "pos-storage",
-      version: 17,
+      version: 18,
       migrate: (persistedState) => {
         const state = persistedState as Partial<PosState> & {
           menu?: Array<Record<string, unknown>>;
@@ -762,6 +825,16 @@ export const usePosStore = create<PosState>()(
           ...tickets.map((t) => t.displayNumber ?? 0)
         );
 
+        const staff = (hasCurrentStaffShape ? state.staff : seedStaff) as unknown as StaffMember[];
+        // Whenever staff gets reseeded (a role rename, a new roster, etc.)
+        // a persisted currentStaffId can end up pointing at an id that no
+        // longer exists — that silently broke the sidebar (no staff found
+        // → no name/role/logout panel, and nav quietly fell back to just
+        // "/") instead of visibly sending them back to log in again.
+        const currentStaffId = staff.some((m) => m.id === state.currentStaffId)
+          ? state.currentStaffId
+          : null;
+
         return {
           ...state,
           menu: [...seedMenu, ...(customMenuItems as unknown as MenuItem[])],
@@ -769,7 +842,8 @@ export const usePosStore = create<PosState>()(
             ? state.ingredients
             : seedIngredients,
           recipes: hasCurrentRecipeShape ? state.recipes : seedRecipes,
-          staff: hasCurrentStaffShape ? state.staff : seedStaff,
+          staff,
+          currentStaffId,
           orders,
           tickets,
           ticketCounter,

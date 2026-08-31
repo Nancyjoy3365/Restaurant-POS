@@ -43,12 +43,18 @@ export interface OrderLineItem {
   addOns: AddOn[];
   note?: string;
   sentToKitchen?: boolean;
+  kitchenReady?: boolean;
 }
 
 export interface Round {
   id: string;
   index: number;
   createdAt: number;
+  // When this round was actually sent to the kitchen (via
+  // sendRoundToKitchen) — distinct from createdAt, since items can sit in
+  // a round for a while before being sent. Drives the Kitchen Display's
+  // elapsed-time urgency badge.
+  sentAt?: number;
   items: OrderLineItem[];
 }
 

@@ -17,11 +17,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!hydrated || pathname === "/login") return;
-    if (!currentStaffId) {
+    // A currentStaffId that doesn't resolve to a real staff member (e.g.
+    // their record was removed by a roster reseed) must be treated the
+    // same as not being logged in — otherwise the app renders a degraded,
+    // half-logged-in state instead of sending them back to pick themselves
+    // again.
+    if (!currentStaffId || !currentStaff) {
       router.replace("/login");
       return;
     }
-    if (currentStaff && !canAccessPath(currentStaff.role, pathname)) {
+    if (!canAccessPath(currentStaff.role, pathname)) {
       router.replace(getDefaultRouteForRole(currentStaff.role));
     }
   }, [hydrated, currentStaffId, currentStaff, pathname, router]);
@@ -33,7 +38,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (
     !hydrated ||
     !currentStaffId ||
-    (currentStaff && !canAccessPath(currentStaff.role, pathname))
+    !currentStaff ||
+    !canAccessPath(currentStaff.role, pathname)
   ) {
     return <div className="flex-1 min-h-screen bg-background" />;
   }

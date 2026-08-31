@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { Plus, PauseCircle, X } from "lucide-react";
@@ -20,9 +20,17 @@ export default function MyTicketsPage() {
   const tickets = usePosStore((s) => s.tickets);
   const orders = usePosStore((s) => s.orders);
   const createTicket = usePosStore((s) => s.createTicket);
+  const cancelEmptyTickets = usePosStore((s) => s.cancelEmptyTickets);
 
   const [newTicketOpen, setNewTicketOpen] = useState(false);
   const [locationNote, setLocationNote] = useState("");
+
+  // An order that never got a single item added to it isn't a real order —
+  // sweep those away whenever this list is viewed, rather than leaving
+  // them to clutter the board until the waiter next logs out.
+  useEffect(() => {
+    cancelEmptyTickets();
+  }, [cancelEmptyTickets]);
 
   // Strictly scoped to tickets.waiter_id === current_staff.id — never
   // grouped or inferred from anything else. A colleague's ticket never
@@ -31,6 +39,7 @@ export default function MyTicketsPage() {
     .filter((t) => t.status === "open" && t.waiterId === currentStaffId)
     .map((t) => ({ ticket: t, order: orders[t.id] }))
     .filter((r): r is MyTicketRow => Boolean(r.order))
+    .filter((r) => r.order.rounds.some((round) => round.items.length > 0))
     .sort((a, b) => a.ticket.displayNumber - b.ticket.displayNumber);
 
   function handleCreateTicket() {

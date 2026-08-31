@@ -583,10 +583,6 @@ export default function CashierPage() {
                 onChange={(e) => setWaiterDropAmount(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-bold outline-none focus:border-accent-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
-              <p className="mt-1.5 text-[11px] text-slate-400 font-semibold">
-                Bringing only part of it is fine — the rest stays pending
-                until they drop again.
-              </p>
 
               {isPartial && (
                 <div className="mt-3 flex items-start gap-1.5 rounded-lg bg-amber-50 text-amber-700 text-xs font-bold px-3 py-2">

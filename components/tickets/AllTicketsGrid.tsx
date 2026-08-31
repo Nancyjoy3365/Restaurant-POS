@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import clsx from "clsx";
@@ -30,9 +30,16 @@ export function AllTicketsGrid() {
   const tickets = usePosStore((s) => s.tickets);
   const orders = usePosStore((s) => s.orders);
   const staff = usePosStore((s) => s.staff);
+  const cancelEmptyTickets = usePosStore((s) => s.cancelEmptyTickets);
   const [expanded, setExpanded] = useState<Set<string>>(
     () => new Set(staff.map((m) => m.id))
   );
+
+  // An order that never got a single item added to it isn't a real order —
+  // sweep those away whenever this board is viewed.
+  useEffect(() => {
+    cancelEmptyTickets();
+  }, [cancelEmptyTickets]);
 
   const openTickets = tickets.filter((t) => t.status === "open");
   const waiterIds = Array.from(new Set(openTickets.map((t) => t.waiterId)));
@@ -45,7 +52,9 @@ export function AllTicketsGrid() {
         .filter((t) => t.waiterId === waiterId)
         .map((ticket) => {
           const order = orders[ticket.id];
-          if (!order) return null;
+          if (!order || !order.rounds.some((round) => round.items.length > 0)) {
+            return null;
+          }
           return { ticket, order, status: ticketDisplayStatus(order) };
         })
         .filter((r): r is Row => Boolean(r))

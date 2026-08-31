@@ -10,6 +10,7 @@ import {
   Users,
   Wallet,
   BarChart3,
+  ChefHat,
   LogOut,
   PauseCircle,
 } from "lucide-react";
@@ -20,6 +21,7 @@ import { ROLE_ALLOWED_PATHS } from "@/lib/roles";
 const NAV_ITEMS = [
   { href: "/", label: "All Orders", icon: LayoutGrid },
   { href: "/my-tickets", label: "My Orders", icon: TicketIcon },
+  { href: "/kitchen", label: "Kitchen", icon: ChefHat },
   { href: "/cashier", label: "Cashier", icon: Wallet },
   { href: "/menu-management", label: "Menu Management", icon: UtensilsCrossed },
   { href: "/inventory", label: "Inventory", icon: Boxes },
@@ -46,7 +48,8 @@ export function Sidebar() {
     (t) =>
       t.status === "open" &&
       t.waiterId === currentStaffId &&
-      orders[t.id]?.onHold
+      orders[t.id]?.onHold &&
+      orders[t.id]?.rounds.some((round) => round.items.length > 0)
   );
 
   function handleLogout() {

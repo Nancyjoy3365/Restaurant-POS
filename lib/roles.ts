@@ -2,8 +2,8 @@ import type { StaffRole } from "./types";
 
 export const ROLE_ALLOWED_PATHS: Record<StaffRole, string[]> = {
   Admin: ["/", "/menu-management", "/inventory", "/staff", "/cashier", "/reports"],
-  Chef: ["/", "/menu-management", "/inventory"],
-  "Kitchen Assistant": ["/", "/menu-management", "/inventory"],
+  Chef: ["/", "/menu-management", "/inventory", "/kitchen"],
+  "Kitchen Assistant": ["/", "/menu-management", "/inventory", "/kitchen"],
   Cashier: ["/", "/cashier"],
   Waiter: ["/my-tickets"],
 };
@@ -17,8 +17,6 @@ export const ROLE_LOGIN_ORDER: StaffRole[] = [
 ];
 
 // Where each role lands right after picking themselves off the staff grid.
-// No dedicated Kitchen View exists yet, so Chef/Kitchen Assistant land on
-// the closest existing screen for their role.
 export function getDefaultRouteForRole(role: StaffRole): string {
   switch (role) {
     case "Admin":
@@ -27,7 +25,7 @@ export function getDefaultRouteForRole(role: StaffRole): string {
       return "/cashier";
     case "Chef":
     case "Kitchen Assistant":
-      return "/inventory";
+      return "/kitchen";
     default:
       return "/my-tickets";
   }
