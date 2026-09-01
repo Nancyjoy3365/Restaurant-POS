@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { X, Plus } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { X, Plus, Pencil, Trash2, CheckCircle2 } from "lucide-react";
 import { usePosStore } from "@/lib/store";
 import { toDateKey } from "@/lib/utils";
-import type { LeaveStatus, StaffMember } from "@/lib/types";
+import type { LeaveRecord, LeaveStatus, StaffMember } from "@/lib/types";
 
 function formatDateLabel(dateKey: string): string {
   return new Date(`${dateKey}T00:00:00`).toLocaleDateString("en-KE", {
@@ -22,32 +22,81 @@ export function LeaveModal({
 }) {
   const leaveRecords = usePosStore((s) => s.leaveRecords);
   const addLeaveRecord = usePosStore((s) => s.addLeaveRecord);
+  const updateLeaveRecord = usePosStore((s) => s.updateLeaveRecord);
+  const deleteLeaveRecord = usePosStore((s) => s.deleteLeaveRecord);
 
   const todayKey = toDateKey(new Date());
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [startDate, setStartDate] = useState(todayKey);
   const [endDate, setEndDate] = useState(todayKey);
   const [reason, setReason] = useState("");
   const [status, setStatus] = useState<LeaveStatus>("approved");
   const [isPaid, setIsPaid] = useState(false);
+  const [requestedAt, setRequestedAt] = useState<number | undefined>(undefined);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (successTimer.current) clearTimeout(successTimer.current);
+    };
+  }, []);
 
   const staffLeave = leaveRecords
     .filter((l) => l.staffId === staff.id)
     .sort((a, b) => (a.startDate < b.startDate ? 1 : -1));
 
   const canSave = startDate !== "" && endDate !== "" && endDate >= startDate;
+  const isEditing = editingId !== null;
+
+  function resetForm() {
+    setEditingId(null);
+    setStartDate(todayKey);
+    setEndDate(todayKey);
+    setReason("");
+    setStatus("approved");
+    setIsPaid(false);
+  }
+
+  function showSuccess(message: string) {
+    if (successTimer.current) clearTimeout(successTimer.current);
+    setSuccessMessage(message);
+    successTimer.current = setTimeout(() => setSuccessMessage(null), 2500);
+  }
 
   function handleSave() {
     if (!canSave) return;
-    addLeaveRecord({
+    const fields = {
       staffId: staff.id,
       startDate,
       endDate,
       reason: reason.trim(),
       status,
       isPaid,
-    });
-    setReason("");
-    setIsPaid(false);
+    };
+    if (editingId) {
+      updateLeaveRecord(editingId, fields);
+      showSuccess("Leave updated successfully.");
+    } else {
+      addLeaveRecord(fields);
+      showSuccess("Leave added successfully.");
+    }
+    resetForm();
+  }
+
+  function startEdit(l: LeaveRecord) {
+    setEditingId(l.id);
+    setStartDate(l.startDate);
+    setEndDate(l.endDate);
+    setReason(l.reason);
+    setStatus(l.status);
+    setIsPaid(l.isPaid);
+    setSuccessMessage(null);
+  }
+
+  function handleDelete(id: string) {
+    deleteLeaveRecord(id);
+    if (editingId === id) resetForm();
   }
 
   return (
@@ -70,6 +119,13 @@ export function LeaveModal({
             <X size={18} />
           </button>
         </div>
+
+        {successMessage && (
+          <div className="flex items-center gap-2 mt-3 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold px-3 py-2">
+            <CheckCircle2 size={14} className="shrink-0" />
+            {successMessage}
+          </div>
+        )}
 
         <div className="space-y-3 mt-4">
           <div className="grid grid-cols-2 gap-3">
@@ -144,14 +200,31 @@ export function LeaveModal({
             </span>
           </label>
 
-          <button
-            type="button"
-            disabled={!canSave}
-            onClick={handleSave}
-            className="w-full flex items-center justify-center gap-2 rounded-lg bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-2.5 transition-colors"
-          >
-            <Plus size={15} /> Add Leave
-          </button>
+          <div className="flex gap-2">
+            {isEditing && (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="rounded-lg border-2 border-warm-200 text-slate-500 hover:border-slate-300 font-extrabold px-4 py-2.5 transition-colors"
+              >
+                Cancel
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={!canSave}
+              onClick={handleSave}
+              className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-2.5 transition-colors"
+            >
+              {isEditing ? (
+                "Save Changes"
+              ) : (
+                <>
+                  <Plus size={15} /> Add Leave
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         <div className="mt-5 pt-4 border-t border-warm-100">
@@ -167,9 +240,9 @@ export function LeaveModal({
               {staffLeave.map((l) => (
                 <div
                   key={l.id}
-                  className="flex items-center justify-between text-xs"
+                  className="flex items-center justify-between gap-2 text-xs"
                 >
-                  <span className="font-bold text-slate-700">
+                  <span className="font-bold text-slate-700 min-w-0">
                     {formatDateLabel(l.startDate)} – {formatDateLabel(l.endDate)}
                     {l.reason && (
                       <span className="text-slate-400 font-semibold">
@@ -191,6 +264,24 @@ export function LeaveModal({
                     >
                       {l.status}
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => startEdit(l)}
+                      aria-label="Edit leave entry"
+                      title="Edit"
+                      className="text-slate-400 hover:text-accent-700"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(l.id)}
+                      aria-label="Delete leave entry"
+                      title="Delete"
+                      className="text-slate-400 hover:text-rose-600"
+                    >
+                      <Trash2 size={12} />
+                    </button>
                   </span>
                 </div>
               ))}

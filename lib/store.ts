@@ -113,6 +113,8 @@ interface PosState {
   ) => void;
   deleteCashDrop: (dropId: string) => void;
   addLeaveRecord: (record: Omit<LeaveRecord, "id">) => void;
+  updateLeaveRecord: (leaveId: string, updates: Omit<LeaveRecord, "id">) => void;
+  deleteLeaveRecord: (leaveId: string) => void;
   addIncentiveRecord: (record: Omit<IncentiveRecord, "id">) => void;
 }
 
@@ -806,6 +808,18 @@ export const usePosStore = create<PosState>()(
       addLeaveRecord: (record) =>
         set((s) => ({
           leaveRecords: [...s.leaveRecords, { ...record, id: makeId("leave") }],
+        })),
+
+      updateLeaveRecord: (leaveId, updates) =>
+        set((s) => ({
+          leaveRecords: s.leaveRecords.map((l) =>
+            l.id === leaveId ? { ...updates, id: l.id } : l
+          ),
+        })),
+
+      deleteLeaveRecord: (leaveId) =>
+        set((s) => ({
+          leaveRecords: s.leaveRecords.filter((l) => l.id !== leaveId),
         })),
 
       addIncentiveRecord: (record) =>
