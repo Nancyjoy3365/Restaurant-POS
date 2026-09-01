@@ -3,17 +3,39 @@
 import { useState } from "react";
 import { Printer } from "lucide-react";
 import type { TicketOrder } from "@/lib/types";
-import { flattenOrderItems, lineRawTotal, formatKES, formatDateTime } from "@/lib/utils";
+import { flattenOrderItems, lineRawTotal, formatKES } from "@/lib/utils";
 
 export function BillPreview({
   order,
+  subtotal,
+  vat,
   total,
+  checkNo,
+  locationNote,
+  waiterName,
 }: {
   order: TicketOrder | undefined;
+  subtotal: number;
+  vat: number;
   total: number;
+  checkNo?: number;
+  locationNote?: string;
+  waiterName?: string;
 }) {
   const lines = flattenOrderItems(order);
   const [previewedAt] = useState(() => Date.now());
+  const itemCount = lines.reduce((sum, { item }) => sum + item.qty, 0);
+  const billDate = new Date(previewedAt).toLocaleDateString("en-KE", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+  const billTime = new Date(previewedAt).toLocaleTimeString("en-KE", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
 
   return (
     <div className="rounded-xl border border-warm-200 bg-white p-5">
@@ -30,34 +52,87 @@ export function BillPreview({
           <div className="text-[11px] text-slate-500">
             Utawala - Next to Quickmart Kwa Chief
           </div>
-          <div className="text-[11px] text-slate-500">
-            PIN: P000000000A
-          </div>
+          <div className="text-[11px] text-slate-500">PIN: P000000000A</div>
           <div className="text-[11px] text-slate-500">Tel: 0719 877 022</div>
-          <div className="text-[11px] text-slate-500">
-            {formatDateTime(previewedAt)}
+          <div className="text-[11px] font-extrabold mt-1">NON FISCAL BILL</div>
+        </div>
+
+        <div className="border-t border-dashed border-slate-300 pt-2 mb-2 text-[11px] space-y-0.5">
+          {checkNo !== undefined && (
+            <div className="flex justify-between">
+              <span>Chk. No.</span>
+              <span className="font-bold">{checkNo}</span>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <span>Table</span>
+            <span className="font-bold">{locationNote || "—"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Bill Date</span>
+            <span className="font-bold">{billDate}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Bill Time</span>
+            <span className="font-bold">{billTime}</span>
+          </div>
+          {waiterName && (
+            <div className="flex justify-between">
+              <span>Served By</span>
+              <span className="font-bold">{waiterName}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-dashed border-slate-300 pt-2">
+          <div className="flex justify-between text-[10px] font-extrabold uppercase tracking-wide text-slate-500 pb-1">
+            <span className="w-8">Qty</span>
+            <span className="flex-1">Item Name</span>
+            <span className="w-16 text-right">Price</span>
+            <span className="w-16 text-right">Total</span>
+          </div>
+          <div className="space-y-1">
+            {lines.map(({ item }) => (
+              <div key={item.id} className="flex justify-between">
+                <span className="w-8">{item.qty.toFixed(1)}</span>
+                <span className="flex-1 truncate pr-1">{item.name}</span>
+                <span className="w-16 text-right">{item.price}</span>
+                <span className="w-16 text-right">{lineRawTotal(item)}</span>
+              </div>
+            ))}
           </div>
         </div>
-        <div className="border-t border-dashed border-slate-300 pt-2 mb-2 space-y-0.5">
+
+        <div className="border-t border-dashed border-slate-300 mt-2 pt-2 space-y-0.5">
+          <div className="flex justify-between text-[11px]">
+            <span>Bill Item(s):</span>
+            <span className="font-bold">{itemCount.toFixed(1)}</span>
+          </div>
           <div className="flex justify-between font-black text-sm">
-            <span>TOTAL</span>
+            <span>BILL TOTAL</span>
             <span>{formatKES(total)}</span>
           </div>
+          <div className="flex justify-between text-[11px] text-slate-500">
+            <span>VAT (16%, inclusive)</span>
+            <span>{formatKES(vat)}</span>
+          </div>
+          <div className="flex justify-between text-[11px] text-slate-500">
+            <span>Subtotal (excl. VAT)</span>
+            <span>{formatKES(subtotal)}</span>
+          </div>
         </div>
-        <div className="border-t border-dashed border-slate-300 pt-2 space-y-1">
-          {lines.map(({ item }) => (
-            <div key={item.id} className="flex justify-between">
-              <span className="truncate pr-2">
-                {item.qty}× {item.name}
-              </span>
-              <span className="whitespace-nowrap">
-                {formatKES(lineRawTotal(item))}
-              </span>
-            </div>
-          ))}
+
+        <div className="border-t border-dashed border-slate-300 mt-2 pt-2 text-center text-[10px] text-slate-500">
+          Not a tax invoice — get your official ETR receipt from the cashier
+          after paying.
         </div>
-        <div className="border-t border-dashed border-slate-300 mt-2 pt-2 text-center text-[11px] font-bold">
-          Till Number: 4983794
+
+        <div className="border-t border-dashed border-slate-300 mt-2 pt-2 text-center">
+          <div className="text-[11px] font-bold">LIPA NA MPESA</div>
+          <div className="text-[11px] font-bold">BUY GOODS</div>
+          <div className="text-2xl font-black tracking-wider mt-0.5">
+            974366
+          </div>
         </div>
       </div>
 
