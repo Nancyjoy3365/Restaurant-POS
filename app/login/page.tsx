@@ -207,14 +207,24 @@ export default function LoginPage() {
                     key={member.id}
                     type="button"
                     onClick={() => selectStaff(member.id, member.name)}
-                    className="relative flex flex-col items-center gap-2 rounded-xl border border-warm-200 p-3 hover:border-accent-400 hover:bg-accent-50 transition-colors"
+                    className={clsx(
+                      "relative flex flex-col items-center gap-2 rounded-xl border p-3 transition-colors",
+                      onLeave
+                        ? "border-warm-200 opacity-60 grayscale hover:opacity-80"
+                        : "border-warm-200 hover:border-accent-400 hover:bg-accent-50"
+                    )}
                   >
                     {onLeave && (
                       <span className="absolute top-1.5 right-1.5 flex items-center gap-0.5 rounded-full bg-amber-100 text-amber-700 text-[9px] font-extrabold px-1.5 py-0.5">
                         <CalendarOff size={9} /> On Leave
                       </span>
                     )}
-                    <span className="h-12 w-12 flex items-center justify-center rounded-full bg-accent-600 text-white font-black text-sm">
+                    <span
+                      className={clsx(
+                        "h-12 w-12 flex items-center justify-center rounded-full text-white font-black text-sm",
+                        onLeave ? "bg-slate-400" : "bg-accent-600"
+                      )}
+                    >
                       {initials(member.name)}
                     </span>
                     <span className="text-center leading-tight">

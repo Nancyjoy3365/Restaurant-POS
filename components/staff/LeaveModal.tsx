@@ -56,6 +56,7 @@ export function LeaveModal({
     setReason("");
     setStatus("approved");
     setIsPaid(false);
+    setRequestedAt(undefined);
   }
 
   function showSuccess(message: string) {
@@ -73,6 +74,7 @@ export function LeaveModal({
       reason: reason.trim(),
       status,
       isPaid,
+      requestedAt: requestedAt ?? Date.now(),
     };
     if (editingId) {
       updateLeaveRecord(editingId, fields);
@@ -91,6 +93,7 @@ export function LeaveModal({
     setReason(l.reason);
     setStatus(l.status);
     setIsPaid(l.isPaid);
+    setRequestedAt(l.requestedAt);
     setSuccessMessage(null);
   }
 
