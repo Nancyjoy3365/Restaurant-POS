@@ -64,6 +64,11 @@ export default function PerformanceTrackerPage() {
     listRows.length > 0
       ? listRows.reduce((sum, r) => sum + r.sales, 0) / listRows.length
       : 0;
+  // Reused by the Cards view below to badge #1/#2/#3 without touching that
+  // view's own untouched staff-array order.
+  const salesRankById = new Map(
+    listRows.map((row, i) => [row.waiter.id, i + 1])
+  );
 
   return (
     <div className="flex-1 flex flex-col">
@@ -282,12 +287,33 @@ export default function PerformanceTrackerPage() {
                 menu,
                 waiter.id
               );
+              // Rank is computed from today's sales across all waiters, but
+              // the cards themselves keep the original staff-array order —
+              // only the badge reflects standing, nothing gets reordered.
+              const rank = salesRankById.get(waiter.id);
+              const showRankBadge = rank !== undefined && rank <= 3 && sales > 0;
 
               return (
                 <div
                   key={waiter.id}
-                  className="rounded-2xl border border-warm-200 bg-white shadow-sm overflow-hidden"
+                  className="relative rounded-2xl border border-warm-200 bg-white shadow-sm overflow-hidden"
                 >
+                  {showRankBadge && (
+                    <span
+                      className={clsx(
+                        "absolute top-3 right-3 h-6 w-6 flex items-center justify-center rounded-full text-xs font-black text-white",
+                        rank === 1
+                          ? "bg-amber-400"
+                          : rank === 2
+                          ? "bg-slate-400"
+                          : "bg-orange-400"
+                      )}
+                      aria-label={`Ranked #${rank} in sales today`}
+                      title={`#${rank} in sales today`}
+                    >
+                      {rank}
+                    </span>
+                  )}
                   <div className="flex items-center gap-2 px-4 py-3 border-b border-warm-200">
                     <Trophy size={16} className="text-accent-600" />
                     <span className="font-extrabold text-slate-900">

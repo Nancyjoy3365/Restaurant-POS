@@ -9,10 +9,15 @@ import {
   PiggyBank,
   Users2,
   Scale,
+  Truck,
 } from "lucide-react";
 import { usePosStore } from "@/lib/store";
 import { formatKES } from "@/lib/utils";
-import { computeCogs } from "@/lib/reports";
+import {
+  computeCogs,
+  vendorPaymentsInRange,
+  stockPurchasesInRange,
+} from "@/lib/reports";
 import { payoutForRange, paidLeaveAmountInRange } from "@/lib/payroll";
 
 function toDateInputValue(d: Date): string {
@@ -30,6 +35,7 @@ export default function ReportsPage() {
   const shifts = usePosStore((s) => s.shifts);
   const payments = usePosStore((s) => s.payments);
   const leaveRecords = usePosStore((s) => s.leaveRecords);
+  const vendors = usePosStore((s) => s.vendors);
 
   const todayStr = toDateInputValue(new Date());
   const [fromDate, setFromDate] = useState(todayStr);
@@ -66,7 +72,21 @@ export default function ReportsPage() {
       sum + paidLeaveAmountInRange(member, shifts, leaveRecords, rangeStart, rangeEnd),
     0
   );
-  const netForDay = grossMargin - staffPayouts;
+  const vendorPaymentsTotal = vendorPaymentsInRange(vendors, rangeStart, rangeEnd);
+  const stockPurchasesTotal = stockPurchasesInRange(ingredients, rangeStart, rangeEnd);
+  const expensesTotal = vendorPaymentsTotal + stockPurchasesTotal;
+  const netForDay = grossMargin - staffPayouts - expensesTotal;
+
+  const vendorsInRange = vendors.filter((v) => {
+    const paidAt = new Date(`${v.lastPaymentDate}T12:00:00`);
+    return paidAt >= rangeStart && paidAt <= rangeEnd;
+  });
+  const stockInRange = ingredients.filter(
+    (ing) =>
+      ing.purchasedAt !== undefined &&
+      ing.purchasedAt >= rangeStart.getTime() &&
+      ing.purchasedAt <= rangeEnd.getTime()
+  );
 
   const isSingleDay = fromDate === toDate;
   const rangeLabel = isSingleDay
@@ -108,7 +128,7 @@ export default function ReportsPage() {
       <main className="flex-1 overflow-y-auto p-6 space-y-6">
         <p className="text-sm font-bold text-slate-500">{rangeLabel}</p>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <StatCard
             icon={TrendingUp}
             label="Revenue"
@@ -137,6 +157,13 @@ export default function ReportsPage() {
             sub="For the selected period, all roles"
             tone="warm"
           />
+          <StatCard
+            icon={Truck}
+            label="Vendor & Stock"
+            value={formatKES(expensesTotal)}
+            sub="Vendor payments + stock purchases"
+            tone="warm"
+          />
         </div>
 
         <div className="rounded-xl border border-warm-200 bg-white p-5">
@@ -147,8 +174,9 @@ export default function ReportsPage() {
             </h2>
           </div>
           <p className="text-xs text-slate-500 font-semibold mb-3">
-            Gross margin minus staff payouts for the selected period — a
-            rough operating result, not a full accounting P&amp;L.
+            Gross margin minus staff payouts, vendor payments, and stock
+            purchases for the selected period — a rough operating result, not
+            a full accounting P&amp;L.
           </p>
           <div
             className={clsx(
@@ -201,6 +229,70 @@ export default function ReportsPage() {
               );
             })}
           </div>
+        </div>
+
+        <div className="rounded-xl border border-warm-200 bg-white p-5">
+          <h2 className="font-extrabold text-slate-900 mb-1">
+            Vendor Payments
+          </h2>
+          <p className="text-xs text-slate-500 font-semibold mb-3">
+            Vendors whose last recorded payment date falls in the selected
+            period.
+          </p>
+          {vendorsInRange.length === 0 ? (
+            <p className="text-sm text-slate-400 font-semibold">
+              No vendor payments in this period.
+            </p>
+          ) : (
+            <div className="space-y-1.5">
+              {vendorsInRange.map((v) => (
+                <div key={v.id} className="flex justify-between text-sm">
+                  <span className="font-bold text-slate-700">
+                    {v.name}{" "}
+                    <span className="text-slate-400 font-semibold">
+                      · {v.category}
+                      {v.paymentMethod === "mpesa" && v.lastPaymentReference
+                        ? ` · Code: ${v.lastPaymentReference}`
+                        : ""}
+                    </span>
+                  </span>
+                  <span className="font-extrabold text-slate-900">
+                    {formatKES(v.lastPaymentAmount)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-warm-200 bg-white p-5">
+          <h2 className="font-extrabold text-slate-900 mb-1">
+            Stock Purchases
+          </h2>
+          <p className="text-xs text-slate-500 font-semibold mb-3">
+            Inventory items recorded as purchased in the selected period.
+          </p>
+          {stockInRange.length === 0 ? (
+            <p className="text-sm text-slate-400 font-semibold">
+              No stock purchases in this period.
+            </p>
+          ) : (
+            <div className="space-y-1.5">
+              {stockInRange.map((ing) => (
+                <div key={ing.id} className="flex justify-between text-sm">
+                  <span className="font-bold text-slate-700">
+                    {ing.name}{" "}
+                    <span className="text-slate-400 font-semibold">
+                      · {ing.packaging}
+                    </span>
+                  </span>
+                  <span className="font-extrabold text-slate-900">
+                    {formatKES(ing.totalCost)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </main>
     </div>

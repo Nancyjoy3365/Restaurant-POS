@@ -186,7 +186,7 @@ export default function InventoryPage() {
                       {v.category}
                     </td>
                     <td className="px-2 py-3">
-                      <div className="flex justify-center">
+                      <div className="flex flex-col items-center gap-0.5">
                         <span
                           className={clsx(
                             "rounded-full text-[11px] font-extrabold px-2.5 py-1 text-white",
@@ -197,6 +197,14 @@ export default function InventoryPage() {
                         >
                           {v.paymentMethod === "mpesa" ? "M-Pesa" : "Cash"}
                         </span>
+                        {v.paymentMethod === "mpesa" &&
+                          (v.lastPaymentReference || v.lastPaymentRecipientName) && (
+                            <span className="text-[10px] text-slate-400 font-semibold whitespace-nowrap">
+                              {v.lastPaymentReference}
+                              {v.lastPaymentReference && v.lastPaymentRecipientName && " · "}
+                              {v.lastPaymentRecipientName}
+                            </span>
+                          )}
                       </div>
                     </td>
                     <td className="px-2 py-3 text-right font-semibold text-slate-700">

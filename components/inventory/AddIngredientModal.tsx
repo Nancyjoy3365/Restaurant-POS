@@ -59,6 +59,9 @@ export function AddIngredientModal({
       // An edit keeps whatever threshold was already set.
       reorderThreshold:
         item?.reorderThreshold ?? Math.max(1, Math.round(quantityNum * 0.3)),
+      // A price correction on an existing entry isn't a new purchase — only
+      // stamp this the first time the item is created.
+      purchasedAt: item?.purchasedAt ?? Date.now(),
     };
     if (item) {
       updateIngredient(item.id, fields);

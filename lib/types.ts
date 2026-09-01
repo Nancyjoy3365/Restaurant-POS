@@ -120,6 +120,12 @@ export interface Ingredient {
   unit: string;
   reorderThreshold: number;
   unitCost: number;
+  // When this stock entry was first recorded — optional so ingredients
+  // saved before this field existed aren't wiped. Set once on creation and
+  // never touched by an edit (a price correction isn't a new purchase), so
+  // Financial Summary can scope "Stock Purchases" to a date range without
+  // double-counting a corrected entry as a fresh purchase.
+  purchasedAt?: number;
 }
 
 export type VendorPaymentMethod = "cash" | "mpesa";
@@ -131,6 +137,10 @@ export interface Vendor {
   paymentMethod: VendorPaymentMethod;
   lastPaymentAmount: number;
   lastPaymentDate: string;
+  // Only meaningful when paymentMethod is "mpesa" — the confirmation code
+  // and the name on the M-Pesa transaction, for reconciliation.
+  lastPaymentReference?: string;
+  lastPaymentRecipientName?: string;
 }
 
 export interface RecipeComponent {
