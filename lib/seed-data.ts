@@ -67,26 +67,20 @@ export const seedMenu: MenuItem[] = [
   { id: "mn37", name: "Khaki (Large)", aliases: ["khaki", "packaging"], category: "Packaging", price: 50, veg: true, available: true, variantGroup: "Khaki", variantLabel: "Large" },
 ];
 
-export const seedIngredients: Ingredient[] = [
-  { id: "i1", name: "Unga (Maize Flour)", packaging: "Bale", quantity: 6, piecesPerPackage: 12, totalCost: 17280, unit: "kg", reorderThreshold: 2, unitCost: 120 },
-  { id: "i2", name: "Sukuma Wiki", packaging: "Crate", quantity: 4, piecesPerPackage: 10, totalCost: 2400, unit: "kg", reorderThreshold: 5, unitCost: 60 },
-  { id: "i3", name: "Beef", packaging: "Carton", quantity: 5, piecesPerPackage: 4, totalCost: 16250, unit: "kg", reorderThreshold: 3, unitCost: 650 },
-  { id: "i4", name: "Cooking Oil", packaging: "Carton (12x2L)", quantity: 3, piecesPerPackage: 12, totalCost: 20160, unit: "litre", reorderThreshold: 2, unitCost: 280 },
-  { id: "i5", name: "Rice", packaging: "Bag", quantity: 7, piecesPerPackage: 1, totalCost: 22680, unit: "kg", reorderThreshold: 3, unitCost: 180 },
-  { id: "i6", name: "Whole Chicken", packaging: "Tray", quantity: 6, piecesPerPackage: 1, totalCost: 4500, unit: "pc", reorderThreshold: 8, unitCost: 750 },
-  { id: "i7", name: "Tilapia (fresh)", packaging: "Iced Tray", quantity: 12, piecesPerPackage: 1, totalCost: 5400, unit: "pc", reorderThreshold: 10, unitCost: 450 },
-  { id: "i8", name: "Tomatoes", packaging: "Crate", quantity: 4, piecesPerPackage: 8, totalCost: 1260, unit: "kg", reorderThreshold: 3, unitCost: 90 },
-  { id: "i9", name: "Onions", packaging: "Net Bag", quantity: 5, piecesPerPackage: 1, totalCost: 1600, unit: "kg", reorderThreshold: 3, unitCost: 80 },
-  { id: "i10", name: "Goat Meat", packaging: "Carton", quantity: 3, piecesPerPackage: 5, totalCost: 12750, unit: "kg", reorderThreshold: 2, unitCost: 850 },
-];
+// Demo stock/vendor rows were only ever placeholders — the real inventory
+// gets entered through the Inventory page's own Add Item / Add Vendor forms.
+export const seedIngredients: Ingredient[] = [];
 
-export const seedVendors: Vendor[] = [
-  { id: "v1", name: "Wangige Grain Millers", category: "Grains & Flour", paymentMethod: "mpesa", lastPaymentAmount: 24000, lastPaymentDate: "2026-08-18" },
-  { id: "v2", name: "Kiambu Fresh Greens", category: "Vegetables", paymentMethod: "cash", lastPaymentAmount: 8500, lastPaymentDate: "2026-08-22" },
-  { id: "v3", name: "Farmers Choice Butchery", category: "Meat & Poultry", paymentMethod: "mpesa", lastPaymentAmount: 62000, lastPaymentDate: "2026-08-20" },
-  { id: "v4", name: "Bidco Oil Distributors", category: "Cooking Oil", paymentMethod: "cash", lastPaymentAmount: 15400, lastPaymentDate: "2026-08-15" },
-  { id: "v5", name: "Lake Naivasha Fish Suppliers", category: "Fish", paymentMethod: "mpesa", lastPaymentAmount: 18000, lastPaymentDate: "2026-08-19" },
-];
+export const seedVendors: Vendor[] = [];
+
+// Ids the old demo seed used to use, kept only so migrate() in store.ts can
+// recognize and drop them from a browser that persisted them before this
+// data was cleared — a manually added ingredient/vendor never gets one of
+// these ids, so this can't accidentally delete real data.
+export const RETIRED_SEED_INGREDIENT_IDS = new Set([
+  "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9", "i10",
+]);
+export const RETIRED_SEED_VENDOR_IDS = new Set(["v1", "v2", "v3", "v4", "v5"]);
 
 // No recipe-costing data was supplied for the new menu, and the old recipes
 // pointed at dishes that no longer exist — starting empty avoids showing

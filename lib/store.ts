@@ -32,6 +32,8 @@ import {
   STAFF_PIN,
   seedOrders,
   seedTickets,
+  RETIRED_SEED_INGREDIENT_IDS,
+  RETIRED_SEED_VENDOR_IDS,
 } from "./seed-data";
 import { calcBill, makeId, flattenOrderItems, lineRawTotal } from "./utils";
 import { simulateEtimsSigning } from "./mock-integrations";
@@ -79,6 +81,9 @@ interface PosState {
   addMenuItem: (item: Omit<MenuItem, "id">) => void;
   updateMenuItem: (menuItemId: string, updates: Omit<MenuItem, "id">) => void;
   addIngredient: (item: Omit<Ingredient, "id">) => void;
+  updateIngredient: (ingredientId: string, updates: Omit<Ingredient, "id">) => void;
+  addVendor: (vendor: Omit<Vendor, "id">) => void;
+  updateVendor: (vendorId: string, updates: Omit<Vendor, "id">) => void;
   addStaffMember: (member: Omit<StaffMember, "id">) => string;
   clockIn: (staffId: string) => void;
   clockOut: (staffId: string) => void;
@@ -554,6 +559,25 @@ export const usePosStore = create<PosState>()(
           ingredients: [...s.ingredients, { ...item, id: makeId("ingredient") }],
         })),
 
+      updateIngredient: (ingredientId, updates) =>
+        set((s) => ({
+          ingredients: s.ingredients.map((ing) =>
+            ing.id === ingredientId ? { ...updates, id: ing.id } : ing
+          ),
+        })),
+
+      addVendor: (vendor) =>
+        set((s) => ({
+          vendors: [...s.vendors, { ...vendor, id: makeId("vendor") }],
+        })),
+
+      updateVendor: (vendorId, updates) =>
+        set((s) => ({
+          vendors: s.vendors.map((v) =>
+            v.id === vendorId ? { ...updates, id: v.id } : v
+          ),
+        })),
+
       addStaffMember: (member) => {
         const id = makeId("staff");
         set((s) => ({ staff: [...s.staff, { ...member, id }] }));
@@ -794,7 +818,7 @@ export const usePosStore = create<PosState>()(
     }),
     {
       name: "pos-storage",
-      version: 22,
+      version: 23,
       migrate: (persistedState) => {
         const state = persistedState as Partial<PosState> & {
           menu?: Array<Record<string, unknown>>;
@@ -828,6 +852,18 @@ export const usePosStore = create<PosState>()(
         );
         const hasCurrentIngredientShape = state.ingredients?.every(
           (ing) => typeof ing.totalCost === "number"
+        );
+        // The old demo Stock/Vendor rows were placeholders, now cleared from
+        // the seed — drop them from any browser that already persisted them,
+        // while keeping anything a manager genuinely added (which never
+        // carries one of these retired ids).
+        const ingredients = hasCurrentIngredientShape
+          ? (state.ingredients as unknown as Ingredient[]).filter(
+              (ing) => !RETIRED_SEED_INGREDIENT_IDS.has(ing.id)
+            )
+          : seedIngredients;
+        const vendors = ((state.vendors ?? []) as unknown as Vendor[]).filter(
+          (v) => !RETIRED_SEED_VENDOR_IDS.has(v.id)
         );
         const hasCurrentRecipeShape = state.recipes?.every(
           (r) => typeof r.menuItemId === "string"
@@ -904,9 +940,8 @@ export const usePosStore = create<PosState>()(
         return {
           ...state,
           menu: [...seedMenu, ...(customMenuItems as unknown as MenuItem[])],
-          ingredients: hasCurrentIngredientShape
-            ? state.ingredients
-            : seedIngredients,
+          ingredients,
+          vendors,
           recipes: hasCurrentRecipeShape ? state.recipes : seedRecipes,
           staff,
           currentStaffId,
