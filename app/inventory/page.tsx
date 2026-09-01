@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import clsx from "clsx";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Plus } from "lucide-react";
 import { usePosStore } from "@/lib/store";
 import { formatKES } from "@/lib/utils";
+import { AddIngredientModal } from "@/components/inventory/AddIngredientModal";
 
 type Tab = "stock" | "vendors" | "recipes";
 
@@ -16,6 +17,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 export default function InventoryPage() {
   const [tab, setTab] = useState<Tab>("stock");
+  const [showAddModal, setShowAddModal] = useState(false);
   const ingredients = usePosStore((s) => s.ingredients);
   const vendors = usePosStore((s) => s.vendors);
   const recipes = usePosStore((s) => s.recipes);
@@ -25,21 +27,32 @@ export default function InventoryPage() {
     <div className="flex-1 flex flex-col">
       <header className="h-16 flex items-center justify-between px-6 border-b border-warm-200 bg-white">
         <h1 className="text-xl font-black text-slate-900">Inventory</h1>
-        <div className="flex rounded-full border border-warm-200 p-0.5">
-          {TABS.map((t) => (
+        <div className="flex items-center gap-3">
+          <div className="flex rounded-full border border-warm-200 p-0.5">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={clsx(
+                  "rounded-full px-4 py-1.5 text-xs font-extrabold transition-colors",
+                  tab === t.id
+                    ? "bg-accent-600 text-white"
+                    : "text-slate-500 hover:text-accent-700"
+                )}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {tab === "stock" && (
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={clsx(
-                "rounded-full px-4 py-1.5 text-xs font-extrabold transition-colors",
-                tab === t.id
-                  ? "bg-accent-600 text-white"
-                  : "text-slate-500 hover:text-accent-700"
-              )}
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-1.5 rounded-xl bg-accent-600 hover:bg-accent-700 text-white text-sm font-extrabold px-4 py-2.5 transition-colors"
             >
-              {t.label}
+              <Plus size={16} strokeWidth={3} /> Add Item
             </button>
-          ))}
+          )}
         </div>
       </header>
 
@@ -50,11 +63,11 @@ export default function InventoryPage() {
               <thead className="bg-warm-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
                 <tr>
                   <th className="text-left px-4 py-3">Item</th>
-                  <th className="text-left px-2 py-3">SKU</th>
                   <th className="text-left px-2 py-3">Packaging</th>
+                  <th className="text-right px-2 py-3">Amount</th>
                   <th className="text-right px-2 py-3">Quantity</th>
                   <th className="text-right px-2 py-3">Piece</th>
-                  <th className="text-right px-2 py-3">Cost</th>
+                  <th className="text-right px-2 py-3">Unit Cost</th>
                   <th className="text-left px-4 py-3">Unit</th>
                 </tr>
               </thead>
@@ -75,11 +88,11 @@ export default function InventoryPage() {
                           {ing.name}
                         </span>
                       </td>
-                      <td className="px-2 py-3 text-slate-500 font-semibold">
-                        {ing.sku}
-                      </td>
                       <td className="px-2 py-3 text-slate-600 font-semibold">
                         {ing.packaging}
+                      </td>
+                      <td className="px-2 py-3 text-right font-bold text-slate-900">
+                        {formatKES(ing.totalCost)}
                       </td>
                       <td className="px-2 py-3 text-right font-semibold text-slate-700">
                         {ing.quantity}
@@ -87,8 +100,8 @@ export default function InventoryPage() {
                       <td className="px-2 py-3 text-right font-semibold text-slate-700">
                         {ing.piecesPerPackage}
                       </td>
-                      <td className="px-2 py-3 text-right font-bold text-slate-900">
-                        {formatKES(ing.totalCost)}
+                      <td className="px-2 py-3 text-right font-semibold text-slate-700">
+                        {formatKES(ing.unitCost)}
                       </td>
                       <td className="px-4 py-3 text-slate-500 font-semibold">
                         {ing.unit}
@@ -99,7 +112,7 @@ export default function InventoryPage() {
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-warm-200 bg-warm-50">
-                  <td colSpan={5} className="px-4 py-3 text-right font-extrabold text-slate-700">
+                  <td colSpan={2} className="px-4 py-3 text-right font-extrabold text-slate-700">
                     Total Cost of Goods
                   </td>
                   <td className="px-2 py-3 text-right font-black text-slate-900">
@@ -107,7 +120,7 @@ export default function InventoryPage() {
                       ingredients.reduce((sum, ing) => sum + ing.totalCost, 0)
                     )}
                   </td>
-                  <td></td>
+                  <td colSpan={4}></td>
                 </tr>
               </tfoot>
             </table>
@@ -228,6 +241,10 @@ export default function InventoryPage() {
           </div>
         )}
       </main>
+
+      {showAddModal && (
+        <AddIngredientModal onClose={() => setShowAddModal(false)} />
+      )}
     </div>
   );
 }

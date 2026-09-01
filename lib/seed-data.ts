@@ -68,16 +68,16 @@ export const seedMenu: MenuItem[] = [
 ];
 
 export const seedIngredients: Ingredient[] = [
-  { id: "i1", name: "Unga (Maize Flour)", sku: "UNG-001", packaging: "Bale", quantity: 6, piecesPerPackage: 12, totalCost: 17280, unit: "kg", reorderThreshold: 2, unitCost: 120 },
-  { id: "i2", name: "Sukuma Wiki", sku: "SUK-002", packaging: "Crate", quantity: 4, piecesPerPackage: 10, totalCost: 2400, unit: "kg", reorderThreshold: 5, unitCost: 60 },
-  { id: "i3", name: "Beef", sku: "BEF-003", packaging: "Carton", quantity: 5, piecesPerPackage: 4, totalCost: 16250, unit: "kg", reorderThreshold: 3, unitCost: 650 },
-  { id: "i4", name: "Cooking Oil", sku: "OIL-004", packaging: "Carton (12x2L)", quantity: 3, piecesPerPackage: 12, totalCost: 20160, unit: "litre", reorderThreshold: 2, unitCost: 280 },
-  { id: "i5", name: "Rice", sku: "RIC-005", packaging: "Bag", quantity: 7, piecesPerPackage: 1, totalCost: 22680, unit: "kg", reorderThreshold: 3, unitCost: 180 },
-  { id: "i6", name: "Whole Chicken", sku: "CHK-006", packaging: "Tray", quantity: 6, piecesPerPackage: 1, totalCost: 4500, unit: "pc", reorderThreshold: 8, unitCost: 750 },
-  { id: "i7", name: "Tilapia (fresh)", sku: "FSH-007", packaging: "Iced Tray", quantity: 12, piecesPerPackage: 1, totalCost: 5400, unit: "pc", reorderThreshold: 10, unitCost: 450 },
-  { id: "i8", name: "Tomatoes", sku: "TOM-008", packaging: "Crate", quantity: 4, piecesPerPackage: 8, totalCost: 1260, unit: "kg", reorderThreshold: 3, unitCost: 90 },
-  { id: "i9", name: "Onions", sku: "ONI-009", packaging: "Net Bag", quantity: 5, piecesPerPackage: 1, totalCost: 1600, unit: "kg", reorderThreshold: 3, unitCost: 80 },
-  { id: "i10", name: "Goat Meat", sku: "GTM-010", packaging: "Carton", quantity: 3, piecesPerPackage: 5, totalCost: 12750, unit: "kg", reorderThreshold: 2, unitCost: 850 },
+  { id: "i1", name: "Unga (Maize Flour)", packaging: "Bale", quantity: 6, piecesPerPackage: 12, totalCost: 17280, unit: "kg", reorderThreshold: 2, unitCost: 120 },
+  { id: "i2", name: "Sukuma Wiki", packaging: "Crate", quantity: 4, piecesPerPackage: 10, totalCost: 2400, unit: "kg", reorderThreshold: 5, unitCost: 60 },
+  { id: "i3", name: "Beef", packaging: "Carton", quantity: 5, piecesPerPackage: 4, totalCost: 16250, unit: "kg", reorderThreshold: 3, unitCost: 650 },
+  { id: "i4", name: "Cooking Oil", packaging: "Carton (12x2L)", quantity: 3, piecesPerPackage: 12, totalCost: 20160, unit: "litre", reorderThreshold: 2, unitCost: 280 },
+  { id: "i5", name: "Rice", packaging: "Bag", quantity: 7, piecesPerPackage: 1, totalCost: 22680, unit: "kg", reorderThreshold: 3, unitCost: 180 },
+  { id: "i6", name: "Whole Chicken", packaging: "Tray", quantity: 6, piecesPerPackage: 1, totalCost: 4500, unit: "pc", reorderThreshold: 8, unitCost: 750 },
+  { id: "i7", name: "Tilapia (fresh)", packaging: "Iced Tray", quantity: 12, piecesPerPackage: 1, totalCost: 5400, unit: "pc", reorderThreshold: 10, unitCost: 450 },
+  { id: "i8", name: "Tomatoes", packaging: "Crate", quantity: 4, piecesPerPackage: 8, totalCost: 1260, unit: "kg", reorderThreshold: 3, unitCost: 90 },
+  { id: "i9", name: "Onions", packaging: "Net Bag", quantity: 5, piecesPerPackage: 1, totalCost: 1600, unit: "kg", reorderThreshold: 3, unitCost: 80 },
+  { id: "i10", name: "Goat Meat", packaging: "Carton", quantity: 3, piecesPerPackage: 5, totalCost: 12750, unit: "kg", reorderThreshold: 2, unitCost: 850 },
 ];
 
 export const seedVendors: Vendor[] = [

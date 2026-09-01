@@ -74,6 +74,7 @@ interface PosState {
   toggleMenuPriority: (menuItemId: string) => void;
   addMenuItem: (item: Omit<MenuItem, "id">) => void;
   updateMenuItem: (menuItemId: string, updates: Omit<MenuItem, "id">) => void;
+  addIngredient: (item: Omit<Ingredient, "id">) => void;
   addStaffMember: (member: Omit<StaffMember, "id">) => string;
   clockIn: (staffId: string) => void;
   clockOut: (staffId: string) => void;
@@ -538,6 +539,11 @@ export const usePosStore = create<PosState>()(
           menu: s.menu.map((m) =>
             m.id === menuItemId ? { ...updates, id: m.id } : m
           ),
+        })),
+
+      addIngredient: (item) =>
+        set((s) => ({
+          ingredients: [...s.ingredients, { ...item, id: makeId("ingredient") }],
         })),
 
       addStaffMember: (member) => {

@@ -113,7 +113,6 @@ export interface TicketOrder {
 export interface Ingredient {
   id: string;
   name: string;
-  sku: string;
   packaging: string;
   quantity: number;
   piecesPerPackage: number;
