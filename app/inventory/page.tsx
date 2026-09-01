@@ -7,12 +7,11 @@ import { usePosStore } from "@/lib/store";
 import { formatKES } from "@/lib/utils";
 import { AddIngredientModal } from "@/components/inventory/AddIngredientModal";
 
-type Tab = "stock" | "vendors" | "recipes";
+type Tab = "stock" | "vendors";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "stock", label: "Stock" },
   { id: "vendors", label: "Vendors" },
-  { id: "recipes", label: "Recipe Costing" },
 ];
 
 export default function InventoryPage() {
@@ -20,8 +19,6 @@ export default function InventoryPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const ingredients = usePosStore((s) => s.ingredients);
   const vendors = usePosStore((s) => s.vendors);
-  const recipes = usePosStore((s) => s.recipes);
-  const menu = usePosStore((s) => s.menu);
 
   return (
     <div className="flex-1 flex flex-col">
@@ -170,72 +167,6 @@ export default function InventoryPage() {
                     </td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {tab === "recipes" && (
-          <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
-                <tr>
-                  <th className="text-left px-4 py-3">Dish</th>
-                  <th className="text-left px-2 py-3">Ingredients</th>
-                  <th className="text-right px-2 py-3">Food Cost</th>
-                  <th className="text-right px-2 py-3">Menu Price</th>
-                  <th className="text-right px-4 py-3">Margin</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recipes.map((r) => {
-                  const menuItem = menu.find((m) => m.id === r.menuItemId);
-                  const menuPrice = menuItem?.price ?? 0;
-                  const foodCost = r.components.reduce((sum, c) => {
-                    const ing = ingredients.find((i) => i.id === c.ingredientId);
-                    return sum + (ing ? ing.unitCost * c.qty : 0);
-                  }, 0);
-                  const margin = menuPrice
-                    ? ((menuPrice - foodCost) / menuPrice) * 100
-                    : 0;
-                  return (
-                    <tr key={r.id} className="border-t border-slate-100">
-                      <td className="px-4 py-3 font-bold text-slate-900">
-                        {menuItem?.name ?? "Unknown dish"}
-                      </td>
-                      <td className="px-2 py-3 text-slate-500 font-semibold text-xs">
-                        {r.components
-                          .map((c) => {
-                            const ing = ingredients.find(
-                              (i) => i.id === c.ingredientId
-                            );
-                            return ing ? `${ing.name} (${c.qty}${ing.unit})` : "";
-                          })
-                          .join(", ")}
-                      </td>
-                      <td className="px-2 py-3 text-right font-semibold text-slate-700">
-                        {formatKES(Math.round(foodCost))}
-                      </td>
-                      <td className="px-2 py-3 text-right font-semibold text-slate-700">
-                        {formatKES(menuPrice)}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <span
-                          className={clsx(
-                            "font-extrabold",
-                            margin >= 50
-                              ? "text-status-free"
-                              : margin >= 30
-                              ? "text-status-needsbill"
-                              : "text-rose-600"
-                          )}
-                        >
-                          {margin.toFixed(0)}%
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
               </tbody>
             </table>
           </div>

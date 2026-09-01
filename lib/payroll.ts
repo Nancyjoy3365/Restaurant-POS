@@ -154,6 +154,26 @@ export function dailyPayout(
   return Math.round(staff.rate / daysInMonth);
 }
 
+// Sums dailyPayout across every calendar day in [start, end] inclusive —
+// lets the Financial Summary's date-range filter reuse the same per-pay-type
+// rules (daily/commission/monthly) without re-deriving them for a range.
+export function payoutForRange(
+  staff: StaffMember,
+  shifts: ShiftEntry[],
+  payments: Payment[],
+  start: Date,
+  end: Date
+): number {
+  let total = 0;
+  const cursor = startOfDay(start);
+  const lastDay = startOfDay(end);
+  while (cursor <= lastDay) {
+    total += dailyPayout(staff, shifts, payments, cursor);
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return total;
+}
+
 export function daysWorkedThisWeek(
   shifts: ShiftEntry[],
   staffId: string,

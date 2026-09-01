@@ -1,11 +1,26 @@
 "use client";
 
+import { useState } from "react";
 import clsx from "clsx";
-import { TrendingUp, Package, PiggyBank, Users2, Scale } from "lucide-react";
+import {
+  Calendar,
+  TrendingUp,
+  Package,
+  PiggyBank,
+  Users2,
+  Scale,
+} from "lucide-react";
 import { usePosStore } from "@/lib/store";
 import { formatKES } from "@/lib/utils";
-import { computeCogs, isToday } from "@/lib/reports";
-import { dailyPayout } from "@/lib/payroll";
+import { computeCogs } from "@/lib/reports";
+import { payoutForRange } from "@/lib/payroll";
+
+function toDateInputValue(d: Date): string {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
 
 export default function ReportsPage() {
   const receipts = usePosStore((s) => s.receipts);
@@ -15,33 +30,76 @@ export default function ReportsPage() {
   const shifts = usePosStore((s) => s.shifts);
   const payments = usePosStore((s) => s.payments);
 
-  const todaysReceipts = receipts.filter((r) => isToday(r.issuedAt));
-  const revenue = todaysReceipts.reduce((sum, r) => sum + r.subtotal, 0);
-  const vatCollected = todaysReceipts.reduce((sum, r) => sum + r.vat, 0);
-  const cogs = computeCogs(todaysReceipts, recipes, ingredients);
+  const todayStr = toDateInputValue(new Date());
+  const [fromDate, setFromDate] = useState(todayStr);
+  const [toDate, setToDate] = useState(todayStr);
+
+  const rangeStart = new Date(`${fromDate}T00:00:00`);
+  const rangeEndInput = new Date(`${toDate}T23:59:59.999`);
+  // If "to" ends up before "from" (e.g. mid-edit), just treat it as a
+  // single-day range on "from" rather than showing an empty/negative range.
+  const rangeEnd = rangeEndInput < rangeStart
+    ? new Date(
+        rangeStart.getFullYear(),
+        rangeStart.getMonth(),
+        rangeStart.getDate(),
+        23, 59, 59, 999
+      )
+    : rangeEndInput;
+
+  const receiptsInRange = receipts.filter(
+    (r) => r.issuedAt >= rangeStart.getTime() && r.issuedAt <= rangeEnd.getTime()
+  );
+  const revenue = receiptsInRange.reduce((sum, r) => sum + r.subtotal, 0);
+  const vatCollected = receiptsInRange.reduce((sum, r) => sum + r.vat, 0);
+  const cogs = computeCogs(receiptsInRange, recipes, ingredients);
   const grossMargin = revenue - cogs;
   const marginPct = revenue > 0 ? (grossMargin / revenue) * 100 : 0;
   const staffPayouts = staff.reduce(
-    (sum, member) => sum + dailyPayout(member, shifts, payments),
+    (sum, member) => sum + payoutForRange(member, shifts, payments, rangeStart, rangeEnd),
     0
   );
   const netForDay = grossMargin - staffPayouts;
 
-  const today = new Date().toLocaleDateString("en-KE", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  const isSingleDay = fromDate === toDate;
+  const rangeLabel = isSingleDay
+    ? rangeStart.toLocaleDateString("en-KE", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    : `${rangeStart.toLocaleDateString("en-KE", { month: "long", day: "numeric" })} – ${rangeEnd.toLocaleDateString("en-KE", { month: "long", day: "numeric", year: "numeric" })}`;
 
   return (
     <div className="flex-1 flex flex-col">
-      <header className="h-16 flex items-center px-6 border-b border-warm-200 bg-white">
+      <header className="h-16 flex items-center justify-between px-6 border-b border-warm-200 bg-white">
         <h1 className="text-xl font-black text-slate-900">Financial Summary</h1>
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-2 rounded-full border border-warm-200 bg-white px-3 py-2">
+            <Calendar size={14} className="text-accent-600 shrink-0" />
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="text-xs font-extrabold text-accent-700 outline-none bg-transparent"
+            />
+          </label>
+          <span className="text-xs font-extrabold text-slate-400">to</span>
+          <label className="flex items-center gap-2 rounded-full border border-warm-200 bg-white px-3 py-2">
+            <Calendar size={14} className="text-accent-600 shrink-0" />
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="text-xs font-extrabold text-accent-700 outline-none bg-transparent"
+            />
+          </label>
+        </div>
       </header>
 
       <main className="flex-1 overflow-y-auto p-6 space-y-6">
-        <p className="text-sm font-bold text-slate-500">{today}</p>
+        <p className="text-sm font-bold text-slate-500">{rangeLabel}</p>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
@@ -69,7 +127,7 @@ export default function ReportsPage() {
             icon={Users2}
             label="Staff Payouts"
             value={formatKES(staffPayouts)}
-            sub="Today's share, all roles"
+            sub="For the selected period, all roles"
             tone="warm"
           />
         </div>
@@ -77,11 +135,13 @@ export default function ReportsPage() {
         <div className="rounded-xl border border-warm-200 bg-white p-5">
           <div className="flex items-center gap-2 mb-1">
             <PiggyBank size={18} className="text-accent-600" />
-            <h2 className="font-extrabold text-slate-900">Net for the Day</h2>
+            <h2 className="font-extrabold text-slate-900">
+              Net for the {isSingleDay ? "Day" : "Period"}
+            </h2>
           </div>
           <p className="text-xs text-slate-500 font-semibold mb-3">
-            Gross margin minus today&rsquo;s staff payouts — a rough operating
-            result, not a full accounting P&amp;L.
+            Gross margin minus staff payouts for the selected period — a
+            rough operating result, not a full accounting P&amp;L.
           </p>
           <div
             className={clsx(
@@ -95,16 +155,16 @@ export default function ReportsPage() {
 
         <div className="rounded-xl border border-warm-200 bg-white p-5">
           <h2 className="font-extrabold text-slate-900 mb-1">
-            Staff Payouts Today
+            Staff Payouts
           </h2>
           <p className="text-xs text-slate-500 font-semibold mb-3">
-            Daily-rate staff count only if clocked in today; commission is
-            today&rsquo;s sales only; monthly salaries are prorated across the
-            days in the current month.
+            Daily-rate staff count per day clocked in; commission is sales
+            within the selected period; monthly salaries are prorated across
+            each day&rsquo;s month.
           </p>
           <div className="space-y-1.5">
             {staff.map((member) => {
-              const payout = dailyPayout(member, shifts, payments);
+              const payout = payoutForRange(member, shifts, payments, rangeStart, rangeEnd);
               if (payout === 0) return null;
               return (
                 <div
