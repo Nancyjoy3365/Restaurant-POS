@@ -11,7 +11,6 @@ export function BillPreview({
   vat,
   total,
   checkNo,
-  locationNote,
   waiterName,
 }: {
   order: TicketOrder | undefined;
@@ -19,7 +18,6 @@ export function BillPreview({
   vat: number;
   total: number;
   checkNo?: number;
-  locationNote?: string;
   waiterName?: string;
 }) {
   const lines = flattenOrderItems(order);
@@ -64,10 +62,6 @@ export function BillPreview({
               <span className="font-bold">{checkNo}</span>
             </div>
           )}
-          <div className="flex justify-between">
-            <span>Table</span>
-            <span className="font-bold">{locationNote || "—"}</span>
-          </div>
           <div className="flex justify-between">
             <span>Bill Date</span>
             <span className="font-bold">{billDate}</span>

@@ -130,7 +130,6 @@ export default function BillingPage() {
                 vat={vat}
                 total={total}
                 checkNo={ticket?.displayNumber}
-                locationNote={ticket?.locationNote}
                 waiterName={staff.find((m) => m.id === ticket?.waiterId)?.name}
               />
 
