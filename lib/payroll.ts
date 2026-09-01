@@ -77,16 +77,21 @@ export function hoursWorkedInRange(
   return totalMs / (1000 * 60 * 60);
 }
 
-function isOnApprovedLeave(
+// `isPaidFilter` narrows to only paid (true) or only unpaid (false) leave;
+// omit it to match any approved leave regardless of paid status (e.g. for
+// the login-grid "On Leave" badge, where either kind is worth flagging).
+export function isOnApprovedLeave(
   leaveRecords: LeaveRecord[],
   staffId: string,
-  date: Date
+  date: Date,
+  isPaidFilter?: boolean
 ): boolean {
   const key = toDateKey(date);
   return leaveRecords.some(
     (l) =>
       l.staffId === staffId &&
       l.status === "approved" &&
+      (isPaidFilter === undefined || l.isPaid === isPaidFilter) &&
       key >= l.startDate &&
       key <= l.endDate
   );
@@ -96,18 +101,20 @@ function isOnApprovedLeave(
 // only meaningful for monthly-rate staff, whose prorated pay otherwise
 // assumes every day in the month was worked. Daily/commission staff already
 // earn nothing on a day they don't clock in, so leave doesn't need to
-// subtract anything extra for them.
+// subtract anything extra for them. Callers deducting pay should pass
+// `isPaidFilter: false` — paid leave shouldn't reduce earnings.
 export function approvedLeaveDaysInRange(
   leaveRecords: LeaveRecord[],
   staffId: string,
   start: Date,
-  end: Date
+  end: Date,
+  isPaidFilter?: boolean
 ): number {
   let count = 0;
   const cursor = startOfDay(start);
   const last = startOfDay(end);
   while (cursor <= last) {
-    if (isOnApprovedLeave(leaveRecords, staffId, cursor)) count++;
+    if (isOnApprovedLeave(leaveRecords, staffId, cursor, isPaidFilter)) count++;
     cursor.setDate(cursor.getDate() + 1);
   }
   return count;
@@ -205,13 +212,16 @@ export function salesToday(
 }
 
 // A same-day slice of what each staff member is owed, for a daily P&L
-// summary — daily-rate staff count only if they clocked in today, commission
-// is computed on today's sales only, and a monthly salary is prorated across
-// the days in the current month.
+// summary — daily-rate staff count only if they clocked in today (or are on
+// an approved, paid leave day — that still credits the rate with no
+// clock-in needed; an approved unpaid leave day is simply not paid, same as
+// an ordinary absence), commission is computed on today's sales only, and a
+// monthly salary is prorated across the days in the current month.
 export function dailyPayout(
   staff: StaffMember,
   shifts: ShiftEntry[],
   payments: Payment[],
+  leaveRecords: LeaveRecord[] = [],
   now = new Date()
 ): number {
   if (staff.payType === "daily") {
@@ -223,7 +233,8 @@ export function dailyPayout(
         new Date(s.clockIn) >= start &&
         new Date(s.clockIn) <= end
     );
-    return workedToday ? staff.rate : 0;
+    if (workedToday) return staff.rate;
+    return isOnApprovedLeave(leaveRecords, staff.id, now, true) ? staff.rate : 0;
   }
   if (staff.payType === "commission") {
     if (!staff.commissionType || staff.commissionValue === undefined) return 0;
@@ -257,6 +268,7 @@ export function payoutForRange(
   staff: StaffMember,
   shifts: ShiftEntry[],
   payments: Payment[],
+  leaveRecords: LeaveRecord[],
   start: Date,
   end: Date
 ): number {
@@ -264,7 +276,41 @@ export function payoutForRange(
   const cursor = startOfDay(start);
   const lastDay = startOfDay(end);
   while (cursor <= lastDay) {
-    total += dailyPayout(staff, shifts, payments, cursor);
+    total += dailyPayout(staff, shifts, payments, leaveRecords, cursor);
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return total;
+}
+
+// How much of a daily-rate staff member's payout in [start, end] came from
+// an approved, paid leave day rather than an actual clock-in — the same
+// credit dailyPayout grants, isolated here so Financial Summary can report
+// it as its own line rather than it being invisible inside Staff Payouts.
+// Monthly/commission pay isn't attendance-gated in dailyPayout to begin
+// with, so paid leave doesn't add anything extra for them.
+export function paidLeaveAmountInRange(
+  staff: StaffMember,
+  shifts: ShiftEntry[],
+  leaveRecords: LeaveRecord[],
+  start: Date,
+  end: Date
+): number {
+  if (staff.payType !== "daily") return 0;
+  let total = 0;
+  const cursor = startOfDay(start);
+  const lastDay = startOfDay(end);
+  while (cursor <= lastDay) {
+    const dayStart = startOfDay(cursor);
+    const dayEnd = endOfDay(cursor);
+    const workedThatDay = shifts.some(
+      (s) =>
+        s.staffId === staff.id &&
+        new Date(s.clockIn) >= dayStart &&
+        new Date(s.clockIn) <= dayEnd
+    );
+    if (!workedThatDay && isOnApprovedLeave(leaveRecords, staff.id, cursor, true)) {
+      total += staff.rate;
+    }
     cursor.setDate(cursor.getDate() + 1);
   }
   return total;

@@ -28,6 +28,7 @@ export function LeaveModal({
   const [endDate, setEndDate] = useState(todayKey);
   const [reason, setReason] = useState("");
   const [status, setStatus] = useState<LeaveStatus>("approved");
+  const [isPaid, setIsPaid] = useState(false);
 
   const staffLeave = leaveRecords
     .filter((l) => l.staffId === staff.id)
@@ -43,8 +44,10 @@ export function LeaveModal({
       endDate,
       reason: reason.trim(),
       status,
+      isPaid,
     });
     setReason("");
+    setIsPaid(false);
   }
 
   return (
@@ -128,6 +131,19 @@ export function LeaveModal({
             </div>
           </div>
 
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isPaid}
+              onChange={(e) => setIsPaid(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-warm-200 text-accent-600 focus:ring-accent-400"
+            />
+            <span className="text-xs font-semibold text-slate-600">
+              Paid leave — credits their daily rate for these days even
+              without a clock-in. Leave unchecked for unpaid leave.
+            </span>
+          </label>
+
           <button
             type="button"
             disabled={!canSave}
@@ -162,14 +178,19 @@ export function LeaveModal({
                       </span>
                     )}
                   </span>
-                  <span
-                    className={`rounded-full text-[10px] font-extrabold px-2 py-0.5 capitalize ${
-                      l.status === "approved"
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "bg-amber-50 text-amber-700"
-                    }`}
-                  >
-                    {l.status}
+                  <span className="flex items-center gap-1 shrink-0">
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full capitalize bg-slate-100 text-slate-500">
+                      {l.isPaid ? "Paid" : "Unpaid"}
+                    </span>
+                    <span
+                      className={`rounded-full text-[10px] font-extrabold px-2 py-0.5 capitalize ${
+                        l.status === "approved"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-amber-50 text-amber-700"
+                      }`}
+                    >
+                      {l.status}
+                    </span>
                   </span>
                 </div>
               ))}

@@ -11,9 +11,13 @@ import {
   Wallet,
   ArrowLeft,
   Lock,
+  CalendarOff,
+  AlertCircle,
+  X,
 } from "lucide-react";
 import { usePosStore } from "@/lib/store";
 import { ROLE_LOGIN_ORDER, getDefaultRouteForRole } from "@/lib/roles";
+import { isOnApprovedLeave } from "@/lib/payroll";
 import type { StaffRole } from "@/lib/types";
 
 const ROLE_ICON: Record<StaffRole, typeof UtensilsCrossed> = {
@@ -39,6 +43,7 @@ export default function LoginPage() {
   const router = useRouter();
   const staff = usePosStore((s) => s.staff);
   const staffPin = usePosStore((s) => s.staffPin);
+  const leaveRecords = usePosStore((s) => s.leaveRecords);
   const login = usePosStore((s) => s.login);
   const clockIn = usePosStore((s) => s.clockIn);
 
@@ -46,6 +51,10 @@ export default function LoginPage() {
   const [role, setRole] = useState<StaffRole | null>(null);
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
+  const [leaveConfirmStaff, setLeaveConfirmStaff] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   function selectRole(r: StaffRole) {
     setRole(r);
@@ -72,13 +81,25 @@ export default function LoginPage() {
     if (digits.length === 3) submitPin(digits);
   }
 
-  function selectStaff(staffId: string) {
+  function proceedWithLogin(staffId: string) {
     login(staffId);
     // Picking yourself off the staff grid is how staff start their shift —
     // clockIn is already a no-op if they're still clocked in from earlier
     // today, so this is safe to call every time without double-counting.
     clockIn(staffId);
     router.push(role ? getDefaultRouteForRole(role) : "/");
+  }
+
+  function selectStaff(staffId: string, staffName: string) {
+    // On leave doesn't hard-block clocking in — someone marked on leave
+    // might still come in to cover a shift — it just asks for a confirming
+    // tap first, in case the leave entry is the one that's correct and the
+    // person picked the wrong name by mistake.
+    if (isOnApprovedLeave(leaveRecords, staffId, new Date())) {
+      setLeaveConfirmStaff({ id: staffId, name: staffName });
+      return;
+    }
+    proceedWithLogin(staffId);
   }
 
   const roleStaff = role ? staff.filter((m) => m.role === role) : [];
@@ -175,26 +196,38 @@ export default function LoginPage() {
         {step === "staff" && role && (
           <div>
             <div className="grid grid-cols-3 gap-3 mb-4">
-              {roleStaff.map((member) => (
-                <button
-                  key={member.id}
-                  type="button"
-                  onClick={() => selectStaff(member.id)}
-                  className="flex flex-col items-center gap-2 rounded-xl border border-warm-200 p-3 hover:border-accent-400 hover:bg-accent-50 transition-colors"
-                >
-                  <span className="h-12 w-12 flex items-center justify-center rounded-full bg-accent-600 text-white font-black text-sm">
-                    {initials(member.name)}
-                  </span>
-                  <span className="text-center leading-tight">
-                    <span className="block text-xs font-extrabold text-slate-800">
-                      {member.name.split(" ")[0]}
+              {roleStaff.map((member) => {
+                const onLeave = isOnApprovedLeave(
+                  leaveRecords,
+                  member.id,
+                  new Date()
+                );
+                return (
+                  <button
+                    key={member.id}
+                    type="button"
+                    onClick={() => selectStaff(member.id, member.name)}
+                    className="relative flex flex-col items-center gap-2 rounded-xl border border-warm-200 p-3 hover:border-accent-400 hover:bg-accent-50 transition-colors"
+                  >
+                    {onLeave && (
+                      <span className="absolute top-1.5 right-1.5 flex items-center gap-0.5 rounded-full bg-amber-100 text-amber-700 text-[9px] font-extrabold px-1.5 py-0.5">
+                        <CalendarOff size={9} /> On Leave
+                      </span>
+                    )}
+                    <span className="h-12 w-12 flex items-center justify-center rounded-full bg-accent-600 text-white font-black text-sm">
+                      {initials(member.name)}
                     </span>
-                    <span className="block text-[10px] font-bold text-slate-400 mt-0.5">
-                      {member.title ?? member.role}
+                    <span className="text-center leading-tight">
+                      <span className="block text-xs font-extrabold text-slate-800">
+                        {member.name.split(" ")[0]}
+                      </span>
+                      <span className="block text-[10px] font-bold text-slate-400 mt-0.5">
+                        {member.title ?? member.role}
+                      </span>
                     </span>
-                  </span>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
               {roleStaff.length === 0 && (
                 <p className="col-span-3 text-sm text-slate-400 font-semibold text-center py-6">
                   No staff on file for this role yet.
@@ -211,6 +244,54 @@ export default function LoginPage() {
           </div>
         )}
       </div>
+
+      {leaveConfirmStaff && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          onClick={() => setLeaveConfirmStaff(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="font-extrabold text-slate-900">On Leave Today</h3>
+              <button
+                type="button"
+                onClick={() => setLeaveConfirmStaff(null)}
+                aria-label="Close"
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex items-start gap-2 mt-3 mb-4 rounded-lg bg-amber-50 text-amber-700 text-sm font-bold px-3 py-2.5">
+              <AlertCircle size={16} className="shrink-0 mt-0.5" />
+              {leaveConfirmStaff.name} is marked on leave today — clock in
+              anyway?
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setLeaveConfirmStaff(null)}
+                className="flex-1 rounded-lg border-2 border-warm-200 text-slate-500 hover:border-slate-300 font-extrabold py-2.5 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  proceedWithLogin(leaveConfirmStaff.id);
+                  setLeaveConfirmStaff(null);
+                }}
+                className="flex-1 rounded-lg bg-accent-600 hover:bg-accent-700 text-white font-extrabold py-2.5 transition-colors"
+              >
+                Clock In Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

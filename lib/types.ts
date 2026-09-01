@@ -179,8 +179,12 @@ export interface StaffMember {
 export type LeaveStatus = "approved" | "pending";
 
 // A leave record is a date-range event, not a static attribute — a staff
-// member can have several over time, and payroll only treats "approved"
-// records as unpaid days off (see approvedLeaveDaysInRange in payroll.ts).
+// member can have several over time. Only "approved" records affect login
+// or payroll; "pending" ones are informational until approved. `isPaid`
+// decides which direction that effect goes: an approved paid day still
+// credits the staff member's daily rate with no clock-in required, while an
+// approved unpaid day is simply not paid — same as an ordinary absence (see
+// approvedLeaveDaysInRange and dailyPayout in payroll.ts).
 export interface LeaveRecord {
   id: string;
   staffId: string;
@@ -188,6 +192,7 @@ export interface LeaveRecord {
   endDate: string; // "YYYY-MM-DD"
   reason: string;
   status: LeaveStatus;
+  isPaid: boolean;
 }
 
 // A one-off payroll adjustment on top of normal earnings (e.g. a sales

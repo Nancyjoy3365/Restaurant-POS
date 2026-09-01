@@ -818,7 +818,7 @@ export const usePosStore = create<PosState>()(
     }),
     {
       name: "pos-storage",
-      version: 23,
+      version: 24,
       migrate: (persistedState) => {
         const state = persistedState as Partial<PosState> & {
           menu?: Array<Record<string, unknown>>;
@@ -829,6 +829,7 @@ export const usePosStore = create<PosState>()(
           tickets?: Array<Record<string, unknown>>;
           payments?: Array<Record<string, unknown>>;
           cashDrops?: Array<Record<string, unknown>>;
+          leaveRecords?: Array<Record<string, unknown>>;
         };
         // Known seed items always get refreshed to the latest seed fields
         // (this is how a new imageUrl, price, etc. actually reaches a
@@ -927,6 +928,15 @@ export const usePosStore = create<PosState>()(
           ? (state.cashDrops as unknown as CashDrop[])
           : [];
 
+        // Same story for a LeaveRecord saved before `isPaid` existed — drop
+        // it rather than guess whether it should count as paid or unpaid.
+        const hasCurrentLeaveShape = (state.leaveRecords ?? []).every(
+          (l) => typeof l.isPaid === "boolean"
+        );
+        const leaveRecords = hasCurrentLeaveShape
+          ? (state.leaveRecords as unknown as LeaveRecord[])
+          : [];
+
         const staff = (hasCurrentStaffShape ? state.staff : seedStaff) as unknown as StaffMember[];
         // Whenever staff gets reseeded (a role rename, a new roster, etc.)
         // a persisted currentStaffId can end up pointing at an id that no
@@ -950,6 +960,7 @@ export const usePosStore = create<PosState>()(
           ticketCounter,
           payments,
           cashDrops,
+          leaveRecords,
           // Demo-grade PIN has no in-app way to change it yet, so always
           // trust the latest seed value rather than whatever got persisted
           // from an earlier version of this file.

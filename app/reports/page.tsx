@@ -13,7 +13,7 @@ import {
 import { usePosStore } from "@/lib/store";
 import { formatKES } from "@/lib/utils";
 import { computeCogs } from "@/lib/reports";
-import { payoutForRange } from "@/lib/payroll";
+import { payoutForRange, paidLeaveAmountInRange } from "@/lib/payroll";
 
 function toDateInputValue(d: Date): string {
   const yyyy = d.getFullYear();
@@ -29,6 +29,7 @@ export default function ReportsPage() {
   const staff = usePosStore((s) => s.staff);
   const shifts = usePosStore((s) => s.shifts);
   const payments = usePosStore((s) => s.payments);
+  const leaveRecords = usePosStore((s) => s.leaveRecords);
 
   const todayStr = toDateInputValue(new Date());
   const [fromDate, setFromDate] = useState(todayStr);
@@ -56,7 +57,13 @@ export default function ReportsPage() {
   const grossMargin = revenue - cogs;
   const marginPct = revenue > 0 ? (grossMargin / revenue) * 100 : 0;
   const staffPayouts = staff.reduce(
-    (sum, member) => sum + payoutForRange(member, shifts, payments, rangeStart, rangeEnd),
+    (sum, member) =>
+      sum + payoutForRange(member, shifts, payments, leaveRecords, rangeStart, rangeEnd),
+    0
+  );
+  const paidLeaveTotal = staff.reduce(
+    (sum, member) =>
+      sum + paidLeaveAmountInRange(member, shifts, leaveRecords, rangeStart, rangeEnd),
     0
   );
   const netForDay = grossMargin - staffPayouts;
@@ -162,9 +169,19 @@ export default function ReportsPage() {
             within the selected period; monthly salaries are prorated across
             each day&rsquo;s month.
           </p>
+          {paidLeaveTotal > 0 && (
+            <div className="flex items-center justify-between rounded-lg bg-warm-50 px-3 py-2 mb-3 text-xs">
+              <span className="font-bold text-slate-500">
+                Paid leave this period
+              </span>
+              <span className="font-extrabold text-slate-700">
+                {formatKES(paidLeaveTotal)}
+              </span>
+            </div>
+          )}
           <div className="space-y-1.5">
             {staff.map((member) => {
-              const payout = payoutForRange(member, shifts, payments, rangeStart, rangeEnd);
+              const payout = payoutForRange(member, shifts, payments, leaveRecords, rangeStart, rangeEnd);
               if (payout === 0) return null;
               return (
                 <div

@@ -274,14 +274,16 @@ export default function StaffPage() {
                 // Only monthly-rate pay assumes every day was worked — daily
                 // and commission staff already earn nothing on a day they
                 // don't clock in or sell, so leave doesn't need to subtract
-                // anything extra for them.
+                // anything extra for them. Only unpaid leave reduces pay —
+                // an approved paid day is, by definition, still paid.
                 const leaveDays =
                   member.payType === "monthly"
                     ? approvedLeaveDaysInRange(
                         leaveRecords,
                         member.id,
                         periodStart,
-                        periodEnd
+                        periodEnd,
+                        false
                       )
                     : 0;
                 const daysInPeriodMonth = new Date(
