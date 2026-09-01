@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import clsx from "clsx";
-import { Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { usePosStore } from "@/lib/store";
 import { Toggle } from "@/components/shared/Toggle";
 import { FoodImage } from "@/components/shared/FoodImage";
 import { AddMenuItemModal } from "@/components/menu-management/AddMenuItemModal";
 import { formatKES } from "@/lib/utils";
-import type { MenuCategory } from "@/lib/types";
+import type { MenuCategory, MenuItem } from "@/lib/types";
 
 const CATEGORY_ORDER: MenuCategory[] = [
   "Main",
@@ -28,6 +28,7 @@ export default function MenuManagementPage() {
   const toggleMenuAvailability = usePosStore((s) => s.toggleMenuAvailability);
   const toggleMenuPriority = usePosStore((s) => s.toggleMenuPriority);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
 
   return (
     <div className="flex-1 flex flex-col">
@@ -52,6 +53,7 @@ export default function MenuManagementPage() {
                 <th className="text-right px-2 py-3">Price</th>
                 <th className="text-center px-2 py-3">Priority</th>
                 <th className="text-center px-4 py-3">Available</th>
+                <th className="text-center px-4 py-3">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -108,6 +110,19 @@ export default function MenuManagementPage() {
                         />
                       </div>
                     </td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() => setEditingItem(item)}
+                          aria-label={`Edit ${item.name}`}
+                          title={`Edit ${item.name}`}
+                          className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-warm-200 text-slate-500 hover:border-accent-300 hover:text-accent-700"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
@@ -118,6 +133,12 @@ export default function MenuManagementPage() {
 
       {showAddModal && (
         <AddMenuItemModal onClose={() => setShowAddModal(false)} />
+      )}
+      {editingItem && (
+        <AddMenuItemModal
+          item={editingItem}
+          onClose={() => setEditingItem(null)}
+        />
       )}
     </div>
   );

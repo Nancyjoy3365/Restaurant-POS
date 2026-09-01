@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { usePosStore } from "@/lib/store";
-import type { MenuCategory } from "@/lib/types";
+import type { MenuCategory, MenuItem } from "@/lib/types";
 
 const CATEGORY_OPTIONS: MenuCategory[] = [
   "Main",
@@ -14,17 +14,27 @@ const CATEGORY_OPTIONS: MenuCategory[] = [
   "Packaging",
 ];
 
-export function AddMenuItemModal({ onClose }: { onClose: () => void }) {
+export function AddMenuItemModal({
+  item,
+  onClose,
+}: {
+  // When provided, the modal edits this existing item (price correction,
+  // renaming, etc.) instead of creating a new one.
+  item?: MenuItem;
+  onClose: () => void;
+}) {
   const addMenuItem = usePosStore((s) => s.addMenuItem);
+  const updateMenuItem = usePosStore((s) => s.updateMenuItem);
+  const isEditing = Boolean(item);
 
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState<MenuCategory>("Main");
-  const [price, setPrice] = useState("");
-  const [veg, setVeg] = useState(false);
-  const [isPriority, setIsPriority] = useState(false);
-  const [aliases, setAliases] = useState("");
-  const [modifiers, setModifiers] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
+  const [name, setName] = useState(item?.name ?? "");
+  const [category, setCategory] = useState<MenuCategory>(item?.category ?? "Main");
+  const [price, setPrice] = useState(item ? String(item.price) : "");
+  const [veg, setVeg] = useState(item?.veg ?? false);
+  const [isPriority, setIsPriority] = useState(item?.isPriority ?? false);
+  const [aliases, setAliases] = useState(item?.aliases.join(", ") ?? "");
+  const [modifiers, setModifiers] = useState(item?.spiceLevels?.join(", ") ?? "");
+  const [imageUrl, setImageUrl] = useState(item?.imageUrl ?? "");
 
   const priceNum = Number(price);
   const canSave = name.trim().length > 0 && priceNum > 0;
@@ -35,12 +45,12 @@ export function AddMenuItemModal({ onClose }: { onClose: () => void }) {
       .split(",")
       .map((m) => m.trim())
       .filter(Boolean);
-    addMenuItem({
+    const fields = {
       name: name.trim(),
       category,
       price: priceNum,
       veg,
-      available: true,
+      available: item?.available ?? true,
       aliases: aliases
         .split(",")
         .map((a) => a.trim().toLowerCase())
@@ -48,7 +58,15 @@ export function AddMenuItemModal({ onClose }: { onClose: () => void }) {
       spiceLevels: spiceLevels.length > 0 ? spiceLevels : undefined,
       imageUrl: imageUrl.trim() || undefined,
       isPriority: isPriority || undefined,
-    });
+    };
+    if (item) {
+      // Preserve fields this form doesn't expose (variantGroup/variantLabel,
+      // comboTag/comboComponents) rather than silently dropping them.
+      const { id, ...existing } = item;
+      updateMenuItem(id, { ...existing, ...fields });
+    } else {
+      addMenuItem(fields);
+    }
     onClose();
   }
 
@@ -56,7 +74,9 @@ export function AddMenuItemModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
       <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-black text-slate-900">Add Menu Item</h2>
+          <h2 className="text-lg font-black text-slate-900">
+            {isEditing ? "Edit Menu Item" : "Add Menu Item"}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -185,7 +205,7 @@ export function AddMenuItemModal({ onClose }: { onClose: () => void }) {
           onClick={handleSave}
           className="w-full mt-6 rounded-xl bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-3 transition-colors"
         >
-          Add to Menu
+          {isEditing ? "Save Changes" : "Add to Menu"}
         </button>
       </div>
     </div>

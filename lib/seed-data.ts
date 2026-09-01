@@ -18,12 +18,12 @@ export const STAFF_PIN = "123";
 // persisted state might still reference from the previous menu.
 export const seedMenu: MenuItem[] = [
   // Main
-  { id: "mn1", name: "Fish (Dry)", aliases: ["fish"], category: "Main", price: 350, veg: false, available: true, variantGroup: "Fish", variantLabel: "Dry", spiceLevels: ["Mild", "Medium", "Hot"] },
-  { id: "mn2", name: "Fish (Wet)", aliases: ["fish"], category: "Main", price: 350, veg: false, available: true, variantGroup: "Fish", variantLabel: "Wet", spiceLevels: ["Mild", "Medium", "Hot"] },
-  { id: "mn3", name: "Fish (Boiled)", aliases: ["fish"], category: "Main", price: 400, veg: false, available: true, variantGroup: "Fish", variantLabel: "Boiled", spiceLevels: ["Mild", "Medium", "Hot"] },
-  { id: "mn4", name: "Fish (Wet Special)", aliases: ["fish"], category: "Main", price: 400, veg: false, available: true, variantGroup: "Fish", variantLabel: "Wet Special", spiceLevels: ["Mild", "Medium", "Hot"] },
-  { id: "mn5", name: "Fish (Dry Special)", aliases: ["fish"], category: "Main", price: 450, veg: false, available: true, variantGroup: "Fish", variantLabel: "Dry Special", spiceLevels: ["Mild", "Medium", "Hot"] },
-  { id: "mn6", name: "Fish (Coconut)", aliases: ["fish", "coconut fish"], category: "Main", price: 500, veg: false, available: true, variantGroup: "Fish", variantLabel: "Coconut", spiceLevels: ["Mild", "Medium", "Hot"] },
+  { id: "mn1", name: "Fish (Dry)", aliases: ["fish"], category: "Main", price: 350, veg: false, available: true, variantGroup: "Fish", variantLabel: "Dry", spiceLevels: ["Mild", "Normal", "Hot"] },
+  { id: "mn2", name: "Fish (Wet)", aliases: ["fish"], category: "Main", price: 350, veg: false, available: true, variantGroup: "Fish", variantLabel: "Wet", spiceLevels: ["Mild", "Normal", "Hot"] },
+  { id: "mn3", name: "Fish (Boiled)", aliases: ["fish"], category: "Main", price: 400, veg: false, available: true, variantGroup: "Fish", variantLabel: "Boiled", spiceLevels: ["Mild", "Normal", "Hot"] },
+  { id: "mn4", name: "Fish (Wet Special)", aliases: ["fish"], category: "Main", price: 400, veg: false, available: true, variantGroup: "Fish", variantLabel: "Wet Special", spiceLevels: ["Mild", "Normal", "Hot"] },
+  { id: "mn5", name: "Fish (Dry Special)", aliases: ["fish"], category: "Main", price: 450, veg: false, available: true, variantGroup: "Fish", variantLabel: "Dry Special", spiceLevels: ["Mild", "Normal", "Hot"] },
+  { id: "mn6", name: "Fish (Coconut)", aliases: ["fish", "coconut fish"], category: "Main", price: 500, veg: false, available: true, variantGroup: "Fish", variantLabel: "Coconut", spiceLevels: ["Mild", "Normal", "Hot"] },
   { id: "mn7", name: "Ugali (White)", aliases: ["ugali"], category: "Main", price: 50, veg: true, available: true, variantGroup: "Ugali", variantLabel: "White" },
   { id: "mn8", name: "Ugali (Brown)", aliases: ["ugali"], category: "Main", price: 100, veg: true, available: true, variantGroup: "Ugali", variantLabel: "Brown" },
   { id: "mn9", name: "Chips (Fries)", aliases: ["chips", "fries"], category: "Main", price: 150, veg: true, available: true, variantGroup: "Chips", variantLabel: "Fries" },

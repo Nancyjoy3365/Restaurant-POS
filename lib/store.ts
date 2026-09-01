@@ -73,6 +73,7 @@ interface PosState {
   toggleMenuAvailability: (menuItemId: string) => void;
   toggleMenuPriority: (menuItemId: string) => void;
   addMenuItem: (item: Omit<MenuItem, "id">) => void;
+  updateMenuItem: (menuItemId: string, updates: Omit<MenuItem, "id">) => void;
   addStaffMember: (member: Omit<StaffMember, "id">) => string;
   clockIn: (staffId: string) => void;
   clockOut: (staffId: string) => void;
@@ -532,6 +533,13 @@ export const usePosStore = create<PosState>()(
           menu: [...s.menu, { ...item, id: makeId("menu") }],
         })),
 
+      updateMenuItem: (menuItemId, updates) =>
+        set((s) => ({
+          menu: s.menu.map((m) =>
+            m.id === menuItemId ? { ...updates, id: m.id } : m
+          ),
+        })),
+
       addStaffMember: (member) => {
         const id = makeId("staff");
         set((s) => ({ staff: [...s.staff, { ...member, id }] }));
@@ -759,7 +767,7 @@ export const usePosStore = create<PosState>()(
     }),
     {
       name: "pos-storage",
-      version: 21,
+      version: 22,
       migrate: (persistedState) => {
         const state = persistedState as Partial<PosState> & {
           menu?: Array<Record<string, unknown>>;
