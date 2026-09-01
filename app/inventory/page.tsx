@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import clsx from "clsx";
-import { AlertTriangle, Plus } from "lucide-react";
+import { AlertTriangle, Pencil, Plus } from "lucide-react";
 import { usePosStore } from "@/lib/store";
 import { formatKES } from "@/lib/utils";
 import { AddIngredientModal } from "@/components/inventory/AddIngredientModal";
+import { AddVendorModal } from "@/components/inventory/AddVendorModal";
+import type { Ingredient, Vendor } from "@/lib/types";
 
 type Tab = "stock" | "vendors";
 
@@ -17,6 +19,9 @@ const TABS: { id: Tab; label: string }[] = [
 export default function InventoryPage() {
   const [tab, setTab] = useState<Tab>("stock");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
+  const [showAddVendorModal, setShowAddVendorModal] = useState(false);
+  const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
   const ingredients = usePosStore((s) => s.ingredients);
   const vendors = usePosStore((s) => s.vendors);
 
@@ -50,12 +55,26 @@ export default function InventoryPage() {
               <Plus size={16} strokeWidth={3} /> Add Item
             </button>
           )}
+          {tab === "vendors" && (
+            <button
+              type="button"
+              onClick={() => setShowAddVendorModal(true)}
+              className="flex items-center gap-1.5 rounded-xl bg-accent-600 hover:bg-accent-700 text-white text-sm font-extrabold px-4 py-2.5 transition-colors"
+            >
+              <Plus size={16} strokeWidth={3} /> Add Vendor
+            </button>
+          )}
         </div>
       </header>
 
       <main className="flex-1 overflow-y-auto p-6">
         {tab === "stock" && (
           <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
+            {ingredients.length === 0 ? (
+              <p className="text-slate-400 font-semibold text-center py-12">
+                No stock items yet — use &ldquo;Add Item&rdquo; to get started.
+              </p>
+            ) : (
             <table className="w-full text-sm">
               <thead className="bg-warm-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
                 <tr>
@@ -65,7 +84,8 @@ export default function InventoryPage() {
                   <th className="text-right px-2 py-3">Quantity</th>
                   <th className="text-right px-2 py-3">Piece</th>
                   <th className="text-right px-2 py-3">Unit Cost</th>
-                  <th className="text-left px-4 py-3">Unit</th>
+                  <th className="text-left px-2 py-3">Unit</th>
+                  <th className="text-center px-4 py-3">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -100,8 +120,21 @@ export default function InventoryPage() {
                       <td className="px-2 py-3 text-right font-semibold text-slate-700">
                         {formatKES(ing.unitCost)}
                       </td>
-                      <td className="px-4 py-3 text-slate-500 font-semibold">
+                      <td className="px-2 py-3 text-slate-500 font-semibold">
                         {ing.unit}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-center">
+                          <button
+                            type="button"
+                            onClick={() => setEditingIngredient(ing)}
+                            aria-label={`Edit ${ing.name}`}
+                            title={`Edit ${ing.name}`}
+                            className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-warm-200 text-slate-500 hover:border-accent-300 hover:text-accent-700"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -117,15 +150,21 @@ export default function InventoryPage() {
                       ingredients.reduce((sum, ing) => sum + ing.totalCost, 0)
                     )}
                   </td>
-                  <td colSpan={4}></td>
+                  <td colSpan={5}></td>
                 </tr>
               </tfoot>
             </table>
+            )}
           </div>
         )}
 
         {tab === "vendors" && (
           <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
+            {vendors.length === 0 ? (
+              <p className="text-slate-400 font-semibold text-center py-12">
+                No vendors yet — use &ldquo;Add Vendor&rdquo; to get started.
+              </p>
+            ) : (
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
                 <tr>
@@ -133,7 +172,8 @@ export default function InventoryPage() {
                   <th className="text-left px-2 py-3">Category</th>
                   <th className="text-center px-2 py-3">Payment Method</th>
                   <th className="text-right px-2 py-3">Last Payment</th>
-                  <th className="text-right px-4 py-3">Date</th>
+                  <th className="text-right px-2 py-3">Date</th>
+                  <th className="text-center px-4 py-3">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -162,19 +202,48 @@ export default function InventoryPage() {
                     <td className="px-2 py-3 text-right font-semibold text-slate-700">
                       {formatKES(v.lastPaymentAmount)}
                     </td>
-                    <td className="px-4 py-3 text-right text-slate-500 font-semibold">
+                    <td className="px-2 py-3 text-right text-slate-500 font-semibold">
                       {v.lastPaymentDate}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() => setEditingVendor(v)}
+                          aria-label={`Edit ${v.name}`}
+                          title={`Edit ${v.name}`}
+                          className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-warm-200 text-slate-500 hover:border-accent-300 hover:text-accent-700"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            )}
           </div>
         )}
       </main>
 
       {showAddModal && (
         <AddIngredientModal onClose={() => setShowAddModal(false)} />
+      )}
+      {editingIngredient && (
+        <AddIngredientModal
+          item={editingIngredient}
+          onClose={() => setEditingIngredient(null)}
+        />
+      )}
+      {showAddVendorModal && (
+        <AddVendorModal onClose={() => setShowAddVendorModal(false)} />
+      )}
+      {editingVendor && (
+        <AddVendorModal
+          vendor={editingVendor}
+          onClose={() => setEditingVendor(null)}
+        />
       )}
     </div>
   );

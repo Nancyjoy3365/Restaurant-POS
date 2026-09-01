@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { usePosStore } from "@/lib/store";
 import { formatKES } from "@/lib/utils";
+import type { Ingredient } from "@/lib/types";
 
 const PACKAGING_OPTIONS = [
   "Bale",
@@ -17,15 +18,25 @@ const PACKAGING_OPTIONS = [
 
 const UNIT_OPTIONS = ["kg", "litre", "pc", "g", "ml"];
 
-export function AddIngredientModal({ onClose }: { onClose: () => void }) {
+export function AddIngredientModal({
+  item,
+  onClose,
+}: {
+  // When provided, the modal edits this existing ingredient (a price
+  // correction, restock, etc.) instead of creating a new one.
+  item?: Ingredient;
+  onClose: () => void;
+}) {
   const addIngredient = usePosStore((s) => s.addIngredient);
+  const updateIngredient = usePosStore((s) => s.updateIngredient);
+  const isEditing = Boolean(item);
 
-  const [name, setName] = useState("");
-  const [packaging, setPackaging] = useState(PACKAGING_OPTIONS[0]);
-  const [amount, setAmount] = useState("");
-  const [quantity, setQuantity] = useState("");
-  const [piece, setPiece] = useState("");
-  const [unit, setUnit] = useState(UNIT_OPTIONS[0]);
+  const [name, setName] = useState(item?.name ?? "");
+  const [packaging, setPackaging] = useState(item?.packaging ?? PACKAGING_OPTIONS[0]);
+  const [amount, setAmount] = useState(item ? String(item.totalCost) : "");
+  const [quantity, setQuantity] = useState(item ? String(item.quantity) : "");
+  const [piece, setPiece] = useState(item ? String(item.piecesPerPackage) : "");
+  const [unit, setUnit] = useState(item?.unit ?? UNIT_OPTIONS[0]);
 
   const amountNum = Number(amount) || 0;
   const quantityNum = Number(quantity) || 0;
@@ -35,7 +46,7 @@ export function AddIngredientModal({ onClose }: { onClose: () => void }) {
 
   function handleSave() {
     if (!canSave) return;
-    addIngredient({
+    const fields = {
       name: name.trim(),
       packaging,
       totalCost: amountNum,
@@ -45,8 +56,15 @@ export function AddIngredientModal({ onClose }: { onClose: () => void }) {
       unitCost,
       // No stock level has been observed yet for a brand-new item, so flag
       // it low as soon as it drops below a third of the opening quantity.
-      reorderThreshold: Math.max(1, Math.round(quantityNum * 0.3)),
-    });
+      // An edit keeps whatever threshold was already set.
+      reorderThreshold:
+        item?.reorderThreshold ?? Math.max(1, Math.round(quantityNum * 0.3)),
+    };
+    if (item) {
+      updateIngredient(item.id, fields);
+    } else {
+      addIngredient(fields);
+    }
     onClose();
   }
 
@@ -54,7 +72,9 @@ export function AddIngredientModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
       <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-black text-slate-900">Add Inventory Item</h2>
+          <h2 className="text-lg font-black text-slate-900">
+            {isEditing ? "Edit Inventory Item" : "Add Inventory Item"}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -170,7 +190,7 @@ export function AddIngredientModal({ onClose }: { onClose: () => void }) {
           onClick={handleSave}
           className="w-full mt-6 rounded-xl bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-3 transition-colors"
         >
-          Add to Inventory
+          {isEditing ? "Save Changes" : "Add to Inventory"}
         </button>
       </div>
     </div>
