@@ -43,21 +43,21 @@ export function BillPreview({
 
       <div
         id="receipt-print"
-        className="rounded-xl border border-dashed border-slate-300 p-5 font-mono text-[13px] text-slate-800"
+        className="rounded-xl border border-dashed border-slate-300 p-4 font-mono text-[12px] text-slate-800"
       >
-        <div className="text-center mb-3">
+        <div className="text-center mb-2">
           <div className="font-black text-base tracking-wide">
             SAMAKI MJINI RESTAURANT
           </div>
-          <div className="text-[11px] text-slate-500">
+          <div className="text-[10px] text-slate-500">
             Utawala - Next to Quickmart Kwa Chief
           </div>
-          <div className="text-[11px] text-slate-500">PIN: P000000000A</div>
-          <div className="text-[11px] text-slate-500">Tel: 0719 877 022</div>
-          <div className="text-[11px] font-extrabold mt-1">NON FISCAL BILL</div>
+          <div className="text-[10px] text-slate-500">PIN: P000000000A</div>
+          <div className="text-[10px] text-slate-500">Tel: 0719 877 022</div>
+          <div className="text-[10px] font-extrabold mt-0.5">NON FISCAL BILL</div>
         </div>
 
-        <div className="border-t border-dashed border-slate-300 pt-2 mb-2 text-[11px] space-y-0.5">
+        <div className="border-t border-dashed border-slate-300 pt-1.5 mb-1.5 text-[10px] space-y-0.5">
           {checkNo !== undefined && (
             <div className="flex justify-between">
               <span>Chk. No.</span>
@@ -84,14 +84,14 @@ export function BillPreview({
           )}
         </div>
 
-        <div className="border-t border-dashed border-slate-300 pt-2">
-          <div className="flex justify-between text-[10px] font-extrabold uppercase tracking-wide text-slate-500 pb-1">
+        <div className="border-t border-dashed border-slate-300 pt-1.5">
+          <div className="flex justify-between text-[9px] font-extrabold uppercase tracking-wide text-slate-500 pb-0.5">
             <span className="w-8">Qty</span>
             <span className="flex-1">Item Name</span>
             <span className="w-16 text-right">Price</span>
             <span className="w-16 text-right">Total</span>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {lines.map(({ item }) => (
               <div key={item.id} className="flex justify-between">
                 <span className="w-8">{item.qty.toFixed(1)}</span>
@@ -103,8 +103,8 @@ export function BillPreview({
           </div>
         </div>
 
-        <div className="border-t border-dashed border-slate-300 mt-2 pt-2 space-y-0.5">
-          <div className="flex justify-between text-[11px]">
+        <div className="border-t border-dashed border-slate-300 mt-1.5 pt-1.5 space-y-0.5">
+          <div className="flex justify-between text-[10px]">
             <span>Bill Item(s):</span>
             <span className="font-bold">{itemCount.toFixed(1)}</span>
           </div>
@@ -112,25 +112,25 @@ export function BillPreview({
             <span>BILL TOTAL</span>
             <span>{formatKES(total)}</span>
           </div>
-          <div className="flex justify-between text-[11px] text-slate-500">
+          <div className="flex justify-between text-[10px] text-slate-500">
             <span>VAT (16%, inclusive)</span>
             <span>{formatKES(vat)}</span>
           </div>
-          <div className="flex justify-between text-[11px] text-slate-500">
+          <div className="flex justify-between text-[10px] text-slate-500">
             <span>Subtotal (excl. VAT)</span>
             <span>{formatKES(subtotal)}</span>
           </div>
         </div>
 
-        <div className="border-t border-dashed border-slate-300 mt-2 pt-2 text-center text-[10px] text-slate-500">
+        <div className="border-t border-dashed border-slate-300 mt-1.5 pt-1.5 text-center text-[9px] text-slate-500 leading-tight">
           Not a tax invoice — get your official ETR receipt from the cashier
           after paying.
         </div>
 
-        <div className="border-t border-dashed border-slate-300 mt-2 pt-2 text-center">
-          <div className="text-[11px] font-bold">LIPA NA MPESA</div>
-          <div className="text-[11px] font-bold">BUY GOODS</div>
-          <div className="text-2xl font-black tracking-wider mt-0.5">
+        <div className="border-t border-dashed border-slate-300 mt-1.5 pt-1.5 text-center">
+          <div className="text-[10px] font-bold">LIPA NA MPESA</div>
+          <div className="text-[10px] font-bold">BUY GOODS</div>
+          <div className="text-xl font-black tracking-wider mt-0.5">
             974366
           </div>
         </div>
