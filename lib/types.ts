@@ -176,6 +176,32 @@ export interface StaffMember {
   commissionValue?: number;
 }
 
+export type LeaveStatus = "approved" | "pending";
+
+// A leave record is a date-range event, not a static attribute — a staff
+// member can have several over time, and payroll only treats "approved"
+// records as unpaid days off (see approvedLeaveDaysInRange in payroll.ts).
+export interface LeaveRecord {
+  id: string;
+  staffId: string;
+  startDate: string; // "YYYY-MM-DD"
+  endDate: string; // "YYYY-MM-DD"
+  reason: string;
+  status: LeaveStatus;
+}
+
+// A one-off payroll adjustment on top of normal earnings (e.g. a sales
+// bonus) — recorded as its own event rather than folded into StaffMember,
+// since there can be many per staff member over time.
+export interface IncentiveRecord {
+  id: string;
+  staffId: string;
+  amount: number;
+  reason: string;
+  dateGiven: number;
+  givenBy?: string;
+}
+
 export type PaymentMethod = "mpesa" | "cash";
 
 export interface ReceiptLineItem {

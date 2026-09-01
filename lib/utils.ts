@@ -44,3 +44,19 @@ export function makeId(prefix: string): string {
   idCounter += 1;
   return `${prefix}-${Date.now().toString(36)}-${idCounter}`;
 }
+
+// Local (not UTC) calendar-day key, so a leave range like "2026-09-05" means
+// the same day everywhere it's compared, regardless of time-of-day.
+export function toDateKey(d: Date): string {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+export function formatHours(hours: number): string {
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  if (h === 0 && m === 0) return "0h";
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}

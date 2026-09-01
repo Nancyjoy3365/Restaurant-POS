@@ -1,4 +1,5 @@
-import type { ShiftEntry, Payment, StaffMember } from "./types";
+import type { ShiftEntry, Payment, StaffMember, LeaveRecord, IncentiveRecord } from "./types";
+import { toDateKey } from "./utils";
 
 function startOfWeek(d: Date): Date {
   const date = new Date(d);
@@ -27,6 +28,101 @@ function endOfDay(d: Date): Date {
   const date = new Date(d);
   date.setHours(23, 59, 59, 999);
   return date;
+}
+
+function startOfMonth(d: Date): Date {
+  const date = new Date(d.getFullYear(), d.getMonth(), 1);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function endOfMonth(d: Date): Date {
+  const date = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  date.setHours(23, 59, 59, 999);
+  return date;
+}
+
+// The same week/month window "Pay Period" already shows on the Staff &
+// Payroll table, so Hours Worked / leave / incentives can all be scoped
+// consistently with whatever's displayed there for a given staff member.
+export function getPayPeriodRange(
+  payType: StaffMember["payType"],
+  now = new Date()
+): { start: Date; end: Date } {
+  return payType === "monthly"
+    ? { start: startOfMonth(now), end: endOfMonth(now) }
+    : { start: startOfWeek(now), end: endOfWeek(now) };
+}
+
+// Total hours actually clocked in a range — an open (not yet clocked out)
+// shift counts up to `now`, so a currently-on-shift staff member's hours
+// keep ticking up live rather than freezing until they clock out.
+export function hoursWorkedInRange(
+  shifts: ShiftEntry[],
+  staffId: string,
+  start: Date,
+  end: Date,
+  now = new Date()
+): number {
+  let totalMs = 0;
+  for (const s of shifts) {
+    if (s.staffId !== staffId) continue;
+    const clockIn = new Date(s.clockIn);
+    const clockOut = s.clockOut !== undefined ? new Date(s.clockOut) : now;
+    const clampedStart = clockIn < start ? start : clockIn;
+    const clampedEnd = clockOut > end ? end : clockOut;
+    const ms = clampedEnd.getTime() - clampedStart.getTime();
+    if (ms > 0) totalMs += ms;
+  }
+  return totalMs / (1000 * 60 * 60);
+}
+
+function isOnApprovedLeave(
+  leaveRecords: LeaveRecord[],
+  staffId: string,
+  date: Date
+): boolean {
+  const key = toDateKey(date);
+  return leaveRecords.some(
+    (l) =>
+      l.staffId === staffId &&
+      l.status === "approved" &&
+      key >= l.startDate &&
+      key <= l.endDate
+  );
+}
+
+// Counts calendar days in [start, end] covered by an approved leave record —
+// only meaningful for monthly-rate staff, whose prorated pay otherwise
+// assumes every day in the month was worked. Daily/commission staff already
+// earn nothing on a day they don't clock in, so leave doesn't need to
+// subtract anything extra for them.
+export function approvedLeaveDaysInRange(
+  leaveRecords: LeaveRecord[],
+  staffId: string,
+  start: Date,
+  end: Date
+): number {
+  let count = 0;
+  const cursor = startOfDay(start);
+  const last = startOfDay(end);
+  while (cursor <= last) {
+    if (isOnApprovedLeave(leaveRecords, staffId, cursor)) count++;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return count;
+}
+
+export function incentiveTotalInRange(
+  incentiveRecords: IncentiveRecord[],
+  staffId: string,
+  start: Date,
+  end: Date
+): number {
+  return incentiveRecords
+    .filter((r) => r.staffId === staffId)
+    .filter((r) => r.dateGiven >= start.getTime() && r.dateGiven <= end.getTime())
+    .reduce((sum, r) => sum + r.amount, 0);
 }
 
 const SHORT_DATE = { month: "short", day: "numeric" } as const;

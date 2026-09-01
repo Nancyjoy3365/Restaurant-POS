@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import clsx from "clsx";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, Search, X } from "lucide-react";
 import { usePosStore } from "@/lib/store";
 import { Toggle } from "@/components/shared/Toggle";
 import { FoodImage } from "@/components/shared/FoodImage";
@@ -19,9 +19,12 @@ const CATEGORY_ORDER: MenuCategory[] = [
   "Packaging",
 ];
 
+type CategoryFilter = "All" | MenuCategory;
+type AvailabilityFilter = "All" | "Active" | "Disabled";
+
 export default function MenuManagementPage() {
   const rawMenu = usePosStore((s) => s.menu);
-  const menu = [...rawMenu].sort(
+  const sortedMenu = [...rawMenu].sort(
     (a, b) =>
       CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category)
   );
@@ -29,6 +32,18 @@ export default function MenuManagementPage() {
   const toggleMenuPriority = usePosStore((s) => s.toggleMenuPriority);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("All");
+  const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>("All");
+
+  const query = search.trim().toLowerCase();
+  const menu = sortedMenu.filter((item) => {
+    if (categoryFilter !== "All" && item.category !== categoryFilter) return false;
+    if (availabilityFilter === "Active" && !item.available) return false;
+    if (availabilityFilter === "Disabled" && item.available) return false;
+    if (query && !item.name.toLowerCase().includes(query)) return false;
+    return true;
+  });
 
   return (
     <div className="flex-1 flex flex-col">
@@ -42,8 +57,75 @@ export default function MenuManagementPage() {
           <Plus size={18} strokeWidth={3} /> Add Item
         </button>
       </header>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-warm-200 bg-white">
+        <div className="flex gap-2 overflow-x-auto">
+          {(["All", ...CATEGORY_ORDER] as CategoryFilter[]).map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setCategoryFilter(c)}
+              className={clsx(
+                "shrink-0 rounded-full px-4 py-2 text-xs font-extrabold transition-colors",
+                categoryFilter === c
+                  ? "bg-accent-600 text-white"
+                  : "bg-warm-50 text-slate-600 border border-warm-200 hover:border-accent-300"
+              )}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-full border border-warm-200 p-0.5">
+            {(["All", "Active", "Disabled"] as AvailabilityFilter[]).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setAvailabilityFilter(f)}
+                className={clsx(
+                  "rounded-full px-3 py-1.5 text-xs font-extrabold transition-colors",
+                  availabilityFilter === f
+                    ? "bg-accent-600 text-white"
+                    : "text-slate-500 hover:text-accent-700"
+                )}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+          <div className="relative w-full sm:w-64">
+            <Search
+              size={15}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search menu items"
+              className="w-full rounded-full border border-warm-200 bg-white pl-8 pr-8 py-2 text-sm font-semibold outline-none focus:border-accent-400"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                aria-label="Clear search"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
       <main className="flex-1 overflow-y-auto p-6">
         <div className="rounded-2xl border border-warm-200 bg-white overflow-hidden">
+          {menu.length === 0 ? (
+            <p className="text-slate-400 font-semibold text-center py-12">
+              No menu items match your filters.
+            </p>
+          ) : (
           <table className="w-full text-sm">
             <thead className="bg-warm-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
               <tr>
@@ -128,6 +210,7 @@ export default function MenuManagementPage() {
               })}
             </tbody>
           </table>
+          )}
         </div>
       </main>
 

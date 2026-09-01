@@ -19,6 +19,8 @@ import type {
   ShiftEntry,
   VoidEntry,
   CashDrop,
+  LeaveRecord,
+  IncentiveRecord,
 } from "./types";
 import {
   seedMenu,
@@ -48,6 +50,8 @@ interface PosState {
   receipts: Receipt[];
   voids: VoidEntry[];
   cashDrops: CashDrop[];
+  leaveRecords: LeaveRecord[];
+  incentiveRecords: IncentiveRecord[];
   ticketCounter: number;
   invoiceCounter: number;
   currentStaffId: string | null;
@@ -103,6 +107,8 @@ interface PosState {
     note?: string
   ) => void;
   deleteCashDrop: (dropId: string) => void;
+  addLeaveRecord: (record: Omit<LeaveRecord, "id">) => void;
+  addIncentiveRecord: (record: Omit<IncentiveRecord, "id">) => void;
 }
 
 export const MAX_HELD_ORDERS_PER_WAITER = 3;
@@ -194,6 +200,8 @@ export const usePosStore = create<PosState>()(
       receipts: [],
       voids: [],
       cashDrops: [],
+      leaveRecords: [],
+      incentiveRecords: [],
       ticketCounter: seedTickets.length,
       invoiceCounter: 10482,
       currentStaffId: null,
@@ -769,6 +777,19 @@ export const usePosStore = create<PosState>()(
       deleteCashDrop: (dropId) =>
         set((s) => ({
           cashDrops: s.cashDrops.filter((d) => d.id !== dropId),
+        })),
+
+      addLeaveRecord: (record) =>
+        set((s) => ({
+          leaveRecords: [...s.leaveRecords, { ...record, id: makeId("leave") }],
+        })),
+
+      addIncentiveRecord: (record) =>
+        set((s) => ({
+          incentiveRecords: [
+            ...s.incentiveRecords,
+            { ...record, id: makeId("incentive") },
+          ],
         })),
     }),
     {

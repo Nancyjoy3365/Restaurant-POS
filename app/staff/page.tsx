@@ -3,32 +3,39 @@
 import { useRef, useState } from "react";
 import clsx from "clsx";
 import {
-  LogIn,
-  LogOut,
   Clock,
   Plus,
   Upload,
   Download,
+  Search,
   X,
   AlertCircle,
+  CalendarOff,
+  Gift,
   CheckCircle2,
 } from "lucide-react";
 import { usePosStore } from "@/lib/store";
-import { formatKES, formatDateTime } from "@/lib/utils";
+import { formatKES, formatDateTime, formatHours, toDateKey } from "@/lib/utils";
 import {
   getCurrentWeekLabel,
   getCurrentMonthLabel,
+  getPayPeriodRange,
   isOnShift,
   openShift,
   daysWorkedThisWeek,
   commissionEarned,
+  hoursWorkedInRange,
+  approvedLeaveDaysInRange,
+  incentiveTotalInRange,
 } from "@/lib/payroll";
 import {
   parseStaffCsv,
   STAFF_CSV_TEMPLATE,
   type StaffImportResult,
 } from "@/lib/staffImport";
-import type { CommissionType, PayType, StaffRole } from "@/lib/types";
+import { LeaveModal } from "@/components/staff/LeaveModal";
+import { IncentiveModal } from "@/components/staff/IncentiveModal";
+import type { CommissionType, PayType, StaffMember, StaffRole } from "@/lib/types";
 
 const ROLE_OPTIONS: StaffRole[] = [
   "Waiter",
@@ -55,8 +62,8 @@ export default function StaffPage() {
   const staff = usePosStore((s) => s.staff);
   const shifts = usePosStore((s) => s.shifts);
   const payments = usePosStore((s) => s.payments);
-  const clockIn = usePosStore((s) => s.clockIn);
-  const clockOut = usePosStore((s) => s.clockOut);
+  const leaveRecords = usePosStore((s) => s.leaveRecords);
+  const incentiveRecords = usePosStore((s) => s.incentiveRecords);
   const addStaffMember = usePosStore((s) => s.addStaffMember);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -65,6 +72,20 @@ export default function StaffPage() {
     null
   );
   const [importedCount, setImportedCount] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+  const [leaveModalStaff, setLeaveModalStaff] = useState<StaffMember | null>(null);
+  const [incentiveModalStaff, setIncentiveModalStaff] = useState<StaffMember | null>(null);
+
+  const todayKey = toDateKey(new Date());
+  const query = search.trim().toLowerCase();
+  const visibleStaff = query
+    ? staff.filter(
+        (m) =>
+          m.name.toLowerCase().includes(query) ||
+          m.role.toLowerCase().includes(query) ||
+          (m.title ?? "").toLowerCase().includes(query)
+      )
+    : staff;
 
   const [form, setForm] = useState({
     name: "",
@@ -139,6 +160,28 @@ export default function StaffPage() {
     <div className="flex-1 flex flex-col">
       <header className="min-h-16 flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-warm-200 bg-white">
         <h1 className="text-xl font-black text-slate-900">Staff & Payroll</h1>
+        <div className="relative w-full sm:w-72">
+          <Search
+            size={15}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+          />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name or role"
+            className="w-full rounded-full border border-warm-200 bg-white pl-8 pr-8 py-2 text-sm font-semibold outline-none focus:border-accent-400"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              aria-label="Clear search"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <input
             ref={fileInputRef}
@@ -198,25 +241,68 @@ export default function StaffPage() {
                 <th className="text-center px-2 py-3">Pay Type</th>
                 <th className="text-right px-2 py-3">Rate</th>
                 <th className="text-left px-2 py-3">Pay Period</th>
+                <th className="text-right px-2 py-3">Hours Worked</th>
                 <th className="text-right px-2 py-3">Earned</th>
-                <th className="text-center px-2 py-3">Shift Status</th>
-                <th className="text-center px-4 py-3">Clock</th>
+                <th className="text-center px-2 py-3">Leave</th>
+                <th className="text-center px-2 py-3">Incentives</th>
+                <th className="text-center px-4 py-3">Shift Status</th>
               </tr>
             </thead>
             <tbody>
-              {staff.map((member) => {
+              {visibleStaff.map((member) => {
                 const onShift = isOnShift(shifts, member.id);
                 const shift = openShift(shifts, member.id);
                 const period =
                   member.payType === "monthly"
                     ? getCurrentMonthLabel()
                     : getCurrentWeekLabel();
-                const earned =
+                const { start: periodStart, end: periodEnd } = getPayPeriodRange(
+                  member.payType
+                );
+                const hoursWorked = hoursWorkedInRange(
+                  shifts,
+                  member.id,
+                  periodStart,
+                  periodEnd
+                );
+                const baseEarned =
                   member.payType === "daily"
                     ? member.rate * daysWorkedThisWeek(shifts, member.id)
                     : member.payType === "commission"
                     ? commissionEarned(payments, member)
                     : member.rate;
+                // Only monthly-rate pay assumes every day was worked — daily
+                // and commission staff already earn nothing on a day they
+                // don't clock in or sell, so leave doesn't need to subtract
+                // anything extra for them.
+                const leaveDays =
+                  member.payType === "monthly"
+                    ? approvedLeaveDaysInRange(
+                        leaveRecords,
+                        member.id,
+                        periodStart,
+                        periodEnd
+                      )
+                    : 0;
+                const daysInPeriodMonth = new Date(
+                  periodStart.getFullYear(),
+                  periodStart.getMonth() + 1,
+                  0
+                ).getDate();
+                const leaveDeduction =
+                  leaveDays > 0
+                    ? Math.round((member.rate / daysInPeriodMonth) * leaveDays)
+                    : 0;
+                const incentivesTotal = incentiveTotalInRange(
+                  incentiveRecords,
+                  member.id,
+                  periodStart,
+                  periodEnd
+                );
+                const earned = Math.max(0, baseEarned - leaveDeduction) + incentivesTotal;
+                const upcomingLeave = leaveRecords
+                  .filter((l) => l.staffId === member.id && l.endDate >= todayKey)
+                  .sort((a, b) => (a.startDate < b.startDate ? -1 : 1))[0];
 
                 return (
                   <tr key={member.id} className="border-t border-slate-100">
@@ -246,10 +332,39 @@ export default function StaffPage() {
                     <td className="px-2 py-3 text-slate-500 font-semibold text-xs">
                       {period}
                     </td>
+                    <td className="px-2 py-3 text-right font-semibold text-slate-700">
+                      {formatHours(hoursWorked)}
+                    </td>
                     <td className="px-2 py-3 text-right font-extrabold text-slate-900">
                       {formatKES(earned)}
                     </td>
                     <td className="px-2 py-3">
+                      <div className="flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() => setLeaveModalStaff(member)}
+                          className="flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-accent-700"
+                        >
+                          <CalendarOff size={12} />
+                          {upcomingLeave
+                            ? `${upcomingLeave.startDate.slice(5)} – ${upcomingLeave.endDate.slice(5)}`
+                            : "—"}
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-2 py-3">
+                      <div className="flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() => setIncentiveModalStaff(member)}
+                          className="flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-accent-700"
+                        >
+                          <Gift size={12} />
+                          {incentivesTotal > 0 ? `+${formatKES(incentivesTotal)}` : "—"}
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
                       <div className="flex flex-col items-center gap-0.5">
                         <span
                           className={clsx(
@@ -264,25 +379,6 @@ export default function StaffPage() {
                           <span className="text-[10px] text-slate-400 font-semibold">
                             since {formatDateTime(shift.clockIn)}
                           </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-center">
-                        {onShift ? (
-                          <button
-                            onClick={() => clockOut(member.id)}
-                            className="flex items-center gap-1.5 rounded-full border-2 border-rose-500 text-rose-600 hover:bg-rose-50 text-xs font-extrabold px-3 py-1.5"
-                          >
-                            <LogOut size={13} /> Clock Out
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => clockIn(member.id)}
-                            className="flex items-center gap-1.5 rounded-full border-2 border-accent-600 text-accent-700 hover:bg-accent-50 text-xs font-extrabold px-3 py-1.5"
-                          >
-                            <LogIn size={13} /> Clock In
-                          </button>
                         )}
                       </div>
                     </td>
@@ -569,6 +665,20 @@ export default function StaffPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {leaveModalStaff && (
+        <LeaveModal
+          staff={leaveModalStaff}
+          onClose={() => setLeaveModalStaff(null)}
+        />
+      )}
+
+      {incentiveModalStaff && (
+        <IncentiveModal
+          staff={incentiveModalStaff}
+          onClose={() => setIncentiveModalStaff(null)}
+        />
       )}
     </div>
   );
