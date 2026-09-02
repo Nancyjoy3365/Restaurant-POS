@@ -13,7 +13,7 @@ import {
   X,
   Plus,
 } from "lucide-react";
-import { usePosStore, paymentsForCurrentCycle } from "@/lib/store";
+import { usePosStore, paymentsForCurrentCycle, unbilledOrderTotal } from "@/lib/store";
 import { formatKES } from "@/lib/utils";
 import { PaymentSuccessModal } from "@/components/billing/PaymentSuccessModal";
 import type { Payment, PaymentMethod, Receipt, Ticket, TicketOrder } from "@/lib/types";
@@ -68,6 +68,37 @@ export default function CashierPage() {
     const order = orders[ticket.id];
     if (!order?.billTotals || order.paymentStatus === "paid") continue;
     queue.push({ ticket, order });
+  }
+
+  // Tickets that exist but haven't reached "needs_bill" yet — i.e. billing
+  // hasn't started for them (no billTotals). The moment a waiter taps
+  // "Proceed to Bill" (startBilling sets billTotals), a ticket falls out of
+  // this list and appears in `queue` above instead — same trigger as
+  // before, just visible one stage earlier now.
+  const activeOrders: { ticket: Ticket; order: TicketOrder }[] = [];
+  for (const ticket of tickets) {
+    if (ticket.status !== "open") continue;
+    const order = orders[ticket.id];
+    if (!order || order.billTotals) continue;
+    activeOrders.push({ ticket, order });
+  }
+  activeOrders.sort((a, b) => a.ticket.openedAt - b.ticket.openedAt);
+
+  function activeOrderStatus(order: TicketOrder): string {
+    if (order.onHold) return "On Hold";
+    const items = order.rounds.flatMap((r) => r.items);
+    const hasUnsent = items.some((i) => !i.sentToKitchen);
+    if (hasUnsent) return "Ordering";
+    const sentItems = items.filter((i) => i.sentToKitchen);
+    if (sentItems.length === 0) return "Ordering";
+    return sentItems.every((i) => i.kitchenReady) ? "Ready" : "Sent to Kitchen";
+  }
+
+  function activeOrderStatusClasses(status: string): string {
+    if (status === "Ready") return "bg-emerald-50 text-emerald-700";
+    if (status === "Sent to Kitchen") return "bg-amber-50 text-amber-700";
+    if (status === "On Hold") return "bg-slate-100 text-slate-600";
+    return "bg-status-occupied/10 text-status-occupied";
   }
 
   const query = search.trim().toLowerCase();
@@ -283,6 +314,7 @@ export default function CashierPage() {
 
       <main className="flex-1 overflow-y-auto p-6 space-y-6">
         {tab === "live" && (
+        <>
         <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-warm-200">
             <h2 className="font-extrabold text-slate-900">
@@ -469,6 +501,70 @@ export default function CashierPage() {
             </div>
           )}
         </div>
+
+        <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
+          <div className="px-5 py-4 border-b border-warm-200">
+            <h2 className="font-extrabold text-slate-900">
+              Active Orders — In Progress ({activeOrders.length})
+            </h2>
+          </div>
+          {activeOrders.length === 0 ? (
+            <p className="text-slate-400 font-semibold text-center py-12">
+              No orders currently in progress.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[640px]">
+                <thead className="bg-warm-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
+                  <tr>
+                    <th className="text-left px-5 py-3">Waiter</th>
+                    <th className="text-left px-2 py-3">Order #</th>
+                    <th className="text-right px-2 py-3">Running Total</th>
+                    <th className="text-center px-5 py-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeOrders.map(({ ticket, order }) => {
+                    const waiterName =
+                      staff.find((m) => m.id === order.waiterId)?.name ??
+                      "Unassigned";
+                    const runningTotal = unbilledOrderTotal(order).total;
+                    const status = activeOrderStatus(order);
+                    return (
+                      <tr key={ticket.id} className="border-t border-warm-100">
+                        <td className="px-5 py-3 font-extrabold text-slate-900">
+                          {waiterName}
+                        </td>
+                        <td className="px-2 py-3 text-slate-700 font-semibold whitespace-nowrap">
+                          Order No. {ticket.displayNumber}
+                          {ticket.locationNote && (
+                            <div className="text-xs text-slate-400 font-semibold">
+                              {ticket.locationNote}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-2 py-3 text-right font-black text-slate-900">
+                          {formatKES(runningTotal)}
+                        </td>
+                        <td className="px-5 py-3 text-center">
+                          <span
+                            className={clsx(
+                              "inline-flex items-center rounded-full text-[11px] font-extrabold px-2.5 py-1",
+                              activeOrderStatusClasses(status)
+                            )}
+                          >
+                            {status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+        </>
         )}
 
         {tab === "reconciliation" && (
