@@ -63,9 +63,14 @@ export const seedMenu: MenuItem[] = [
   // Packaging
   { id: "mn34", name: "Container (Small)", aliases: ["container", "packaging"], category: "Packaging", price: 20, veg: true, available: true, variantGroup: "Container", variantLabel: "Small" },
   { id: "mn35", name: "Container (Large)", aliases: ["container", "packaging"], category: "Packaging", price: 50, veg: true, available: true, variantGroup: "Container", variantLabel: "Large" },
-  { id: "mn36", name: "Khaki (Small)", aliases: ["khaki", "packaging"], category: "Packaging", price: 20, veg: true, available: true, variantGroup: "Khaki", variantLabel: "Small" },
-  { id: "mn37", name: "Khaki (Large)", aliases: ["khaki", "packaging"], category: "Packaging", price: 50, veg: true, available: true, variantGroup: "Khaki", variantLabel: "Large" },
+  { id: "mn36", name: "Khaki", aliases: ["khaki", "packaging"], category: "Packaging", price: 20, veg: true, available: true },
 ];
+
+// "mn37" (Khaki Large) was merged into the single "mn36" Khaki item above —
+// kept here only so migrate() in store.ts can drop it from a browser that
+// already persisted it, rather than it lingering forever as a "custom" item
+// once it's no longer a recognized seed id.
+export const RETIRED_SEED_MENU_IDS = new Set(["mn37"]);
 
 // Demo stock/vendor rows were only ever placeholders — the real inventory
 // gets entered through the Inventory page's own Add Item / Add Vendor forms.

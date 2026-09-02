@@ -34,6 +34,7 @@ import {
   seedTickets,
   RETIRED_SEED_INGREDIENT_IDS,
   RETIRED_SEED_VENDOR_IDS,
+  RETIRED_SEED_MENU_IDS,
 } from "./seed-data";
 import { calcBill, makeId, flattenOrderItems, lineRawTotal } from "./utils";
 import { simulateEtimsSigning } from "./mock-integrations";
@@ -832,7 +833,7 @@ export const usePosStore = create<PosState>()(
     }),
     {
       name: "pos-storage",
-      version: 24,
+      version: 26,
       migrate: (persistedState) => {
         const state = persistedState as Partial<PosState> & {
           menu?: Array<Record<string, unknown>>;
@@ -863,7 +864,10 @@ export const usePosStore = create<PosState>()(
         ]);
         const seedIds = new Set(seedMenu.map((m) => m.id));
         const customMenuItems = (state.menu ?? []).filter(
-          (m) => !seedIds.has(m.id as string) && validCategories.has(m.category as string)
+          (m) =>
+            !seedIds.has(m.id as string) &&
+            !RETIRED_SEED_MENU_IDS.has(m.id as string) &&
+            validCategories.has(m.category as string)
         );
         const hasCurrentIngredientShape = state.ingredients?.every(
           (ing) => typeof ing.totalCost === "number"
@@ -960,6 +964,23 @@ export const usePosStore = create<PosState>()(
         const currentStaffId = staff.some((m) => m.id === state.currentStaffId)
           ? state.currentStaffId
           : null;
+
+        // Same reseed problem hits tickets: one created under an old staff
+        // id (before the roster was replaced) can never resolve to a real
+        // waiter again — it just shows up forever as "Unassigned" and can
+        // never actually be billed by anyone. Drop it, its order, and any
+        // payments recorded against it, rather than let it linger.
+        const staffIds = new Set(staff.map((m) => m.id));
+        const orphanedTicketIds = new Set(
+          tickets.filter((t) => !staffIds.has(t.waiterId)).map((t) => t.id)
+        );
+        if (orphanedTicketIds.size > 0) {
+          tickets = tickets.filter((t) => !orphanedTicketIds.has(t.id));
+          orders = Object.fromEntries(
+            Object.entries(orders).filter(([id]) => !orphanedTicketIds.has(id))
+          );
+          payments = payments.filter((p) => !orphanedTicketIds.has(p.ticketId));
+        }
 
         return {
           ...state,
