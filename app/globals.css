@@ -58,8 +58,15 @@ body {
 }
 
 @media print {
+  /* Most thermal receipt printers report themselves as an 80mm-wide roll —
+     forcing that here (rather than leaving the browser to assume a Letter/A4
+     page) is what actually fits the bill to the physical paper. Browsers
+     printing to a real configured printer that reports a different size
+     (e.g. a 58mm roll, or a normal A4 printer) fall back to that printer's
+     own size instead of forcing this one. */
   @page {
-    margin: 6mm;
+    size: 80mm auto;
+    margin: 2mm;
   }
   body * {
     visibility: hidden;
@@ -72,11 +79,13 @@ body {
     position: absolute;
     inset: 0;
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     /* The bill grew a lot of extra detail (order info, itemized columns,
        VAT breakdown) — shrinking padding/font/line-height here keeps the
        whole thing on one printed page without touching how it looks in the
        on-screen preview. */
-    padding: 10px !important;
+    padding: 6px !important;
     font-size: 11px !important;
     line-height: 1.25 !important;
   }

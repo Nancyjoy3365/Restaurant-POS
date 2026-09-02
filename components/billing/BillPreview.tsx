@@ -79,19 +79,22 @@ export function BillPreview({
         </div>
 
         <div className="border-t border-dashed border-slate-300 pt-1.5">
+          {/* Percentage widths (not fixed px) so the columns reflow to
+              whatever the physical paper actually is — a 58mm/80mm thermal
+              roll or a full page — instead of assuming one fixed width. */}
           <div className="flex justify-between text-[9px] font-extrabold uppercase tracking-wide text-slate-500 pb-0.5">
-            <span className="w-8">Qty</span>
-            <span className="flex-1">Item Name</span>
-            <span className="w-16 text-right">Price</span>
-            <span className="w-16 text-right">Total</span>
+            <span className="w-[12%]">Qty</span>
+            <span className="w-[46%]">Item Name</span>
+            <span className="w-[21%] text-right">Price</span>
+            <span className="w-[21%] text-right">Total</span>
           </div>
           <div className="space-y-0.5">
             {lines.map(({ item }) => (
               <div key={item.id} className="flex justify-between">
-                <span className="w-8">{item.qty.toFixed(1)}</span>
-                <span className="flex-1 truncate pr-1">{item.name}</span>
-                <span className="w-16 text-right">{item.price}</span>
-                <span className="w-16 text-right">{lineRawTotal(item)}</span>
+                <span className="w-[12%]">{item.qty.toFixed(1)}</span>
+                <span className="w-[46%] truncate pr-1">{item.name}</span>
+                <span className="w-[21%] text-right">{item.price}</span>
+                <span className="w-[21%] text-right">{lineRawTotal(item)}</span>
               </div>
             ))}
           </div>
