@@ -58,14 +58,10 @@ body {
 }
 
 @media print {
-  /* Most thermal receipt printers report themselves as an 80mm-wide roll —
-     forcing that here (rather than leaving the browser to assume a Letter/A4
-     page) is what actually fits the bill to the physical paper. Browsers
-     printing to a real configured printer that reports a different size
-     (e.g. a 58mm roll, or a normal A4 printer) fall back to that printer's
-     own size instead of forcing this one. */
+  /* Paper width (58mm/80mm) is set from Settings via a `@page { size }`
+     rule injected by BillPreview itself — this margin is the only part
+     that's always the same regardless of that width. */
   @page {
-    size: 80mm auto;
     margin: 2mm;
   }
   body * {

@@ -1,5 +1,8 @@
 import type { TicketOrder } from "./types";
 
+// Fallback only — the real, editable rate lives in the store's
+// restaurantSettings.vatRate (Settings page). This is used solely as a
+// default when a caller doesn't have the store's rate on hand.
 export const VAT_RATE = 0.16;
 
 export function flattenOrderItems(order: TicketOrder | undefined) {
@@ -25,9 +28,9 @@ export function formatKES(amount: number): string {
   })}`;
 }
 
-export function calcBill(subtotalBeforeTax: number) {
+export function calcBill(subtotalBeforeTax: number, vatRate: number = VAT_RATE) {
   const subtotal = Math.round(subtotalBeforeTax);
-  const vat = Math.round(subtotal * VAT_RATE);
+  const vat = Math.round(subtotal * vatRate);
   const total = subtotal + vat;
   return { subtotal, vat, total };
 }

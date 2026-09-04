@@ -313,3 +313,18 @@ export interface Receipt {
   qrDataUrl: string;
   issuedAt: number;
 }
+
+export type ReceiptWidth = "58mm" | "80mm";
+
+// Business-level configuration that used to be hardcoded directly into the
+// bill/receipt markup — editable from Settings instead of a code change.
+export interface RestaurantSettings {
+  name: string;
+  address: string;
+  kraPin: string;
+  phone: string;
+  tillNumber: string;
+  // 0.16 = 16%, applied everywhere a bill is totaled (calcBill).
+  vatRate: number;
+  receiptWidth: ReceiptWidth;
+}

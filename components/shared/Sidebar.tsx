@@ -15,6 +15,7 @@ import {
   ChefHat,
   LogOut,
   PauseCircle,
+  Settings,
 } from "lucide-react";
 import clsx from "clsx";
 import { usePosStore, MAX_HELD_ORDERS_PER_WAITER } from "@/lib/store";
@@ -30,6 +31,7 @@ const NAV_ITEMS = [
   { href: "/staff", label: "Staff & Payroll", icon: Users },
   { href: "/reports", label: "Financial Summary", icon: BarChart3 },
   { href: "/performance", label: "Performance Tracker", icon: Trophy },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function Sidebar() {

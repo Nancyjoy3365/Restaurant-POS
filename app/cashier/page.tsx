@@ -38,6 +38,7 @@ export default function CashierPage() {
   const tickets = usePosStore((s) => s.tickets);
   const orders = usePosStore((s) => s.orders);
   const staff = usePosStore((s) => s.staff);
+  const vatRate = usePosStore((s) => s.restaurantSettings.vatRate);
   const payments = usePosStore((s) => s.payments);
   const cashDrops = usePosStore((s) => s.cashDrops);
   const recordPayment = usePosStore((s) => s.recordPayment);
@@ -528,7 +529,7 @@ export default function CashierPage() {
                     const waiterName =
                       staff.find((m) => m.id === order.waiterId)?.name ??
                       "Unassigned";
-                    const runningTotal = unbilledOrderTotal(order).total;
+                    const runningTotal = unbilledOrderTotal(order, vatRate).total;
                     const status = activeOrderStatus(order);
                     return (
                       <tr key={ticket.id} className="border-t border-warm-100">

@@ -19,6 +19,7 @@ export default function MyTicketsPage() {
   const currentStaffId = usePosStore((s) => s.currentStaffId);
   const tickets = usePosStore((s) => s.tickets);
   const orders = usePosStore((s) => s.orders);
+  const vatRate = usePosStore((s) => s.restaurantSettings.vatRate);
   const createTicket = usePosStore((s) => s.createTicket);
   const cancelEmptyTickets = usePosStore((s) => s.cancelEmptyTickets);
 
@@ -83,7 +84,7 @@ export default function MyTicketsPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {rows.map(({ ticket, order }) => {
-              const billTotals = order.billTotals ?? getOrderTotal(order);
+              const billTotals = order.billTotals ?? getOrderTotal(order, vatRate);
               const lines = flattenOrderItems(order);
               const itemCount = lines.reduce((sum, { item }) => sum + item.qty, 0);
               const status = ticketDisplayStatus(order);

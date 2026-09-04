@@ -1,7 +1,7 @@
 import type { StaffRole } from "./types";
 
 export const ROLE_ALLOWED_PATHS: Record<StaffRole, string[]> = {
-  Admin: ["/", "/menu-management", "/inventory", "/staff", "/cashier", "/reports", "/performance"],
+  Admin: ["/", "/menu-management", "/inventory", "/staff", "/cashier", "/reports", "/performance", "/settings"],
   Chef: ["/", "/menu-management", "/inventory", "/kitchen"],
   "Kitchen Assistant": ["/", "/menu-management", "/inventory", "/kitchen"],
   Cashier: ["/", "/cashier"],

@@ -1,3 +1,4 @@
+import { usePosStore } from "@/lib/store";
 import type { TicketOrder } from "@/lib/types";
 import { flattenOrderItems, lineRawTotal, formatKES } from "@/lib/utils";
 
@@ -12,6 +13,7 @@ export function BillSummary({
   vat: number;
   total: number;
 }) {
+  const vatRate = usePosStore((s) => s.restaurantSettings.vatRate);
   const lines = flattenOrderItems(order);
 
   return (
@@ -56,7 +58,7 @@ export function BillSummary({
           <span>{formatKES(subtotal)}</span>
         </div>
         <div className="flex justify-between text-sm font-semibold text-slate-600">
-          <span>VAT (16%)</span>
+          <span>VAT ({Math.round(vatRate * 100)}%)</span>
           <span>{formatKES(vat)}</span>
         </div>
         <div className="flex justify-between text-lg font-black text-slate-900 pt-1">

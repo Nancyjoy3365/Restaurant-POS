@@ -27,6 +27,7 @@ export default function BillingPage() {
   const allPayments = usePosStore((s) => s.payments);
   const staff = usePosStore((s) => s.staff);
   const currentStaffId = usePosStore((s) => s.currentStaffId);
+  const vatRate = usePosStore((s) => s.restaurantSettings.vatRate);
   const currentStaff = staff.find((m) => m.id === currentStaffId);
   const startBilling = usePosStore((s) => s.startBilling);
   const recordPayment = usePosStore((s) => s.recordPayment);
@@ -48,7 +49,8 @@ export default function BillingPage() {
   }, [order, ticketId, startBilling]);
 
   const billTotals =
-    order?.billTotals ?? (order ? unbilledOrderTotal(order) : { subtotal: 0, vat: 0, total: 0 });
+    order?.billTotals ??
+    (order ? unbilledOrderTotal(order, vatRate) : { subtotal: 0, vat: 0, total: 0 });
   const { subtotal, vat, total } = billTotals;
   const itemCount =
     order?.rounds.reduce(

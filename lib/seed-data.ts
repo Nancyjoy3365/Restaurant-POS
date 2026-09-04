@@ -7,11 +7,24 @@ import type {
   ShiftEntry,
   TicketOrder,
   Ticket,
+  RestaurantSettings,
 } from "./types";
 
-// Demo-grade shared PIN, same for every account (not real auth). A manager
-// settings screen to change this is a reasonable follow-up if ever needed.
+// Demo-grade shared PIN, same for every account (not real auth). Editable
+// from the Admin-only Settings page rather than requiring a code change.
 export const STAFF_PIN = "123";
+
+// Business details previously hardcoded directly into the bill/receipt
+// markup — now editable from Settings.
+export const seedRestaurantSettings: RestaurantSettings = {
+  name: "Samaki Mjini Restaurant",
+  address: "Utawala - Next to Quickmart Kwa Chief",
+  kraPin: "P000000000A",
+  phone: "0719 877 022",
+  tillNumber: "974366",
+  vatRate: 0.16,
+  receiptWidth: "80mm",
+};
 
 // Ids use an "mn" prefix (rather than continuing the old "m1".."m35") so
 // they can never collide with a menu item id an existing browser's

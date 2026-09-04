@@ -21,6 +21,7 @@ import type {
   CashDrop,
   LeaveRecord,
   IncentiveRecord,
+  RestaurantSettings,
 } from "./types";
 import {
   seedMenu,
@@ -32,11 +33,12 @@ import {
   STAFF_PIN,
   seedOrders,
   seedTickets,
+  seedRestaurantSettings,
   RETIRED_SEED_INGREDIENT_IDS,
   RETIRED_SEED_VENDOR_IDS,
   RETIRED_SEED_MENU_IDS,
 } from "./seed-data";
-import { calcBill, makeId, flattenOrderItems, lineRawTotal } from "./utils";
+import { calcBill, makeId, flattenOrderItems, lineRawTotal, VAT_RATE } from "./utils";
 import { simulateEtimsSigning } from "./mock-integrations";
 
 interface PosState {
@@ -49,6 +51,7 @@ interface PosState {
   staff: StaffMember[];
   shifts: ShiftEntry[];
   staffPin: string;
+  restaurantSettings: RestaurantSettings;
   payments: Payment[];
   receipts: Receipt[];
   voids: VoidEntry[];
@@ -117,14 +120,16 @@ interface PosState {
   updateLeaveRecord: (leaveId: string, updates: Omit<LeaveRecord, "id">) => void;
   deleteLeaveRecord: (leaveId: string) => void;
   addIncentiveRecord: (record: Omit<IncentiveRecord, "id">) => void;
+  setStaffPin: (pin: string) => void;
+  updateRestaurantSettings: (updates: Partial<RestaurantSettings>) => void;
 }
 
 export const MAX_HELD_ORDERS_PER_WAITER = 3;
 
-export function getOrderTotal(order: TicketOrder | undefined) {
+export function getOrderTotal(order: TicketOrder | undefined, vatRate: number = VAT_RATE) {
   const lines = flattenOrderItems(order);
   const raw = lines.reduce((sum, { item }) => sum + lineRawTotal(item), 0);
-  return calcBill(raw);
+  return calcBill(raw, vatRate);
 }
 
 // Rounds already covered by a finalized receipt are a closed, fiscally
@@ -135,10 +140,10 @@ export function currentCycleNumber(order: TicketOrder | undefined): number {
   return (order?.billedThroughRoundIndex ?? 0) + 1;
 }
 
-export function unbilledOrderTotal(order: TicketOrder) {
+export function unbilledOrderTotal(order: TicketOrder, vatRate: number = VAT_RATE) {
   const billedThrough = order.billedThroughRoundIndex ?? 0;
   const unbilledRounds = order.rounds.filter((r) => r.index > billedThrough);
-  return getOrderTotal({ ...order, rounds: unbilledRounds });
+  return getOrderTotal({ ...order, rounds: unbilledRounds }, vatRate);
 }
 
 export function cyclePaidAmount(payments: Payment[], order: TicketOrder | undefined): number {
@@ -161,9 +166,9 @@ export function paymentsForCurrentCycle(payments: Payment[], order: TicketOrder 
 // sync as items are added/adjusted — a growing/shrinking ticket should
 // always reflect what's actually on it, not a number frozen from an
 // earlier click.
-function withRefreshedBillTotals(order: TicketOrder): TicketOrder {
+function withRefreshedBillTotals(order: TicketOrder, vatRate: number): TicketOrder {
   if (!order.billTotals) return order;
-  return { ...order, billTotals: unbilledOrderTotal(order) };
+  return { ...order, billTotals: unbilledOrderTotal(order, vatRate) };
 }
 
 // An order that never received a single item (e.g. "+ New Order" tapped
@@ -204,6 +209,7 @@ export const usePosStore = create<PosState>()(
       staff: seedStaff,
       shifts: seedShifts,
       staffPin: STAFF_PIN,
+      restaurantSettings: seedRestaurantSettings,
       payments: [],
       receipts: [],
       voids: [],
@@ -332,11 +338,10 @@ export const usePosStore = create<PosState>()(
           const paymentStatus =
             order.paymentStatus === "paid" ? "unpaid" : order.paymentStatus;
 
-          const updated = withRefreshedBillTotals({
-            ...order,
-            rounds,
-            paymentStatus,
-          });
+          const updated = withRefreshedBillTotals(
+            { ...order, rounds, paymentStatus },
+            s.restaurantSettings.vatRate
+          );
 
           return { orders: { ...s.orders, [ticketId]: updated } };
         }),
@@ -352,7 +357,10 @@ export const usePosStore = create<PosState>()(
                 ? r.items.filter((i) => i.id !== itemId)
                 : r.items.map((i) => (i.id === itemId ? { ...i, qty } : i)),
           }));
-          const updated = withRefreshedBillTotals({ ...order, rounds });
+          const updated = withRefreshedBillTotals(
+            { ...order, rounds },
+            s.restaurantSettings.vatRate
+          );
           return { orders: { ...s.orders, [ticketId]: updated } };
         }),
 
@@ -364,7 +372,10 @@ export const usePosStore = create<PosState>()(
             ...r,
             items: r.items.filter((i) => i.id !== itemId),
           }));
-          const updated = withRefreshedBillTotals({ ...order, rounds });
+          const updated = withRefreshedBillTotals(
+            { ...order, rounds },
+            s.restaurantSettings.vatRate
+          );
           return { orders: { ...s.orders, [ticketId]: updated } };
         }),
 
@@ -524,7 +535,10 @@ export const usePosStore = create<PosState>()(
             staffId: s.currentStaffId ?? undefined,
             voidedAt: Date.now(),
           };
-          const updated = withRefreshedBillTotals({ ...order, rounds });
+          const updated = withRefreshedBillTotals(
+            { ...order, rounds },
+            s.restaurantSettings.vatRate
+          );
           return {
             orders: { ...s.orders, [ticketId]: updated },
             voids: [...s.voids, entry],
@@ -621,7 +635,7 @@ export const usePosStore = create<PosState>()(
         set((s) => {
           const order = s.orders[ticketId];
           if (!order) return s;
-          const billTotals = unbilledOrderTotal(order);
+          const billTotals = unbilledOrderTotal(order, s.restaurantSettings.vatRate);
           const paidForCycle = cyclePaidAmount(s.payments, order);
           const paymentStatus: OrderPaymentStatus =
             billTotals.total > 0 && paidForCycle >= billTotals.total
@@ -698,7 +712,8 @@ export const usePosStore = create<PosState>()(
           order?.rounds.filter((r) => r.index > billedThrough) ?? [];
         const scopedOrder = order ? { ...order, rounds: unbilledRounds } : undefined;
         const lines = flattenOrderItems(scopedOrder);
-        const billTotals = order?.billTotals ?? getOrderTotal(scopedOrder);
+        const billTotals =
+          order?.billTotals ?? getOrderTotal(scopedOrder, s.restaurantSettings.vatRate);
         const orderPayments = paymentsForCurrentCycle(s.payments, order);
         const invoiceNumber = `KRA-ETIMS-${s.invoiceCounter + 1}`;
         const { qrDataUrl } = await simulateEtimsSigning({
@@ -829,6 +844,13 @@ export const usePosStore = create<PosState>()(
             ...s.incentiveRecords,
             { ...record, id: makeId("incentive") },
           ],
+        })),
+
+      setStaffPin: (pin) => set({ staffPin: pin }),
+
+      updateRestaurantSettings: (updates) =>
+        set((s) => ({
+          restaurantSettings: { ...s.restaurantSettings, ...updates },
         })),
     }),
     {
@@ -996,10 +1018,9 @@ export const usePosStore = create<PosState>()(
           payments,
           cashDrops,
           leaveRecords,
-          // Demo-grade PIN has no in-app way to change it yet, so always
-          // trust the latest seed value rather than whatever got persisted
-          // from an earlier version of this file.
-          staffPin: STAFF_PIN,
+          // staffPin and restaurantSettings are now editable from the
+          // Settings page — whatever was persisted (via `...state` above)
+          // is left as-is rather than forced back to the seed default.
         };
       },
     }

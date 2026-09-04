@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Printer } from "lucide-react";
+import { usePosStore } from "@/lib/store";
 import type { TicketOrder } from "@/lib/types";
 import { flattenOrderItems, lineRawTotal, formatKES } from "@/lib/utils";
 
@@ -20,6 +21,7 @@ export function BillPreview({
   checkNo?: number;
   waiterName?: string;
 }) {
+  const settings = usePosStore((s) => s.restaurantSettings);
   const lines = flattenOrderItems(order);
   const [previewedAt] = useState(() => Date.now());
   const itemCount = lines.reduce((sum, { item }) => sum + item.qty, 0);
@@ -45,13 +47,11 @@ export function BillPreview({
       >
         <div className="text-center mb-2">
           <div className="font-black text-base tracking-wide">
-            SAMAKI MJINI RESTAURANT
+            {settings.name.toUpperCase()}
           </div>
-          <div className="text-[10px] text-slate-500">
-            Utawala - Next to Quickmart Kwa Chief
-          </div>
-          <div className="text-[10px] text-slate-500">PIN: P000000000A</div>
-          <div className="text-[10px] text-slate-500">Tel: 0719 877 022</div>
+          <div className="text-[10px] text-slate-500">{settings.address}</div>
+          <div className="text-[10px] text-slate-500">PIN: {settings.kraPin}</div>
+          <div className="text-[10px] text-slate-500">Tel: {settings.phone}</div>
           <div className="text-[10px] font-extrabold mt-0.5">NON FISCAL BILL</div>
         </div>
 
@@ -110,7 +110,7 @@ export function BillPreview({
             <span>{formatKES(total)}</span>
           </div>
           <div className="flex justify-between text-[10px] text-slate-500">
-            <span>VAT (16%, inclusive)</span>
+            <span>VAT ({Math.round(settings.vatRate * 100)}%, inclusive)</span>
             <span>{formatKES(vat)}</span>
           </div>
           <div className="flex justify-between text-[10px] text-slate-500">
@@ -128,10 +128,15 @@ export function BillPreview({
           <div className="text-[10px] font-bold">LIPA NA MPESA</div>
           <div className="text-[10px] font-bold">BUY GOODS</div>
           <div className="text-xl font-black tracking-wider mt-0.5">
-            974366
+            {settings.tillNumber}
           </div>
         </div>
       </div>
+
+      {/* Thermal receipt printers are almost always 58mm or 80mm rolls —
+          this is the setting-driven part of the print page size (see
+          Settings); the fixed margin lives in globals.css. */}
+      <style>{`@media print { @page { size: ${settings.receiptWidth} auto; } }`}</style>
 
       <button
         type="button"

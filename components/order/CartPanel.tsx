@@ -26,6 +26,7 @@ export function CartPanel({ ticketId }: { ticketId: string }) {
   const sendRoundToKitchen = usePosStore((s) => s.sendRoundToKitchen);
   const currentStaffId = usePosStore((s) => s.currentStaffId);
   const heldOrderCountForWaiter = usePosStore((s) => s.heldOrderCountForWaiter);
+  const vatRate = usePosStore((s) => s.restaurantSettings.vatRate);
   const [holdBlocked, setHoldBlocked] = useState(false);
 
   const itemCount =
@@ -34,7 +35,7 @@ export function CartPanel({ ticketId }: { ticketId: string }) {
       0
     ) ?? 0;
 
-  const { subtotal, vat, total } = getOrderTotal(order);
+  const { subtotal, vat, total } = getOrderTotal(order, vatRate);
   const isHeld = order?.onHold ?? false;
 
   function handleProceedToBill() {
@@ -184,7 +185,7 @@ export function CartPanel({ ticketId }: { ticketId: string }) {
           <span>{formatKES(subtotal)}</span>
         </div>
         <div className="flex justify-between text-sm font-semibold text-slate-600">
-          <span>VAT (16%)</span>
+          <span>VAT ({Math.round(vatRate * 100)}%)</span>
           <span>{formatKES(vat)}</span>
         </div>
         <div className="flex justify-between text-xl font-black text-slate-900 pt-1">

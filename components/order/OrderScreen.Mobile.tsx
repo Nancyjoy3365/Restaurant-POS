@@ -70,6 +70,7 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
   const startBilling = usePosStore((s) => s.startBilling);
   const sendRoundToKitchen = usePosStore((s) => s.sendRoundToKitchen);
   const heldOrderCountForWaiter = usePosStore((s) => s.heldOrderCountForWaiter);
+  const vatRate = usePosStore((s) => s.restaurantSettings.vatRate);
 
   const rounds = useMemo(() => order?.rounds ?? [], [order]);
   const latestRoundId = rounds[rounds.length - 1]?.id;
@@ -115,7 +116,7 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
     (sum, r) => sum + r.items.reduce((s2, i) => s2 + i.qty, 0),
     0
   );
-  const { subtotal, vat, total } = getOrderTotal(order);
+  const { subtotal, vat, total } = getOrderTotal(order, vatRate);
   const isHeld = order?.onHold ?? false;
   const servingWaiter = order?.waiterId
     ? staff.find((m) => m.id === order.waiterId)
@@ -423,7 +424,7 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
             <span>{formatKES(subtotal)}</span>
           </div>
           <div className="flex justify-between text-sm font-semibold text-slate-600">
-            <span>VAT (16%)</span>
+            <span>VAT ({Math.round(vatRate * 100)}%)</span>
             <span>{formatKES(vat)}</span>
           </div>
           <div className="flex justify-between text-xl font-black text-slate-900 pt-1">
