@@ -111,7 +111,7 @@ export default function TicketPage() {
           <SearchBar value={query} onChange={setQuery} />
         </div>
 
-        <main className="lg:flex-1 lg:overflow-y-auto p-6">
+        <main className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto p-6">
           {visibleItems.length === 0 ? (
             <p className="text-slate-400 font-semibold text-center py-16">
               No items match &ldquo;{query}&rdquo;.

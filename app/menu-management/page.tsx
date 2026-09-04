@@ -46,8 +46,8 @@ export default function MenuManagementPage() {
   });
 
   return (
-    <div className="flex-1 flex flex-col">
-      <header className="h-20 flex items-center justify-between px-6 border-b border-warm-200 bg-white">
+    <div className="flex-1 flex flex-col lg:h-full lg:overflow-hidden">
+      <header className="shrink-0 h-16 flex items-center justify-between px-6 border-b border-warm-200 bg-white">
         <h1 className="text-xl font-black text-slate-900">Menu Management</h1>
         <button
           type="button"
@@ -58,7 +58,7 @@ export default function MenuManagementPage() {
         </button>
       </header>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-warm-200 bg-white">
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-warm-200 bg-white">
         <div className="flex gap-2 overflow-x-auto">
           {(["All", ...CATEGORY_ORDER] as CategoryFilter[]).map((c) => (
             <button
@@ -119,7 +119,7 @@ export default function MenuManagementPage() {
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 lg:min-h-0 overflow-y-auto p-6">
         <div className="rounded-2xl border border-warm-200 bg-white overflow-hidden">
           {menu.length === 0 ? (
             <p className="text-slate-400 font-semibold text-center py-12">

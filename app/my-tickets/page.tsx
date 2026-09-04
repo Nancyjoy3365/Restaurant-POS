@@ -46,8 +46,8 @@ export default function MyTicketsPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col">
-      <header className="min-h-16 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-3 border-b border-warm-200 bg-white">
+    <div className="flex-1 flex flex-col lg:h-full lg:overflow-hidden">
+      <header className="shrink-0 min-h-16 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-3 border-b border-warm-200 bg-white">
         <div>
           <h1 className="text-xl font-black text-slate-900 whitespace-nowrap">
             My Orders
@@ -76,7 +76,7 @@ export default function MyTicketsPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 lg:min-h-0 overflow-y-auto p-6">
         {rows.length === 0 ? (
           <p className="text-slate-400 font-semibold text-center py-16">
             You have no open orders right now — tap &ldquo;New Order&rdquo; to start one.

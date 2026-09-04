@@ -3,8 +3,8 @@ import { TICKET_STATUS_CONFIG, TICKET_VIEW_LEGEND } from "@/components/tickets/t
 
 export default function AllTicketsPage() {
   return (
-    <div className="flex-1 flex flex-col">
-      <header className="min-h-16 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-3 border-b border-warm-200 bg-white">
+    <div className="flex-1 flex flex-col lg:h-full lg:overflow-hidden">
+      <header className="shrink-0 min-h-16 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-3 border-b border-warm-200 bg-white">
         <h1 className="text-xl font-black text-slate-900 whitespace-nowrap">
           All Orders
         </h1>
@@ -21,7 +21,7 @@ export default function AllTicketsPage() {
           ))}
         </div>
       </header>
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 lg:min-h-0 overflow-y-auto p-6">
         <AllTicketsGrid />
       </main>
     </div>

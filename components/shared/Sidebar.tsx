@@ -74,7 +74,7 @@ export function Sidebar() {
   return (
     <>
       <nav className="hidden lg:flex flex-col w-64 shrink-0 border-r border-warm-200 bg-white">
-        <div className="h-20 flex items-center px-6 border-b border-warm-200">
+        <div className="h-16 shrink-0 flex items-center px-6 border-b border-warm-200">
           <span className="text-lg font-black tracking-tight text-accent-600 leading-tight">
             Samaki Mjini Restaurant
           </span>

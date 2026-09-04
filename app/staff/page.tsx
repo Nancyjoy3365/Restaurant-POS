@@ -205,8 +205,8 @@ export default function StaffPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col">
-      <header className="min-h-16 flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-warm-200 bg-white">
+    <div className="flex-1 flex flex-col lg:h-full lg:overflow-hidden">
+      <header className="shrink-0 min-h-16 flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-warm-200 bg-white">
         <div className="flex items-center gap-4">
           <h1 className="text-xl font-black text-slate-900">Staff & Payroll</h1>
           <div className="flex items-center rounded-full border border-warm-200 p-0.5">
@@ -318,7 +318,7 @@ export default function StaffPage() {
         </div>
       )}
 
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 lg:min-h-0 overflow-y-auto p-6">
         {tab === "list" && (
         <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
           <table className="w-full text-sm">

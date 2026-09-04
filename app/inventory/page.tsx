@@ -26,8 +26,8 @@ export default function InventoryPage() {
   const vendors = usePosStore((s) => s.vendors);
 
   return (
-    <div className="flex-1 flex flex-col">
-      <header className="h-16 flex items-center justify-between px-6 border-b border-warm-200 bg-white">
+    <div className="flex-1 flex flex-col lg:h-full lg:overflow-hidden">
+      <header className="shrink-0 h-16 flex items-center justify-between px-6 border-b border-warm-200 bg-white">
         <h1 className="text-xl font-black text-slate-900">Inventory</h1>
         <div className="flex items-center gap-3">
           <div className="flex rounded-full border border-warm-200 p-0.5">
@@ -67,7 +67,7 @@ export default function InventoryPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 lg:min-h-0 overflow-y-auto p-6">
         {tab === "stock" && (
           <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
             {ingredients.length === 0 ? (

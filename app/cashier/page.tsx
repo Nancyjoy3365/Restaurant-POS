@@ -282,8 +282,8 @@ export default function CashierPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col">
-      <header className="h-16 flex items-center justify-between px-6 border-b border-warm-200 bg-white">
+    <div className="flex-1 flex flex-col lg:h-full lg:overflow-hidden">
+      <header className="shrink-0 h-16 flex items-center justify-between px-6 border-b border-warm-200 bg-white">
         <h1 className="text-xl font-black text-slate-900">Cashier</h1>
         <div className="inline-flex items-center rounded-full border border-warm-200 bg-warm-50 p-1">
           <button
@@ -313,7 +313,7 @@ export default function CashierPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-6 space-y-6">
+      <main className="flex-1 lg:min-h-0 overflow-y-auto p-6 space-y-6">
         {tab === "live" && (
         <>
         <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
