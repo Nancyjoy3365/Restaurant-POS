@@ -16,23 +16,33 @@ import {
   LogOut,
   PauseCircle,
   Settings,
+  MoreHorizontal,
+  X,
 } from "lucide-react";
 import clsx from "clsx";
 import { usePosStore, MAX_HELD_ORDERS_PER_WAITER } from "@/lib/store";
 import { ROLE_ALLOWED_PATHS } from "@/lib/roles";
 
+// mobileLabel is a short, non-wrapping variant for the cramped bottom-nav
+// row — the full label is still used on the desktop sidebar and inside the
+// mobile "More" sheet, where there's room for it.
 const NAV_ITEMS = [
-  { href: "/", label: "All Orders", icon: LayoutGrid },
-  { href: "/my-tickets", label: "My Orders", icon: TicketIcon },
-  { href: "/kitchen", label: "Kitchen", icon: ChefHat },
-  { href: "/cashier", label: "Cashier", icon: Wallet },
-  { href: "/menu-management", label: "Menu Management", icon: UtensilsCrossed },
-  { href: "/inventory", label: "Inventory", icon: Boxes },
-  { href: "/staff", label: "Staff & Payroll", icon: Users },
-  { href: "/reports", label: "Financial Summary", icon: BarChart3 },
-  { href: "/performance", label: "Performance Tracker", icon: Trophy },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/", label: "All Orders", mobileLabel: "Orders", icon: LayoutGrid },
+  { href: "/my-tickets", label: "My Orders", mobileLabel: "Orders", icon: TicketIcon },
+  { href: "/kitchen", label: "Kitchen", mobileLabel: "Kitchen", icon: ChefHat },
+  { href: "/cashier", label: "Cashier", mobileLabel: "Cashier", icon: Wallet },
+  { href: "/menu-management", label: "Menu Management", mobileLabel: "Menu", icon: UtensilsCrossed },
+  { href: "/inventory", label: "Inventory", mobileLabel: "Stock", icon: Boxes },
+  { href: "/staff", label: "Staff & Payroll", mobileLabel: "Staff", icon: Users },
+  { href: "/reports", label: "Financial Summary", mobileLabel: "Finance", icon: BarChart3 },
+  { href: "/performance", label: "Performance Tracker", mobileLabel: "Rank", icon: Trophy },
+  { href: "/settings", label: "Settings", mobileLabel: "Settings", icon: Settings },
 ];
+
+// However many role-relevant items exist, the bottom row never shows more
+// than this many directly — anything past it collapses into "More" instead
+// of cramming a 6th/7th/8th icon into the same row.
+const MAX_MOBILE_PRIMARY_ITEMS = 4;
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -44,6 +54,7 @@ export function Sidebar() {
   const logout = usePosStore((s) => s.logout);
   const clockOut = usePosStore((s) => s.clockOut);
   const [showClockOutPrompt, setShowClockOutPrompt] = useState(false);
+  const [moreSheetOpen, setMoreSheetOpen] = useState(false);
   const currentStaff = staff.find((s) => s.id === currentStaffId);
   const allowedPaths = currentStaff
     ? ROLE_ALLOWED_PATHS[currentStaff.role]
@@ -55,6 +66,22 @@ export function Sidebar() {
         : item
   );
   const showHeldOrders = allowedPaths.includes("/my-tickets");
+
+  // Only split into primary + "More" once there's actually more than fits —
+  // most roles (Waiter, Chef, Cashier) already have few enough items that
+  // this never triggers; it's mainly Admin's broader set that overflows.
+  const needsMobileOverflow = navItems.length > MAX_MOBILE_PRIMARY_ITEMS + 1;
+  const mobilePrimaryItems = needsMobileOverflow
+    ? navItems.slice(0, MAX_MOBILE_PRIMARY_ITEMS)
+    : navItems;
+  const mobileOverflowItems = needsMobileOverflow
+    ? navItems.slice(MAX_MOBILE_PRIMARY_ITEMS)
+    : [];
+  const isNavPathActive = (href: string) =>
+    href === "/" ? pathname === "/" : pathname.startsWith(href);
+  const overflowHasActive = mobileOverflowItems.some((item) =>
+    isNavPathActive(item.href)
+  );
 
   const heldTickets = tickets.filter(
     (t) =>
@@ -155,24 +182,82 @@ export function Sidebar() {
         )}
       </nav>
 
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 flex border-t border-warm-200 bg-white">
-        {navItems.map(({ href, label, icon: Icon }) => {
-          const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 flex items-center gap-1 px-1 py-1 border-t border-warm-200 bg-white">
+        {mobilePrimaryItems.map(({ href, mobileLabel, icon: Icon }) => {
+          const active = isNavPathActive(href);
           return (
             <Link
               key={href}
               href={href}
               className={clsx(
-                "flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-bold",
-                active ? "text-accent-600" : "text-slate-500"
+                "flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] py-1.5 rounded-xl text-[10px] font-bold transition-colors",
+                active ? "bg-accent-100 text-accent-700" : "text-slate-500"
               )}
             >
-              <Icon size={22} strokeWidth={2.5} />
-              {label}
+              <Icon size={20} strokeWidth={2.5} />
+              <span className="max-w-full px-1 truncate">{mobileLabel}</span>
             </Link>
           );
         })}
+        {mobileOverflowItems.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setMoreSheetOpen(true)}
+            className={clsx(
+              "flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] py-1.5 rounded-xl text-[10px] font-bold transition-colors",
+              overflowHasActive ? "bg-accent-100 text-accent-700" : "text-slate-500"
+            )}
+          >
+            <MoreHorizontal size={20} strokeWidth={2.5} />
+            <span>More</span>
+          </button>
+        )}
       </nav>
+
+      {moreSheetOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-50 flex items-end bg-slate-900/50"
+          onClick={() => setMoreSheetOpen(false)}
+        >
+          <div
+            className="w-full rounded-t-3xl bg-white p-4 pb-6 max-h-[70vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3 px-1">
+              <h3 className="font-extrabold text-slate-900">More</h3>
+              <button
+                type="button"
+                onClick={() => setMoreSheetOpen(false)}
+                aria-label="Close"
+                className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {mobileOverflowItems.map(({ href, label, icon: Icon }) => {
+                const active = isNavPathActive(href);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={() => setMoreSheetOpen(false)}
+                    className={clsx(
+                      "flex flex-col items-center justify-center gap-1.5 min-h-[64px] rounded-2xl px-2 py-3 text-xs font-bold text-center transition-colors",
+                      active
+                        ? "bg-accent-100 text-accent-700"
+                        : "bg-warm-50 text-slate-600"
+                    )}
+                  >
+                    <Icon size={22} strokeWidth={2.5} />
+                    <span className="leading-tight">{label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showClockOutPrompt && (
         <div
