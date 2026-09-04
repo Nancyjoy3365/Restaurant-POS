@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
-import { Plus, PauseCircle, X } from "lucide-react";
+import { Plus, PauseCircle } from "lucide-react";
 import { usePosStore, getOrderTotal } from "@/lib/store";
 import { formatKES, flattenOrderItems } from "@/lib/utils";
 import { TICKET_STATUS_CONFIG, TICKET_VIEW_LEGEND, ticketDisplayStatus } from "@/components/tickets/ticketStatus";
@@ -21,9 +21,6 @@ export default function MyTicketsPage() {
   const orders = usePosStore((s) => s.orders);
   const createTicket = usePosStore((s) => s.createTicket);
   const cancelEmptyTickets = usePosStore((s) => s.cancelEmptyTickets);
-
-  const [newTicketOpen, setNewTicketOpen] = useState(false);
-  const [locationNote, setLocationNote] = useState("");
 
   // An order that never got a single item added to it isn't a real order —
   // sweep those away whenever this list is viewed, rather than leaving
@@ -43,9 +40,7 @@ export default function MyTicketsPage() {
     .sort((a, b) => a.ticket.displayNumber - b.ticket.displayNumber);
 
   function handleCreateTicket() {
-    const newId = createTicket(locationNote);
-    setNewTicketOpen(false);
-    setLocationNote("");
+    const newId = createTicket();
     router.push(`/ticket/${newId}`);
   }
 
@@ -72,7 +67,7 @@ export default function MyTicketsPage() {
           </div>
           <button
             type="button"
-            onClick={() => setNewTicketOpen(true)}
+            onClick={handleCreateTicket}
             className="flex items-center gap-1.5 rounded-full bg-accent-600 hover:bg-accent-700 text-white text-sm font-extrabold px-4 py-2.5"
           >
             <Plus size={16} strokeWidth={3} /> New Order
@@ -167,52 +162,6 @@ export default function MyTicketsPage() {
           </div>
         )}
       </main>
-
-      {newTicketOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
-          onClick={() => setNewTicketOpen(false)}
-        >
-          <div
-            className="w-full max-w-sm rounded-2xl bg-white p-5"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-1">
-              <h3 className="font-extrabold text-slate-900">New Order</h3>
-              <button
-                type="button"
-                onClick={() => setNewTicketOpen(false)}
-                aria-label="Close"
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <p className="text-xs text-slate-500 font-semibold mb-4">
-              Optional — a quick note so kitchen staff or a covering waiter
-              can find this group physically (e.g. &ldquo;by the
-              window&rdquo;).
-            </p>
-            <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-              Location note
-            </label>
-            <input
-              value={locationNote}
-              onChange={(e) => setLocationNote(e.target.value)}
-              placeholder="e.g. Corner booth by the window"
-              autoFocus
-              className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-bold outline-none focus:border-accent-400"
-            />
-            <button
-              type="button"
-              onClick={handleCreateTicket}
-              className="w-full mt-4 flex items-center justify-center gap-2 rounded-lg bg-accent-600 hover:bg-accent-700 text-white font-extrabold py-3"
-            >
-              <Plus size={16} strokeWidth={3} /> Start Order
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

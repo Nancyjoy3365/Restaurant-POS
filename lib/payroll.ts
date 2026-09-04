@@ -211,6 +211,23 @@ export function salesToday(
     .reduce((sum, p) => sum + p.amount, 0);
 }
 
+// Same as salesToday, but for an arbitrary [start, end] — what the
+// Performance Tracker's date-range filter uses instead of always "today".
+export function salesInRange(
+  payments: Payment[],
+  waiterId: string,
+  start: Date,
+  end: Date
+): number {
+  return payments
+    .filter((p) => p.waiterId === waiterId)
+    .filter((p) => {
+      const paidDate = new Date(p.paidAt);
+      return paidDate >= start && paidDate <= end;
+    })
+    .reduce((sum, p) => sum + p.amount, 0);
+}
+
 // A same-day slice of what each staff member is owed, for a daily P&L
 // summary — daily-rate staff count only if they clocked in today (or are on
 // an approved, paid leave day — that still credits the rate with no

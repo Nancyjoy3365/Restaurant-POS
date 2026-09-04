@@ -11,14 +11,22 @@ import {
   ArrowDown,
   LayoutGrid,
   List as ListIcon,
+  Calendar,
 } from "lucide-react";
 import { usePosStore } from "@/lib/store";
 import { formatKES } from "@/lib/utils";
-import { salesToday } from "@/lib/payroll";
-import { ordersCompletedToday, priorityUnitsSoldToday } from "@/lib/performance";
+import { salesInRange } from "@/lib/payroll";
+import { ordersCompletedInRange, priorityUnitsSoldInRange } from "@/lib/performance";
 import { avatarColorFor, initials } from "@/components/tickets/ticketStatus";
 
 type ViewMode = "cards" | "list";
+
+function toDateInputValue(d: Date): string {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
 
 export default function PerformanceTrackerPage() {
   const staff = usePosStore((s) => s.staff);
@@ -30,6 +38,39 @@ export default function PerformanceTrackerPage() {
 
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
 
+  const todayStr = toDateInputValue(new Date());
+  const [fromDate, setFromDate] = useState(todayStr);
+  const [toDate, setToDate] = useState(todayStr);
+
+  const rangeStart = new Date(`${fromDate}T00:00:00`);
+  const rangeEndInput = new Date(`${toDate}T23:59:59.999`);
+  // If "to" ends up before "from" (e.g. mid-edit), just treat it as a
+  // single-day range on "from" rather than showing an empty/negative range.
+  const rangeEnd =
+    rangeEndInput < rangeStart
+      ? new Date(
+          rangeStart.getFullYear(),
+          rangeStart.getMonth(),
+          rangeStart.getDate(),
+          23, 59, 59, 999
+        )
+      : rangeEndInput;
+  const isSingleDay = fromDate === toDate;
+  const rangeLabel = isSingleDay
+    ? rangeStart.toLocaleDateString("en-KE", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    : `${rangeStart.toLocaleDateString("en-KE", { month: "long", day: "numeric" })} – ${rangeEnd.toLocaleDateString("en-KE", { month: "long", day: "numeric", year: "numeric" })}`;
+  // Same-length window immediately before the selected range, so the
+  // List view's trend arrows compare "this period" to "the one before it"
+  // instead of always assuming a single day vs. yesterday.
+  const rangeLengthMs = rangeEnd.getTime() - rangeStart.getTime();
+  const previousRangeEnd = new Date(rangeStart.getTime() - 1);
+  const previousRangeStart = new Date(previousRangeEnd.getTime() - rangeLengthMs);
+
   const currentStaff = staff.find((m) => m.id === currentStaffId);
   const allWaiters = staff.filter((m) => m.role === "Waiter");
   // A waiter only ever sees their own card here — never a colleague's
@@ -39,25 +80,20 @@ export default function PerformanceTrackerPage() {
       ? allWaiters.filter((m) => m.id === currentStaff.id)
       : allWaiters;
 
-  const today = new Date().toLocaleDateString("en-KE", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-
   // Shared stats for the List view (sorted by sales) — the Cards view
   // above keeps its own inline computation and staff-array order
   // untouched, per the request to leave it exactly as it was.
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
   const listRows = waiters
     .map((waiter) => ({
       waiter,
-      orders: ordersCompletedToday(tickets, waiter.id),
-      ordersYesterday: ordersCompletedToday(tickets, waiter.id, yesterday),
-      sales: salesToday(payments, waiter.id),
-      priorityTallies: priorityUnitsSoldToday(receipts, tickets, menu, waiter.id),
+      orders: ordersCompletedInRange(tickets, waiter.id, rangeStart, rangeEnd),
+      ordersPrevious: ordersCompletedInRange(
+        tickets, waiter.id, previousRangeStart, previousRangeEnd
+      ),
+      sales: salesInRange(payments, waiter.id, rangeStart, rangeEnd),
+      priorityTallies: priorityUnitsSoldInRange(
+        receipts, tickets, menu, waiter.id, rangeStart, rangeEnd
+      ),
     }))
     .sort((a, b) => b.sales - a.sales);
   const avgSales =
@@ -78,38 +114,61 @@ export default function PerformanceTrackerPage() {
             ? "My Performance"
             : "Performance Tracker"}
         </h1>
-        {waiters.length > 1 && (
-          <div className="flex items-center gap-1 rounded-full bg-warm-50 border border-warm-200 p-1">
-            <button
-              type="button"
-              onClick={() => setViewMode("cards")}
-              className={clsx(
-                "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-extrabold transition-colors",
-                viewMode === "cards"
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500"
-              )}
-            >
-              <LayoutGrid size={13} /> Cards
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("list")}
-              className={clsx(
-                "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-extrabold transition-colors",
-                viewMode === "list"
-                  ? "bg-slate-900 text-white shadow-sm"
-                  : "text-slate-500"
-              )}
-            >
-              <ListIcon size={13} /> List
-            </button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 rounded-full border border-warm-200 bg-white px-3 py-2">
+              <Calendar size={14} className="text-accent-600 shrink-0" />
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="text-xs font-extrabold text-accent-700 outline-none bg-transparent"
+              />
+            </label>
+            <span className="text-xs font-extrabold text-slate-400">to</span>
+            <label className="flex items-center gap-2 rounded-full border border-warm-200 bg-white px-3 py-2">
+              <Calendar size={14} className="text-accent-600 shrink-0" />
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="text-xs font-extrabold text-accent-700 outline-none bg-transparent"
+              />
+            </label>
           </div>
-        )}
+          {waiters.length > 1 && (
+            <div className="flex items-center gap-1 rounded-full bg-warm-50 border border-warm-200 p-1">
+              <button
+                type="button"
+                onClick={() => setViewMode("cards")}
+                className={clsx(
+                  "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-extrabold transition-colors",
+                  viewMode === "cards"
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500"
+                )}
+              >
+                <LayoutGrid size={13} /> Cards
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                className={clsx(
+                  "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-extrabold transition-colors",
+                  viewMode === "list"
+                    ? "bg-slate-900 text-white shadow-sm"
+                    : "text-slate-500"
+                )}
+              >
+                <ListIcon size={13} /> List
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
       <main className="flex-1 overflow-y-auto p-6 space-y-6">
-        <p className="text-sm font-bold text-slate-500">{today}</p>
+        <p className="text-sm font-bold text-slate-500">{rangeLabel}</p>
 
         {waiters.length === 0 ? (
           <p className="text-slate-400 font-semibold text-center py-16">
@@ -134,7 +193,7 @@ export default function PerformanceTrackerPage() {
                     const rank = i + 1;
                     const isTop = rank === 1 && row.sales > 0;
                     const hasActivity = row.orders > 0;
-                    const orderDelta = row.orders - row.ordersYesterday;
+                    const orderDelta = row.orders - row.ordersPrevious;
                     const salesDeltaPct =
                       avgSales > 0 ? ((row.sales - avgSales) / avgSales) * 100 : 0;
 
@@ -172,14 +231,14 @@ export default function PerformanceTrackerPage() {
                                 </span>
                                 {isTop && (
                                   <span className="rounded-full bg-slate-900 text-white text-[10px] font-extrabold px-2 py-0.5 uppercase tracking-wide whitespace-nowrap">
-                                    Top Today
+                                    Top
                                   </span>
                                 )}
                               </div>
                               <div className="text-[11px] font-semibold text-slate-400">
                                 {hasActivity
-                                  ? "On shift"
-                                  : "No orders yet today"}
+                                  ? "Active this period"
+                                  : "No orders in this period"}
                               </div>
                             </div>
                           </div>
@@ -205,7 +264,7 @@ export default function PerformanceTrackerPage() {
                                 ) : orderDelta < 0 ? (
                                   <ArrowDown size={11} />
                                 ) : null}
-                                vs {row.ordersYesterday} yesterday
+                                vs {row.ordersPrevious} prior period
                               </div>
                             </>
                           ) : (
@@ -279,17 +338,20 @@ export default function PerformanceTrackerPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {waiters.map((waiter) => {
-              const orders = ordersCompletedToday(tickets, waiter.id);
-              const sales = salesToday(payments, waiter.id);
-              const priorityTallies = priorityUnitsSoldToday(
+              const orders = ordersCompletedInRange(tickets, waiter.id, rangeStart, rangeEnd);
+              const sales = salesInRange(payments, waiter.id, rangeStart, rangeEnd);
+              const priorityTallies = priorityUnitsSoldInRange(
                 receipts,
                 tickets,
                 menu,
-                waiter.id
+                waiter.id,
+                rangeStart,
+                rangeEnd
               );
-              // Rank is computed from today's sales across all waiters, but
-              // the cards themselves keep the original staff-array order —
-              // only the badge reflects standing, nothing gets reordered.
+              // Rank is computed from the selected range's sales across all
+              // waiters, but the cards themselves keep the original
+              // staff-array order — only the badge reflects standing,
+              // nothing gets reordered.
               const rank = salesRankById.get(waiter.id);
               const showRankBadge = rank !== undefined && rank <= 3 && sales > 0;
 
@@ -308,8 +370,8 @@ export default function PerformanceTrackerPage() {
                           ? "bg-slate-400"
                           : "bg-orange-400"
                       )}
-                      aria-label={`Ranked #${rank} in sales today`}
-                      title={`#${rank} in sales today`}
+                      aria-label={`Ranked #${rank} in sales for this period`}
+                      title={`#${rank} in sales for this period`}
                     >
                       {rank}
                     </span>
