@@ -44,6 +44,7 @@ export default function CashierPage() {
   const recordPayment = usePosStore((s) => s.recordPayment);
   const finalizeReceipt = usePosStore((s) => s.finalizeReceipt);
   const reverseLastPayment = usePosStore((s) => s.reverseLastPayment);
+  const reverseCompletedPayment = usePosStore((s) => s.reverseCompletedPayment);
   const recordCashDrop = usePosStore((s) => s.recordCashDrop);
   const deleteCashDrop = usePosStore((s) => s.deleteCashDrop);
 
@@ -111,6 +112,24 @@ export default function CashierPage() {
         p.reference.toLowerCase().includes(query) ||
         (p.customerName ?? "").toLowerCase().includes(query)
     );
+  }
+
+  // A completed (paid + closed) ticket disappears from every queue above —
+  // this is the only way back to it, and only while actively searching.
+  // Matched by the same M-Pesa code / customer name search already used for
+  // live tickets, just extended to closed ones too.
+  const completedMatches: { payment: Payment; ticket: Ticket; order: TicketOrder }[] = [];
+  if (query) {
+    for (const payment of payments) {
+      const ticket = tickets.find((t) => t.id === payment.ticketId);
+      const order = orders[payment.ticketId];
+      if (!ticket || ticket.status !== "paid" || !order) continue;
+      const matches =
+        payment.reference.toLowerCase().includes(query) ||
+        (payment.customerName ?? "").toLowerCase().includes(query);
+      if (matches) completedMatches.push({ payment, ticket, order });
+    }
+    completedMatches.sort((a, b) => b.payment.paidAt - a.payment.paidAt);
   }
 
   const groupOrder: string[] = [];
@@ -502,6 +521,82 @@ export default function CashierPage() {
             </div>
           )}
         </div>
+
+        {query && completedMatches.length > 0 && (
+          <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
+            <div className="px-5 py-4 border-b border-warm-200">
+              <h2 className="font-extrabold text-slate-900">
+                Completed Orders Matching &ldquo;{search.trim()}&rdquo; (
+                {completedMatches.length})
+              </h2>
+              <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                Already paid and closed. Reversing sends it back to Orders
+                Awaiting Payment.
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[820px]">
+                <thead className="bg-warm-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
+                  <tr>
+                    <th className="text-left px-4 py-3">Waiter</th>
+                    <th className="text-left px-2 py-3">Order #</th>
+                    <th className="text-left px-2 py-3">Method</th>
+                    <th className="text-left px-2 py-3">Code</th>
+                    <th className="text-right px-2 py-3">Amount</th>
+                    <th className="text-left px-2 py-3">Customer</th>
+                    <th className="text-left px-2 py-3">Time</th>
+                    <th className="text-center px-4 py-3">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {completedMatches.map(({ payment, ticket, order }) => {
+                    const waiterName =
+                      staff.find((m) => m.id === order.waiterId)?.name ??
+                      "Unassigned";
+                    return (
+                      <tr key={payment.id} className="border-t border-warm-100">
+                        <td className="px-4 py-3 font-extrabold text-slate-900">
+                          {waiterName}
+                        </td>
+                        <td className="px-2 py-3 text-slate-700 font-semibold whitespace-nowrap">
+                          Order No. {ticket.displayNumber}
+                        </td>
+                        <td className="px-2 py-3 text-slate-600 font-semibold">
+                          {payment.method === "mpesa" ? "M-Pesa" : "Cash"}
+                        </td>
+                        <td className="px-2 py-3 text-slate-600 font-semibold">
+                          {payment.reference || "—"}
+                        </td>
+                        <td className="px-2 py-3 text-right font-black text-slate-900 whitespace-nowrap">
+                          {formatKES(payment.amount)}
+                        </td>
+                        <td className="px-2 py-3 text-slate-600 font-semibold">
+                          {payment.customerName || "—"}
+                        </td>
+                        <td className="px-2 py-3 text-slate-600 font-semibold whitespace-nowrap">
+                          {formatTime(payment.paidAt)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex justify-center">
+                            <button
+                              type="button"
+                              onClick={() => reverseCompletedPayment(payment.id)}
+                              aria-label="Reverse this payment and reopen the order"
+                              title="Reverse this payment and reopen the order"
+                              className="inline-flex items-center gap-1.5 rounded-full border-2 border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-extrabold px-3 py-1.5"
+                            >
+                              <RotateCcw size={13} /> Reverse
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
           <div className="px-5 py-4 border-b border-warm-200">

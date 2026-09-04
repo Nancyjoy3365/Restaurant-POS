@@ -107,6 +107,7 @@ interface PosState {
   ) => void;
   finalizeReceipt: (ticketId: string) => Promise<Receipt>;
   reverseLastPayment: (ticketId: string) => void;
+  reverseCompletedPayment: (paymentId: string) => void;
   recordCashDrop: (
     waiterId: string,
     amount: number,
@@ -797,6 +798,53 @@ export const usePosStore = create<PosState>()(
                       : t
                   )
                 : s.tickets,
+          };
+        }),
+
+      // For a ticket that's already fully paid and finalized, its payments
+      // no longer belong to the "current" billing cycle — finalizeReceipt
+      // advances billedThroughRoundIndex past them precisely so a closed
+      // cycle's total can never drift. Reopening one (e.g. the cashier
+      // matched the wrong M-Pesa code) has to identify the exact payment
+      // being undone by id, then roll billedThroughRoundIndex back to that
+      // payment's own cycle — otherwise a payment recorded afterward would
+      // land in a fresh cycle number and never be seen alongside whatever
+      // survived the reversal.
+      reverseCompletedPayment: (paymentId) =>
+        set((s) => {
+          const payment = s.payments.find((p) => p.id === paymentId);
+          if (!payment) return s;
+          const order = s.orders[payment.ticketId];
+          if (!order) return s;
+          const remainingPayments = s.payments.filter((p) => p.id !== paymentId);
+          const cycle = payment.billingCycle ?? 1;
+          const sameCyclePaid = remainingPayments
+            .filter(
+              (p) => p.ticketId === payment.ticketId && (p.billingCycle ?? 1) === cycle
+            )
+            .reduce((sum, p) => sum + p.amount, 0);
+          const billTotal = order.billTotals?.total ?? 0;
+          const paymentStatus: OrderPaymentStatus =
+            billTotal > 0 && sameCyclePaid >= billTotal
+              ? "paid"
+              : sameCyclePaid > 0
+              ? "partially_paid"
+              : "unpaid";
+          return {
+            payments: remainingPayments,
+            orders: {
+              ...s.orders,
+              [payment.ticketId]: {
+                ...order,
+                paymentStatus,
+                billedThroughRoundIndex: Math.max(0, cycle - 1),
+              },
+            },
+            tickets: s.tickets.map((t) =>
+              t.id === payment.ticketId
+                ? { ...t, status: "open" as TicketStatus, closedAt: undefined }
+                : t
+            ),
           };
         }),
 
