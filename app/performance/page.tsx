@@ -337,21 +337,12 @@ export default function PerformanceTrackerPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {waiters.map((waiter) => {
-              const orders = ordersCompletedInRange(tickets, waiter.id, rangeStart, rangeEnd);
-              const sales = salesInRange(payments, waiter.id, rangeStart, rangeEnd);
-              const priorityTallies = priorityUnitsSoldInRange(
-                receipts,
-                tickets,
-                menu,
-                waiter.id,
-                rangeStart,
-                rangeEnd
-              );
-              // Rank is computed from the selected range's sales across all
-              // waiters, but the cards themselves keep the original
-              // staff-array order — only the badge reflects standing,
-              // nothing gets reordered.
+            {listRows.map(({ waiter, orders, sales, priorityTallies }) => {
+              // Cards are ordered by the same standing the rank badge shows
+              // (listRows is already sorted by sales, highest first) — the
+              // leader's card always appears first, and the order shifts
+              // live as performance changes instead of staying pinned to
+              // the original staff-array order.
               const rank = salesRankById.get(waiter.id);
               const showRankBadge = rank !== undefined && rank <= 3 && sales > 0;
 
