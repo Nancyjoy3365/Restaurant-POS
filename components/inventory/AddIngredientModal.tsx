@@ -41,7 +41,8 @@ export function AddIngredientModal({
   const amountNum = Number(amount) || 0;
   const quantityNum = Number(quantity) || 0;
   const pieceNum = Number(piece) || 0;
-  const unitCost = pieceNum > 0 ? amountNum / pieceNum : 0;
+  const totalUnits = quantityNum * pieceNum;
+  const unitCost = totalUnits > 0 ? amountNum / totalUnits : 0;
   const canSave = name.trim().length > 0 && amountNum > 0 && quantityNum > 0 && pieceNum > 0;
 
   function handleSave() {
@@ -182,7 +183,7 @@ export function AddIngredientModal({
               <span>{formatKES(unitCost)}</span>
             </div>
             <div className="text-[11px] font-semibold text-slate-500 mt-0.5">
-              Calculated automatically as Amount ÷ Piece
+              Calculated automatically as Amount ÷ (Quantity × Piece)
             </div>
           </div>
         </div>

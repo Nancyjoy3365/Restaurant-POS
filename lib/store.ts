@@ -89,6 +89,7 @@ interface PosState {
   addVendor: (vendor: Omit<Vendor, "id">) => void;
   updateVendor: (vendorId: string, updates: Omit<Vendor, "id">) => void;
   addStaffMember: (member: Omit<StaffMember, "id">) => string;
+  updateStaffMember: (staffId: string, updates: Omit<StaffMember, "id">) => void;
   clockIn: (staffId: string) => void;
   clockOut: (staffId: string) => void;
   login: (staffId: string) => void;
@@ -601,6 +602,13 @@ export const usePosStore = create<PosState>()(
         set((s) => ({ staff: [...s.staff, { ...member, id }] }));
         return id;
       },
+
+      updateStaffMember: (staffId, updates) =>
+        set((s) => ({
+          staff: s.staff.map((m) =>
+            m.id === staffId ? { ...updates, id: m.id } : m
+          ),
+        })),
 
       clockIn: (staffId) =>
         set((s) => {

@@ -77,10 +77,12 @@ export default function StaffPage() {
   const leaveRecords = usePosStore((s) => s.leaveRecords);
   const incentiveRecords = usePosStore((s) => s.incentiveRecords);
   const addStaffMember = usePosStore((s) => s.addStaffMember);
+  const updateStaffMember = usePosStore((s) => s.updateStaffMember);
   const updateLeaveRecord = usePosStore((s) => s.updateLeaveRecord);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [staffModalOpen, setStaffModalOpen] = useState(false);
+  const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [importResult, setImportResult] = useState<StaffImportResult | null>(
     null
   );
@@ -157,16 +159,43 @@ export default function StaffPage() {
     });
   }
 
-  const canAddStaff =
+  function openAddStaff() {
+    setEditingStaff(null);
+    resetForm();
+    setStaffModalOpen(true);
+  }
+
+  function openEditStaff(member: StaffMember) {
+    setEditingStaff(member);
+    setForm({
+      name: member.name,
+      phone: member.phone ?? "",
+      role: member.role,
+      payType: member.payType,
+      rate: member.payType === "commission" ? "" : String(member.rate),
+      commissionType: member.commissionType ?? "percent_of_sales",
+      commissionValue:
+        member.commissionValue !== undefined ? String(member.commissionValue) : "",
+    });
+    setStaffModalOpen(true);
+  }
+
+  function closeStaffModal() {
+    setStaffModalOpen(false);
+    setEditingStaff(null);
+  }
+
+  const canSaveStaff =
     form.name.trim() !== "" &&
     (form.payType === "commission"
       ? form.commissionValue.trim() !== "" && !Number.isNaN(Number(form.commissionValue))
       : form.rate.trim() !== "" && Number(form.rate) > 0);
 
-  function handleAddStaff() {
-    if (!canAddStaff) return;
-    addStaffMember({
+  function handleSaveStaff() {
+    if (!canSaveStaff) return;
+    const payload: Omit<StaffMember, "id"> = {
       name: form.name.trim(),
+      title: editingStaff?.title,
       phone: form.phone.trim() || undefined,
       role: form.role,
       payType: form.payType,
@@ -177,8 +206,13 @@ export default function StaffPage() {
         form.payType === "commission"
           ? Number(form.commissionValue) || 0
           : undefined,
-    });
-    setAddModalOpen(false);
+    };
+    if (editingStaff) {
+      updateStaffMember(editingStaff.id, payload);
+    } else {
+      addStaffMember(payload);
+    }
+    closeStaffModal();
     resetForm();
   }
 
@@ -295,7 +329,7 @@ export default function StaffPage() {
           </button>
           <button
             type="button"
-            onClick={() => setAddModalOpen(true)}
+            onClick={openAddStaff}
             className="flex items-center gap-1.5 rounded-full bg-accent-600 hover:bg-accent-700 text-white text-sm font-extrabold px-4 py-2.5"
           >
             <Plus size={16} strokeWidth={3} /> Add Staff
@@ -405,7 +439,14 @@ export default function StaffPage() {
                 return (
                   <tr key={member.id} className="border-t border-slate-100">
                     <td className="px-4 py-3 font-bold text-slate-900">
-                      {member.name}
+                      <button
+                        type="button"
+                        onClick={() => openEditStaff(member)}
+                        title="Edit staff member"
+                        className="text-left hover:text-accent-700 hover:underline underline-offset-2"
+                      >
+                        {member.name}
+                      </button>
                     </td>
                     <td className="px-2 py-3 text-slate-600 font-semibold">
                       {member.title ?? member.role}
@@ -609,20 +650,22 @@ export default function StaffPage() {
         )}
       </main>
 
-      {addModalOpen && (
+      {staffModalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
-          onClick={() => setAddModalOpen(false)}
+          onClick={closeStaffModal}
         >
           <div
             className="w-full max-w-sm rounded-2xl bg-white p-5"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-extrabold text-slate-900">Add Staff</h3>
+              <h3 className="font-extrabold text-slate-900">
+                {editingStaff ? "Edit Staff" : "Add Staff"}
+              </h3>
               <button
                 type="button"
-                onClick={() => setAddModalOpen(false)}
+                onClick={closeStaffModal}
                 aria-label="Close"
                 className="text-slate-400 hover:text-slate-600"
               >
@@ -768,11 +811,19 @@ export default function StaffPage() {
 
             <button
               type="button"
-              disabled={!canAddStaff}
-              onClick={handleAddStaff}
+              disabled={!canSaveStaff}
+              onClick={handleSaveStaff}
               className="w-full mt-5 flex items-center justify-center gap-2 rounded-lg bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-3 transition-colors"
             >
-              <Plus size={16} strokeWidth={3} /> Add Staff
+              {editingStaff ? (
+                <>
+                  <Check size={16} strokeWidth={3} /> Save Changes
+                </>
+              ) : (
+                <>
+                  <Plus size={16} strokeWidth={3} /> Add Staff
+                </>
+              )}
             </button>
           </div>
         </div>

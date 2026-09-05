@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import clsx from "clsx";
-import { AlertTriangle, Pencil, Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { usePosStore } from "@/lib/store";
 import { formatKES } from "@/lib/utils";
 import { AddIngredientModal } from "@/components/inventory/AddIngredientModal";
@@ -90,20 +90,10 @@ export default function InventoryPage() {
               </thead>
               <tbody>
                 {ingredients.map((ing) => {
-                  const low = ing.quantity <= ing.reorderThreshold;
                   return (
                     <tr key={ing.id} className="border-t border-warm-100">
                       <td className="px-4 py-3 font-bold text-slate-900">
-                        <span className="flex items-center gap-1.5">
-                          {low && (
-                            <AlertTriangle
-                              size={13}
-                              className="text-status-needsbill shrink-0"
-                              aria-label="Low stock — reorder soon"
-                            />
-                          )}
-                          {ing.name}
-                        </span>
+                        {ing.name}
                       </td>
                       <td className="px-2 py-3 text-slate-600 font-semibold">
                         {ing.packaging}
