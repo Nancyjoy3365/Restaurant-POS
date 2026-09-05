@@ -17,6 +17,7 @@ import {
 import { usePosStore, paymentsForCurrentCycle, unbilledOrderTotal } from "@/lib/store";
 import { formatKES } from "@/lib/utils";
 import { PaymentSuccessModal } from "@/components/billing/PaymentSuccessModal";
+import { ticketSubtitle } from "@/components/tickets/ticketStatus";
 import type { Payment, PaymentMethod, Receipt, Ticket, TicketOrder } from "@/lib/types";
 
 const CASH_DROP_METHODS: { id: PaymentMethod; label: string; icon: typeof Banknote }[] = [
@@ -500,9 +501,9 @@ export default function CashierPage() {
                               )}
                               <td className="px-2 py-3 text-slate-700 font-semibold whitespace-nowrap">
                                 Order No. {ticket.displayNumber}
-                                {ticket.locationNote && (
+                                {ticketSubtitle(ticket) && (
                                   <div className="text-xs text-slate-400 font-semibold">
-                                    {ticket.locationNote}
+                                    {ticketSubtitle(ticket)}
                                   </div>
                                 )}
                               </td>
@@ -632,13 +633,13 @@ export default function CashierPage() {
                           {payment.method === "mpesa" ? "M-Pesa" : "Cash"}
                         </td>
                         <td className="px-2 py-3 text-slate-600 font-semibold">
-                          {payment.reference || "—"}
+                          {payment.method === "mpesa" ? payment.reference || "—" : "—"}
                         </td>
                         <td className="px-2 py-3 text-right font-black text-slate-900 whitespace-nowrap">
                           {formatKES(payment.amount)}
                         </td>
                         <td className="px-2 py-3 text-slate-600 font-semibold">
-                          {payment.customerName || "—"}
+                          {payment.customerName || ticket.customerName || "—"}
                         </td>
                         <td className="px-2 py-3 text-slate-600 font-semibold whitespace-nowrap">
                           {formatTime(payment.paidAt)}
@@ -700,9 +701,9 @@ export default function CashierPage() {
                         </td>
                         <td className="px-2 py-3 text-slate-700 font-semibold whitespace-nowrap">
                           Order No. {ticket.displayNumber}
-                          {ticket.locationNote && (
+                          {ticketSubtitle(ticket) && (
                             <div className="text-xs text-slate-400 font-semibold">
-                              {ticket.locationNote}
+                              {ticketSubtitle(ticket)}
                             </div>
                           )}
                         </td>
@@ -940,10 +941,6 @@ export default function CashierPage() {
             <h2 className="font-extrabold text-slate-900">
               Completed Orders — {rangeLabel} ({completedRange.length})
             </h2>
-            <p className="text-xs text-slate-500 font-semibold mt-0.5">
-              Every order paid and closed in this period. Reversing sends it
-              back to Orders Awaiting Payment.
-            </p>
           </div>
           {completedRange.length === 0 ? (
             <p className="text-slate-400 font-semibold text-center py-12">
@@ -981,13 +978,13 @@ export default function CashierPage() {
                           {payment.method === "mpesa" ? "M-Pesa" : "Cash"}
                         </td>
                         <td className="px-2 py-3 text-slate-600 font-semibold">
-                          {payment.reference || "—"}
+                          {payment.method === "mpesa" ? payment.reference || "—" : "—"}
                         </td>
                         <td className="px-2 py-3 text-right font-black text-slate-900 whitespace-nowrap">
                           {formatKES(payment.amount)}
                         </td>
                         <td className="px-2 py-3 text-slate-600 font-semibold">
-                          {payment.customerName || "—"}
+                          {payment.customerName || ticket.customerName || "—"}
                         </td>
                         <td className="px-2 py-3 text-slate-600 font-semibold whitespace-nowrap">
                           {formatTime(payment.paidAt, dateMode === "week")}

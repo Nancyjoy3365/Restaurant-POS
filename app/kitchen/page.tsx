@@ -129,8 +129,15 @@ export default function KitchenDisplayPage() {
                 >
                   <div className="flex items-center justify-between px-4 py-3 border-b border-warm-200">
                     <div>
-                      <div className="text-sm lg:text-base font-extrabold text-slate-900">
-                        Order #{ticket.displayNumber}
+                      <div className="flex items-center gap-1.5">
+                        <div className="text-sm lg:text-base font-extrabold text-slate-900">
+                          Order #{ticket.displayNumber}
+                        </div>
+                        {ticket.orderType === "takeaway" && (
+                          <span className="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 text-[9px] lg:text-[10px] font-extrabold px-2 py-0.5 uppercase tracking-wide">
+                            Takeaway
+                          </span>
+                        )}
                       </div>
                       <div className="text-[11px] lg:text-xs font-bold text-slate-400">
                         {waiter?.name ?? "Unassigned"}

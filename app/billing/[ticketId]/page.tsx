@@ -10,6 +10,7 @@ import { PaymentMethodPicker } from "@/components/billing/PaymentMethodPicker";
 import { PaymentSuccessModal } from "@/components/billing/PaymentSuccessModal";
 import { formatKES } from "@/lib/utils";
 import { getDefaultRouteForRole } from "@/lib/roles";
+import { ticketDetailSubtitle } from "@/components/tickets/ticketStatus";
 import type { PaymentMethod, Receipt } from "@/lib/types";
 
 const METHOD_LABEL: Record<PaymentMethod, string> = {
@@ -106,7 +107,7 @@ export default function BillingPage() {
         </button>
         <h1 className="text-lg font-black text-slate-900">
           Billing · {ticketLabel}
-          {ticket.locationNote && ` · ${ticket.locationNote}`}
+          {ticketDetailSubtitle(ticket) && ` · ${ticketDetailSubtitle(ticket)}`}
         </h1>
       </header>
 

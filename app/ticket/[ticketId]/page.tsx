@@ -11,6 +11,7 @@ import { GroupedMenuCard } from "@/components/order/GroupedMenuCard";
 import { CartPanel } from "@/components/order/CartPanel";
 import { OrderScreenMobile } from "@/components/order/OrderScreen.Mobile";
 import { groupMenuItems } from "@/lib/menuGrouping";
+import { ticketDetailSubtitle } from "@/components/tickets/ticketStatus";
 import type { MenuCategory, AddOn } from "@/lib/types";
 
 export default function TicketPage() {
@@ -92,9 +93,9 @@ export default function TicketPage() {
             <h1 className="text-lg font-black text-slate-900">
               Order No. {ticket.displayNumber}
             </h1>
-            {ticket.locationNote && (
+            {ticketDetailSubtitle(ticket) && (
               <p className="text-xs font-semibold text-slate-400">
-                {ticket.locationNote}
+                {ticketDetailSubtitle(ticket)}
               </p>
             )}
           </div>

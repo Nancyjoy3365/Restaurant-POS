@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
-import { Plus, PauseCircle } from "lucide-react";
+import { Plus, PauseCircle, Utensils, ShoppingBag, ArrowLeft, X } from "lucide-react";
 import { usePosStore, getOrderTotal } from "@/lib/store";
 import { formatKES, flattenOrderItems } from "@/lib/utils";
-import { TICKET_STATUS_CONFIG, TICKET_VIEW_LEGEND, ticketDisplayStatus } from "@/components/tickets/ticketStatus";
+import {
+  TICKET_STATUS_CONFIG,
+  TICKET_VIEW_LEGEND,
+  ticketDisplayStatus,
+  ticketSubtitle,
+} from "@/components/tickets/ticketStatus";
 import type { Ticket, TicketOrder } from "@/lib/types";
 
 interface MyTicketRow {
@@ -22,6 +27,10 @@ export default function MyTicketsPage() {
   const vatRate = usePosStore((s) => s.restaurantSettings.vatRate);
   const createTicket = usePosStore((s) => s.createTicket);
   const cancelEmptyTickets = usePosStore((s) => s.cancelEmptyTickets);
+
+  const [newOrderStep, setNewOrderStep] = useState<"type" | "takeaway" | null>(null);
+  const [takeawayName, setTakeawayName] = useState("");
+  const [takeawayPhone, setTakeawayPhone] = useState("");
 
   // An order that never got a single item added to it isn't a real order —
   // sweep those away whenever this list is viewed, rather than leaving
@@ -40,8 +49,34 @@ export default function MyTicketsPage() {
     .filter((r) => r.order.rounds.some((round) => round.items.length > 0))
     .sort((a, b) => a.ticket.displayNumber - b.ticket.displayNumber);
 
-  function handleCreateTicket() {
-    const newId = createTicket();
+  function openNewOrder() {
+    setTakeawayName("");
+    setTakeawayPhone("");
+    setNewOrderStep("type");
+  }
+
+  function closeNewOrder() {
+    setNewOrderStep(null);
+  }
+
+  function chooseDineIn() {
+    const newId = createTicket({ orderType: "dine_in" });
+    closeNewOrder();
+    router.push(`/ticket/${newId}`);
+  }
+
+  function chooseTakeaway() {
+    setNewOrderStep("takeaway");
+  }
+
+  function confirmTakeaway() {
+    if (!takeawayName.trim()) return;
+    const newId = createTicket({
+      orderType: "takeaway",
+      customerName: takeawayName,
+      customerPhone: takeawayPhone,
+    });
+    closeNewOrder();
     router.push(`/ticket/${newId}`);
   }
 
@@ -68,7 +103,7 @@ export default function MyTicketsPage() {
           </div>
           <button
             type="button"
-            onClick={handleCreateTicket}
+            onClick={openNewOrder}
             className="flex items-center gap-1.5 rounded-full bg-accent-600 hover:bg-accent-700 text-white text-sm font-extrabold px-4 py-2.5"
           >
             <Plus size={16} strokeWidth={3} /> New Order
@@ -102,9 +137,9 @@ export default function MyTicketsPage() {
                       <div className="font-extrabold text-slate-900">
                         Order No. {ticket.displayNumber}
                       </div>
-                      {ticket.locationNote && (
+                      {ticketSubtitle(ticket) && (
                         <div className="text-xs font-bold text-slate-400 truncate max-w-[10rem]">
-                          {ticket.locationNote}
+                          {ticketSubtitle(ticket)}
                         </div>
                       )}
                     </div>
@@ -167,6 +202,119 @@ export default function MyTicketsPage() {
           </div>
         )}
       </main>
+
+      {newOrderStep && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          onClick={closeNewOrder}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {newOrderStep === "type" ? (
+              <>
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="font-extrabold text-slate-900">New Order</h3>
+                  <button
+                    type="button"
+                    onClick={closeNewOrder}
+                    aria-label="Close"
+                    className="text-slate-400 hover:text-slate-600"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500 font-semibold mb-4">
+                  Is this order for a table, or to go?
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={chooseDineIn}
+                    className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-warm-200 hover:border-accent-400 hover:bg-accent-50 py-6 transition-colors"
+                  >
+                    <Utensils size={22} className="text-accent-600" />
+                    <span className="font-extrabold text-sm text-slate-800">
+                      In-House
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={chooseTakeaway}
+                    className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-warm-200 hover:border-accent-400 hover:bg-accent-50 py-6 transition-colors"
+                  >
+                    <ShoppingBag size={22} className="text-accent-600" />
+                    <span className="font-extrabold text-sm text-slate-800">
+                      Takeaway
+                    </span>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setNewOrderStep("type")}
+                      aria-label="Back"
+                      className="text-slate-400 hover:text-slate-600"
+                    >
+                      <ArrowLeft size={18} />
+                    </button>
+                    <h3 className="font-extrabold text-slate-900">
+                      Takeaway Order
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeNewOrder}
+                    aria-label="Close"
+                    className="text-slate-400 hover:text-slate-600"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500 font-semibold mb-4">
+                  Who is this order for?
+                </p>
+
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
+                  Customer Name
+                </label>
+                <input
+                  value={takeawayName}
+                  onChange={(e) => setTakeawayName(e.target.value)}
+                  placeholder="e.g. Jane Wanjiru"
+                  autoFocus
+                  className="mt-1 mb-3 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-bold outline-none focus:border-accent-400"
+                />
+
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
+                  Phone (optional)
+                </label>
+                <input
+                  type="tel"
+                  value={takeawayPhone}
+                  onChange={(e) => setTakeawayPhone(e.target.value)}
+                  placeholder="e.g. 0712345678"
+                  className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-bold outline-none focus:border-accent-400"
+                />
+
+                <button
+                  type="button"
+                  disabled={!takeawayName.trim()}
+                  onClick={confirmTakeaway}
+                  className="w-full mt-5 flex items-center justify-center gap-2 rounded-lg bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-3 transition-colors"
+                >
+                  <Plus size={16} strokeWidth={3} /> Start Order
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

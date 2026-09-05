@@ -74,15 +74,18 @@ export const seedMenu: MenuItem[] = [
   { id: "mn33", name: "Sugar cane (Take away)", aliases: ["sugarcane"], category: "Juice", price: 200, veg: true, available: true, variantGroup: "Sugar cane", variantLabel: "Take away" },
 
   // Packaging
-  { id: "mn34", name: "Container (Small)", aliases: ["container", "packaging"], category: "Packaging", price: 20, veg: true, available: true, variantGroup: "Container", variantLabel: "Small" },
-  { id: "mn35", name: "Container (Large)", aliases: ["container", "packaging"], category: "Packaging", price: 50, veg: true, available: true, variantGroup: "Container", variantLabel: "Large" },
-  { id: "mn36", name: "Khaki", aliases: ["khaki", "packaging"], category: "Packaging", price: 20, veg: true, available: true },
+  { id: "mn34", name: "Container (Small)", aliases: ["container", "packaging"], category: "Packaging", price: 20, veg: true, available: true, variantGroup: "Container", variantLabel: "S" },
+  { id: "mn35", name: "Container (Large)", aliases: ["container", "packaging"], category: "Packaging", price: 50, veg: true, available: true, variantGroup: "Container", variantLabel: "L" },
+  { id: "mn36", name: "Khaki (Small)", aliases: ["khaki", "packaging"], category: "Packaging", price: 20, veg: true, available: true, variantGroup: "Khaki", variantLabel: "S" },
+  { id: "mn38", name: "Khaki (Large)", aliases: ["khaki", "packaging"], category: "Packaging", price: 50, veg: true, available: true, variantGroup: "Khaki", variantLabel: "L" },
 ];
 
-// "mn37" (Khaki Large) was merged into the single "mn36" Khaki item above —
-// kept here only so migrate() in store.ts can drop it from a browser that
-// already persisted it, rather than it lingering forever as a "custom" item
-// once it's no longer a recognized seed id.
+// "mn37" (an earlier Khaki Large) was merged into the single "mn36" Khaki
+// item for a time, then Khaki was later re-split into S/L variants under
+// mn36/mn38 instead of reusing mn37 — kept here only so migrate() in
+// store.ts can drop it from a browser that still has it persisted, rather
+// than it lingering forever as a "custom" item once it's no longer a
+// recognized seed id.
 export const RETIRED_SEED_MENU_IDS = new Set(["mn37"]);
 
 // Demo stock/vendor rows were only ever placeholders — the real inventory

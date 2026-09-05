@@ -81,17 +81,26 @@ export interface BillTotals {
 
 export type TicketStatus = "open" | "paid";
 
+export type OrderType = "dine_in" | "takeaway";
+
 // A ticket is one customer group's order and receipt, full stop — there is
 // no physical table underneath it. Two people served at the same physical
 // spot are two unrelated tickets, not two "tabs" sharing a "table"; nothing
 // ties them together in the data. `waiterId` is set once at creation and
 // never reassigned automatically. `locationNote` is a free-text breadcrumb
 // only (e.g. "by the window") — never parsed or relied on for logic.
+// `orderType` is optional so tickets created before it existed still load —
+// treat a missing value as "dine_in" (see ticketOrderType in ticketStatus.ts)
+// rather than requiring a migration. `customerName`/`customerPhone` are only
+// ever collected for takeaway orders.
 export interface Ticket {
   id: string;
   displayNumber: number;
   waiterId: string;
   locationNote?: string;
+  orderType?: OrderType;
+  customerName?: string;
+  customerPhone?: string;
   status: TicketStatus;
   openedAt: number;
   closedAt?: number;

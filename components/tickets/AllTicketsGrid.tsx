@@ -10,6 +10,7 @@ import {
   avatarColorFor,
   initials,
   ticketDisplayStatus,
+  ticketSubtitle,
   type TicketDisplayStatus,
 } from "./ticketStatus";
 import type { StaffMember, Ticket, TicketOrder } from "@/lib/types";
@@ -171,9 +172,9 @@ export function AllTicketsGrid() {
                     <span className="rounded-lg bg-warm-100 text-slate-700 text-xs font-extrabold px-2 py-1 shrink-0">
                       Order No. {ticket.displayNumber}
                     </span>
-                    {ticket.locationNote && (
+                    {ticketSubtitle(ticket) && (
                       <span className="text-xs font-bold text-slate-400 truncate">
-                        {ticket.locationNote}
+                        {ticketSubtitle(ticket)}
                       </span>
                     )}
                     <span className="flex-1" />

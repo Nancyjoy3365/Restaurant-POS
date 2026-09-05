@@ -29,6 +29,7 @@ import { SearchBar } from "@/components/order/SearchBar";
 import { MenuCard } from "@/components/order/MenuCard";
 import { GroupedMenuCard } from "@/components/order/GroupedMenuCard";
 import { groupMenuItems } from "@/lib/menuGrouping";
+import { ticketDetailSubtitle } from "@/components/tickets/ticketStatus";
 import type { MenuCategory, OrderLineItem } from "@/lib/types";
 
 const VOID_REASONS = ["Customer changed mind", "Kitchen error", "Other"];
@@ -223,9 +224,9 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
             <div className="font-extrabold text-slate-900 truncate">
               Order No. {ticket.displayNumber} · {itemCount} item{itemCount === 1 ? "" : "s"}
             </div>
-            {ticket.locationNote ? (
+            {ticketDetailSubtitle(ticket) ? (
               <div className="text-[11px] font-bold text-slate-400 truncate">
-                {ticket.locationNote}
+                {ticketDetailSubtitle(ticket)}
               </div>
             ) : servingWaiter ? (
               <div className="text-[11px] font-bold text-slate-400 truncate">

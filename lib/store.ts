@@ -5,6 +5,7 @@ import type {
   TicketOrder,
   Ticket,
   TicketStatus,
+  OrderType,
   Round,
   OrderLineItem,
   Ingredient,
@@ -62,7 +63,12 @@ interface PosState {
   invoiceCounter: number;
   currentStaffId: string | null;
 
-  createTicket: (locationNote?: string) => string;
+  createTicket: (options?: {
+    locationNote?: string;
+    orderType?: OrderType;
+    customerName?: string;
+    customerPhone?: string;
+  }) => string;
   addRound: (ticketId: string) => void;
   addItem: (
     ticketId: string,
@@ -222,7 +228,7 @@ export const usePosStore = create<PosState>()(
       invoiceCounter: 10482,
       currentStaffId: null,
 
-      createTicket: (locationNote) => {
+      createTicket: (options) => {
         const newId = makeId("ticket");
         set((s) => {
           const displayNumber = s.ticketCounter + 1;
@@ -230,7 +236,10 @@ export const usePosStore = create<PosState>()(
             id: newId,
             displayNumber,
             waiterId: s.currentStaffId ?? "unknown",
-            locationNote: locationNote?.trim() || undefined,
+            locationNote: options?.locationNote?.trim() || undefined,
+            orderType: options?.orderType ?? "dine_in",
+            customerName: options?.customerName?.trim() || undefined,
+            customerPhone: options?.customerPhone?.trim() || undefined,
             status: "open",
             openedAt: Date.now(),
           };
@@ -735,7 +744,10 @@ export const usePosStore = create<PosState>()(
           invoiceNumber,
           ticketId,
           ticketLabel: ticket ? `Order No. ${ticket.displayNumber}` : "Order",
-          locationNote: ticket?.locationNote,
+          locationNote:
+            ticket?.orderType === "takeaway"
+              ? ticket.customerName ?? "Takeaway"
+              : ticket?.locationNote,
           items: lines.map(({ item, roundIndex }) => ({
             menuItemId: item.menuItemId,
             name: item.name,

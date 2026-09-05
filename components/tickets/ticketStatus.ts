@@ -1,5 +1,5 @@
 import { CheckCircle2, type LucideIcon } from "lucide-react";
-import type { TicketOrder } from "@/lib/types";
+import type { OrderType, Ticket, TicketOrder } from "@/lib/types";
 
 export type TicketDisplayStatus = "in-progress" | "ready" | "needs-bill" | "held";
 
@@ -48,6 +48,32 @@ export function ticketDisplayStatus(order: TicketOrder | undefined): TicketDispl
   if (order?.billTotals) return "needs-bill";
   if (order && isOrderReady(order)) return "ready";
   return "in-progress";
+}
+
+// Tickets created before `orderType` existed have no value stored — treat
+// that as "dine_in" everywhere rather than requiring a data migration.
+export function ticketOrderType(ticket: Ticket): OrderType {
+  return ticket.orderType ?? "dine_in";
+}
+
+// Compact subtitle for list/table rows: a takeaway ticket has no table to
+// reference, so its customer name takes the place of the dine-in
+// `locationNote` breadcrumb.
+export function ticketSubtitle(ticket: Ticket): string | undefined {
+  if (ticketOrderType(ticket) === "takeaway") {
+    return ticket.customerName || "Takeaway";
+  }
+  return ticket.locationNote;
+}
+
+// Same idea, but for single-ticket detail headers where there's room to
+// also surface the phone number a waiter might need to call.
+export function ticketDetailSubtitle(ticket: Ticket): string | undefined {
+  if (ticketOrderType(ticket) === "takeaway") {
+    const name = ticket.customerName || "Takeaway";
+    return ticket.customerPhone ? `${name} · ${ticket.customerPhone}` : name;
+  }
+  return ticket.locationNote;
 }
 
 const AVATAR_COLORS = [

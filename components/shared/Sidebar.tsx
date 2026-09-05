@@ -22,6 +22,7 @@ import {
 import clsx from "clsx";
 import { usePosStore, MAX_HELD_ORDERS_PER_WAITER } from "@/lib/store";
 import { ROLE_ALLOWED_PATHS } from "@/lib/roles";
+import { ticketSubtitle } from "@/components/tickets/ticketStatus";
 
 // mobileLabel is a short, non-wrapping variant for the cramped bottom-nav
 // row — the full label is still used on the desktop sidebar and inside the
@@ -148,7 +149,7 @@ export function Sidebar() {
                         className="block rounded-xl bg-white text-slate-600 hover:bg-accent-100 hover:text-accent-700 font-extrabold text-xs px-3 py-2.5 transition-colors"
                       >
                         Order No. {ticket.displayNumber}
-                        {ticket.locationNote && ` · ${ticket.locationNote}`}
+                        {ticketSubtitle(ticket) && ` · ${ticketSubtitle(ticket)}`}
                       </Link>
                     ))}
                   </div>
