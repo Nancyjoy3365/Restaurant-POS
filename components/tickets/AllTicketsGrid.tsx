@@ -90,7 +90,7 @@ export function AllTicketsGrid() {
             acc[r.status] += 1;
             return acc;
           },
-          { "in-progress": 0, "needs-bill": 0, held: 0 } as Record<
+          { "in-progress": 0, ready: 0, "needs-bill": 0, held: 0 } as Record<
             TicketDisplayStatus,
             number
           >
@@ -138,22 +138,25 @@ export function AllTicketsGrid() {
             </button>
 
             <div className="flex flex-wrap gap-1.5 px-4 pb-3">
-              {(["in-progress", "needs-bill", "held"] as const).map((key) =>
-                counts[key] > 0 ? (
+              {(["in-progress", "ready", "needs-bill", "held"] as const).map((key) => {
+                const cfg = TICKET_STATUS_CONFIG[key];
+                return counts[key] > 0 ? (
                   <span
                     key={key}
                     className={clsx(
                       "inline-flex items-center gap-1 rounded-full text-[11px] font-extrabold px-2.5 py-1",
-                      TICKET_STATUS_CONFIG[key].chip
+                      cfg.chip
                     )}
                   >
-                    <span
-                      className={clsx("h-1.5 w-1.5 rounded-full", TICKET_STATUS_CONFIG[key].dot)}
-                    />
-                    {counts[key]} {TICKET_STATUS_CONFIG[key].label}
+                    {cfg.icon ? (
+                      <cfg.icon size={12} />
+                    ) : (
+                      <span className={clsx("h-1.5 w-1.5 rounded-full", cfg.dot)} />
+                    )}
+                    {counts[key]} {cfg.label}
                   </span>
-                ) : null
-              )}
+                ) : null;
+              })}
             </div>
 
             {isExpanded && (
@@ -180,12 +183,19 @@ export function AllTicketsGrid() {
                         TICKET_STATUS_CONFIG[status].chip
                       )}
                     >
-                      <span
-                        className={clsx(
-                          "h-1.5 w-1.5 rounded-full",
-                          TICKET_STATUS_CONFIG[status].dot
-                        )}
-                      />
+                      {TICKET_STATUS_CONFIG[status].icon ? (
+                        (() => {
+                          const Icon = TICKET_STATUS_CONFIG[status].icon!;
+                          return <Icon size={12} />;
+                        })()
+                      ) : (
+                        <span
+                          className={clsx(
+                            "h-1.5 w-1.5 rounded-full",
+                            TICKET_STATUS_CONFIG[status].dot
+                          )}
+                        />
+                      )}
                       {TICKET_STATUS_CONFIG[status].label}
                     </span>
                   </button>

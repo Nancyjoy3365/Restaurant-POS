@@ -114,7 +114,11 @@ export default function MyTicketsPage() {
                         cfg.chip
                       )}
                     >
-                      <span className={clsx("h-1.5 w-1.5 rounded-full", cfg.dot)} />
+                      {cfg.icon ? (
+                        <cfg.icon size={12} />
+                      ) : (
+                        <span className={clsx("h-1.5 w-1.5 rounded-full", cfg.dot)} />
+                      )}
                       {cfg.label}
                     </span>
                   </div>

@@ -1,15 +1,22 @@
+import { CheckCircle2, type LucideIcon } from "lucide-react";
 import type { TicketOrder } from "@/lib/types";
 
-export type TicketDisplayStatus = "in-progress" | "needs-bill" | "held";
+export type TicketDisplayStatus = "in-progress" | "ready" | "needs-bill" | "held";
 
 export const TICKET_STATUS_CONFIG: Record<
   TicketDisplayStatus,
-  { label: string; chip: string; dot: string }
+  { label: string; chip: string; dot: string; icon?: LucideIcon }
 > = {
   "in-progress": {
     label: "In Progress",
     chip: "bg-sky-50 text-sky-700",
     dot: "bg-status-occupied",
+  },
+  ready: {
+    label: "Order Ready",
+    chip: "bg-emerald-50 text-emerald-700",
+    dot: "bg-emerald-500",
+    icon: CheckCircle2,
   },
   "needs-bill": {
     label: "Needs Bill",
@@ -25,13 +32,21 @@ export const TICKET_STATUS_CONFIG: Record<
 
 export const TICKET_VIEW_LEGEND: TicketDisplayStatus[] = [
   "in-progress",
+  "ready",
   "needs-bill",
   "held",
 ];
 
+function isOrderReady(order: TicketOrder): boolean {
+  const items = order.rounds.flatMap((r) => r.items);
+  const sentItems = items.filter((i) => i.sentToKitchen);
+  return sentItems.length > 0 && sentItems.every((i) => i.kitchenReady);
+}
+
 export function ticketDisplayStatus(order: TicketOrder | undefined): TicketDisplayStatus {
   if (order?.onHold) return "held";
   if (order?.billTotals) return "needs-bill";
+  if (order && isOrderReady(order)) return "ready";
   return "in-progress";
 }
 
