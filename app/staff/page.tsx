@@ -437,16 +437,14 @@ export default function StaffPage() {
                   .sort((a, b) => (a.startDate < b.startDate ? -1 : 1))[0];
 
                 return (
-                  <tr key={member.id} className="border-t border-slate-100">
+                  <tr
+                    key={member.id}
+                    onClick={() => openEditStaff(member)}
+                    title="Edit staff member"
+                    className="border-t border-slate-100 hover:bg-warm-50 cursor-pointer transition-colors"
+                  >
                     <td className="px-4 py-3 font-bold text-slate-900">
-                      <button
-                        type="button"
-                        onClick={() => openEditStaff(member)}
-                        title="Edit staff member"
-                        className="text-left hover:text-accent-700 hover:underline underline-offset-2"
-                      >
-                        {member.name}
-                      </button>
+                      {member.name}
                     </td>
                     <td className="px-2 py-3 text-slate-600 font-semibold">
                       {member.title ?? member.role}
@@ -481,7 +479,10 @@ export default function StaffPage() {
                       <div className="flex justify-center">
                         <button
                           type="button"
-                          onClick={() => setLeaveModalStaff(member)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setLeaveModalStaff(member);
+                          }}
                           className="flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-accent-700"
                         >
                           <CalendarOff size={12} />
@@ -495,7 +496,10 @@ export default function StaffPage() {
                       <div className="flex justify-center">
                         <button
                           type="button"
-                          onClick={() => setIncentiveModalStaff(member)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIncentiveModalStaff(member);
+                          }}
                           className="flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-accent-700"
                         >
                           <Gift size={12} />
