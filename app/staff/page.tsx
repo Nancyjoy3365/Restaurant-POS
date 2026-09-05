@@ -463,7 +463,7 @@ export default function StaffPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex flex-col items-center gap-0.5">
+                      <div className="flex flex-col items-center justify-center gap-0.5 min-h-[38px]">
                         <span
                           className={clsx(
                             "inline-flex items-center gap-1 rounded-full text-[11px] font-extrabold px-2.5 py-1 text-white",
@@ -473,11 +473,9 @@ export default function StaffPage() {
                           <Clock size={11} />
                           {onShift ? "On Shift" : "Off Shift"}
                         </span>
-                        {onShift && shift && (
-                          <span className="text-[10px] text-slate-400 font-semibold">
-                            since {formatDateTime(shift.clockIn)}
-                          </span>
-                        )}
+                        <span className="text-[10px] text-slate-400 font-semibold">
+                          {onShift && shift ? `since ${formatDateTime(shift.clockIn)}` : " "}
+                        </span>
                       </div>
                     </td>
                   </tr>
