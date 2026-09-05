@@ -878,6 +878,66 @@ export default function CashierPage() {
         <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
           <div className="px-5 py-4 border-b border-warm-200">
             <h2 className="font-extrabold text-slate-900">
+              Cash Drop History — {rangeLabel}
+            </h2>
+          </div>
+          {historyRows.length === 0 ? (
+            <p className="text-slate-400 font-semibold text-center py-12">
+              No cash drops recorded for this period.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[640px]">
+                <thead className="bg-warm-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
+                  <tr>
+                    <th className="text-left px-5 py-3">Date/Time</th>
+                    <th className="text-left px-2 py-3">Waiter</th>
+                    <th className="text-left px-2 py-3">Method</th>
+                    <th className="text-left px-2 py-3">Reference</th>
+                    <th className="text-right px-2 py-3">Amount</th>
+                    <th className="text-center px-5 py-3">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {historyRows.map(({ drop, waiterName }) => (
+                    <tr key={drop.id} className="border-t border-warm-100">
+                      <td className="px-5 py-3 text-slate-600 font-semibold whitespace-nowrap">
+                        {formatTime(drop.droppedAt, dateMode === "week")}
+                      </td>
+                      <td className="px-2 py-3 font-extrabold text-slate-900">
+                        {waiterName}
+                      </td>
+                      <td className="px-2 py-3 text-slate-700 font-semibold">
+                        {drop.method === "mpesa" ? "M-Pesa" : "Cash"}
+                      </td>
+                      <td className="px-2 py-3 text-slate-600 font-semibold">
+                        {drop.reference || "—"}
+                      </td>
+                      <td className="px-2 py-3 text-right font-black text-slate-900">
+                        {formatKES(drop.amount)}
+                      </td>
+                      <td className="px-5 py-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => deleteCashDrop(drop.id)}
+                          aria-label="Delete cash drop"
+                          title="Delete cash drop"
+                          className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-rose-200 text-rose-600 hover:bg-rose-50"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
+          <div className="px-5 py-4 border-b border-warm-200">
+            <h2 className="font-extrabold text-slate-900">
               Completed Orders — {rangeLabel} ({completedRange.length})
             </h2>
             <p className="text-xs text-slate-500 font-semibold mt-0.5">
@@ -948,66 +1008,6 @@ export default function CashierPage() {
                       </tr>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
-          <div className="px-5 py-4 border-b border-warm-200">
-            <h2 className="font-extrabold text-slate-900">
-              Cash Drop History — {rangeLabel}
-            </h2>
-          </div>
-          {historyRows.length === 0 ? (
-            <p className="text-slate-400 font-semibold text-center py-12">
-              No cash drops recorded for this period.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[640px]">
-                <thead className="bg-warm-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
-                  <tr>
-                    <th className="text-left px-5 py-3">Date/Time</th>
-                    <th className="text-left px-2 py-3">Waiter</th>
-                    <th className="text-left px-2 py-3">Method</th>
-                    <th className="text-left px-2 py-3">Reference</th>
-                    <th className="text-right px-2 py-3">Amount</th>
-                    <th className="text-center px-5 py-3">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {historyRows.map(({ drop, waiterName }) => (
-                    <tr key={drop.id} className="border-t border-warm-100">
-                      <td className="px-5 py-3 text-slate-600 font-semibold whitespace-nowrap">
-                        {formatTime(drop.droppedAt, dateMode === "week")}
-                      </td>
-                      <td className="px-2 py-3 font-extrabold text-slate-900">
-                        {waiterName}
-                      </td>
-                      <td className="px-2 py-3 text-slate-700 font-semibold">
-                        {drop.method === "mpesa" ? "M-Pesa" : "Cash"}
-                      </td>
-                      <td className="px-2 py-3 text-slate-600 font-semibold">
-                        {drop.reference || "—"}
-                      </td>
-                      <td className="px-2 py-3 text-right font-black text-slate-900">
-                        {formatKES(drop.amount)}
-                      </td>
-                      <td className="px-5 py-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() => deleteCashDrop(drop.id)}
-                          aria-label="Delete cash drop"
-                          title="Delete cash drop"
-                          className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-rose-200 text-rose-600 hover:bg-rose-50"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
                 </tbody>
               </table>
             </div>
