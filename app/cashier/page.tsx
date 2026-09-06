@@ -18,7 +18,7 @@ import { usePosStore, paymentsForCurrentCycle, unbilledOrderTotal } from "@/lib/
 import { formatKES } from "@/lib/utils";
 import { PaymentSuccessModal } from "@/components/billing/PaymentSuccessModal";
 import { ticketSubtitle } from "@/components/tickets/ticketStatus";
-import type { Payment, PaymentMethod, Receipt, Ticket, TicketOrder } from "@/lib/types";
+import type { CashDrop, Payment, PaymentMethod, Receipt, Ticket, TicketOrder } from "@/lib/types";
 
 const CASH_DROP_METHODS: { id: PaymentMethod; label: string; icon: typeof Banknote }[] = [
   { id: "cash", label: "Cash", icon: Banknote },
@@ -254,8 +254,12 @@ export default function CashierPage() {
   const rangePayments = payments.filter((p) => inRange(p.paidAt));
   const rangeDrops = cashDrops.filter((d) => inRange(d.droppedAt));
 
-  function computeWaiterCash(waiterId: string) {
-    const wPayments = rangePayments.filter((p) => p.waiterId === waiterId);
+  function computeWaiterCashFrom(
+    waiterId: string,
+    srcPayments: Payment[],
+    srcDrops: CashDrop[]
+  ) {
+    const wPayments = srcPayments.filter((p) => p.waiterId === waiterId);
     const mpesaAmount = wPayments
       .filter((p) => p.method === "mpesa")
       .reduce((sum, p) => sum + p.amount, 0);
@@ -270,7 +274,7 @@ export default function CashierPage() {
       .filter((p) => p.method === "mpesa" && p.isCashSubstitution)
       .reduce((sum, p) => sum + p.amount, 0);
     const expectedDrop = cashAmount + substitutionAmount;
-    const dropAmount = rangeDrops
+    const dropAmount = srcDrops
       .filter((d) => d.waiterId === waiterId)
       .reduce((sum, d) => sum + d.amount, 0);
     return {
@@ -281,6 +285,20 @@ export default function CashierPage() {
       dropAmount,
       pending: Math.max(0, expectedDrop - dropAmount),
     };
+  }
+
+  function computeWaiterCash(waiterId: string) {
+    return computeWaiterCashFrom(waiterId, rangePayments, rangeDrops);
+  }
+
+  // A cash drop is a real, physical hand-over happening right now, settling
+  // whatever the waiter actually owes overall — not just what they sold in
+  // whatever day/week the cashier happens to be reviewing. Pending cash
+  // never resets at midnight: if it wasn't dropped yesterday, it's still
+  // owed today. So both the "how much do they owe right now" figure and
+  // the Add Cash Drop dialog always look at the FULL, unscoped history.
+  function computeWaiterCashAllTime(waiterId: string) {
+    return computeWaiterCashFrom(waiterId, payments, cashDrops);
   }
 
   const summaryWaiterIds = Array.from(
@@ -305,6 +323,27 @@ export default function CashierPage() {
     ? summaryRows.filter((r) => r.waiterId === waiterFilter)
     : summaryRows;
 
+  // A running, all-time list of who currently owes cash — carries forward
+  // across days automatically since it isn't scoped to the date filter at
+  // all, unlike the period Summary above. Only ever cleared by an actual
+  // Cash Drop, never by the calendar.
+  const pendingWaiterIds = Array.from(
+    new Set<string>([
+      ...(payments
+        .map((p) => p.waiterId)
+        .filter((id): id is string => Boolean(id)) as string[]),
+      ...cashDrops.map((d) => d.waiterId),
+    ])
+  );
+  const pendingRows = pendingWaiterIds
+    .map((waiterId) => ({
+      waiterId,
+      waiterName: staff.find((m) => m.id === waiterId)?.name ?? "Unknown",
+      pending: computeWaiterCashAllTime(waiterId).pending,
+    }))
+    .filter((r) => r.pending > 0 && (!waiterFilter || r.waiterId === waiterFilter))
+    .sort((a, b) => b.pending - a.pending);
+
   const historyRows = rangeDrops
     .filter((d) => !waiterFilter || d.waiterId === waiterFilter)
     .sort((a, b) => b.droppedAt - a.droppedAt)
@@ -328,11 +367,11 @@ export default function CashierPage() {
   }
   completedRange.sort((a, b) => b.payment.paidAt - a.payment.paidAt);
 
-  function openAddCashDrop() {
-    const initialWaiterId = waiterFilter || waiters[0]?.id || "";
+  function openAddCashDrop(preselectWaiterId?: string) {
+    const initialWaiterId = preselectWaiterId || waiterFilter || waiters[0]?.id || "";
     setCashDropWaiterId(initialWaiterId);
     setCashDropMethod("cash");
-    const pending = initialWaiterId ? computeWaiterCash(initialWaiterId).pending : 0;
+    const pending = initialWaiterId ? computeWaiterCashAllTime(initialWaiterId).pending : 0;
     setCashDropAmount(pending > 0 ? String(pending) : "");
     setCashDropReference("");
     setCashDropNote("");
@@ -341,7 +380,7 @@ export default function CashierPage() {
 
   function selectCashDropWaiter(waiterId: string) {
     setCashDropWaiterId(waiterId);
-    const pending = computeWaiterCash(waiterId).pending;
+    const pending = computeWaiterCashAllTime(waiterId).pending;
     setCashDropAmount(pending > 0 ? String(pending) : "");
     setCashDropNote("");
   }
@@ -351,7 +390,7 @@ export default function CashierPage() {
     const amount = Math.max(0, Number(cashDropAmount) || 0);
     if (amount <= 0) return;
     if (cashDropMethod === "mpesa" && !cashDropReference.trim()) return;
-    const expectedNow = computeWaiterCash(cashDropWaiterId).pending;
+    const expectedNow = computeWaiterCashAllTime(cashDropWaiterId).pending;
     // Bringing less than the full amount is a normal partial drop — the
     // waiter can clear the rest later, no explanation needed. Only bringing
     // MORE than expected is the genuinely unusual case worth a note.
@@ -366,6 +405,12 @@ export default function CashierPage() {
       isOverage ? cashDropNote : undefined
     );
     setCashDropOpen(false);
+    // The drop is always stamped with the real current time (never
+    // backdated to whatever period is being reviewed) — jump the view back
+    // to Today so it's immediately visible in History/Summary instead of
+    // silently landing outside the currently selected day/week.
+    setDateMode("day");
+    setDateValue(toISODate(new Date()));
   }
 
   return (
@@ -790,6 +835,55 @@ export default function CashierPage() {
         </div>
 
         <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
+          <div className="px-5 py-4 border-b border-warm-200">
+            <h2 className="font-extrabold text-slate-900">Pending Cash Drops</h2>
+            <p className="text-xs text-slate-500 font-semibold mt-0.5">
+              Running total of cash every waiter currently owes — carries
+              forward day to day until it&rsquo;s actually dropped. Not
+              limited to the period selected above.
+            </p>
+          </div>
+          {pendingRows.length === 0 ? (
+            <p className="text-slate-400 font-semibold text-center py-12">
+              Everyone is settled up — no pending cash right now.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[480px]">
+                <thead className="bg-warm-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
+                  <tr>
+                    <th className="text-left px-5 py-3">Waiter</th>
+                    <th className="text-right px-2 py-3">Pending</th>
+                    <th className="text-center px-5 py-3">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingRows.map((row) => (
+                    <tr key={row.waiterId} className="border-t border-warm-100">
+                      <td className="px-5 py-3 font-extrabold text-slate-900">
+                        {row.waiterName}
+                      </td>
+                      <td className="px-2 py-3 text-right font-extrabold text-amber-600">
+                        {formatKES(row.pending)}
+                      </td>
+                      <td className="px-5 py-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => openAddCashDrop(row.waiterId)}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-accent-600 hover:bg-accent-700 text-white text-xs font-extrabold px-3.5 py-1.5"
+                        >
+                          <Plus size={12} /> Add Cash Drop
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-warm-200">
             <h2 className="font-extrabold text-slate-900">
               Summary — Cash Per Waiter ({rangeLabel})
@@ -809,7 +903,7 @@ export default function CashierPage() {
               </select>
               <button
                 type="button"
-                onClick={openAddCashDrop}
+                onClick={() => openAddCashDrop()}
                 disabled={waiters.length === 0}
                 className="inline-flex items-center gap-1.5 rounded-full bg-accent-600 hover:bg-accent-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-extrabold px-3.5 py-2"
               >
@@ -1015,7 +1109,7 @@ export default function CashierPage() {
       </main>
 
       {cashDropOpen && (() => {
-        const cash = cashDropWaiterId ? computeWaiterCash(cashDropWaiterId) : null;
+        const cash = cashDropWaiterId ? computeWaiterCashAllTime(cashDropWaiterId) : null;
         const expectedNow = cash?.pending ?? 0;
         const counted = Math.max(0, Number(cashDropAmount) || 0);
         const hasAmount = cashDropAmount.trim() !== "";
