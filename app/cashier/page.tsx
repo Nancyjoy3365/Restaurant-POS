@@ -78,6 +78,7 @@ export default function CashierPage() {
   const [waiterFilter, setWaiterFilter] = useState("");
   const [dateMode, setDateMode] = useState<"day" | "week">("day");
   const [dateValue, setDateValue] = useState(() => toISODate(new Date()));
+  const [reconTab, setReconTab] = useState<"owed" | "history">("owed");
 
   const [cashDropOpen, setCashDropOpen] = useState(false);
   const [cashDropWaiterId, setCashDropWaiterId] = useState("");
@@ -301,48 +302,26 @@ export default function CashierPage() {
     return computeWaiterCashFrom(waiterId, payments, cashDrops);
   }
 
-  const summaryWaiterIds = Array.from(
-    new Set<string>([
-      ...(rangePayments
-        .map((p) => p.waiterId)
-        .filter((id): id is string => Boolean(id)) as string[]),
-      ...rangeDrops.map((d) => d.waiterId),
-    ])
-  );
-  const summaryRows = summaryWaiterIds.map((waiterId) => {
-    const waiter = staff.find((m) => m.id === waiterId);
-    const cash = computeWaiterCash(waiterId);
-    return {
-      waiterId,
-      waiterName: waiter?.name ?? "Unknown",
-      sumAll: cash.mpesaAmount + cash.cashAmount,
-      ...cash,
-    };
-  });
-  const filteredSummaryRows = waiterFilter
-    ? summaryRows.filter((r) => r.waiterId === waiterFilter)
-    : summaryRows;
-
-  // A running, all-time list of who currently owes cash — carries forward
-  // across days automatically since it isn't scoped to the date filter at
-  // all, unlike the period Summary above. Only ever cleared by an actual
-  // Cash Drop, never by the calendar.
-  const pendingWaiterIds = Array.from(
-    new Set<string>([
-      ...(payments
-        .map((p) => p.waiterId)
-        .filter((id): id is string => Boolean(id)) as string[]),
-      ...cashDrops.map((d) => d.waiterId),
-    ])
-  );
-  const pendingRows = pendingWaiterIds
-    .map((waiterId) => ({
-      waiterId,
-      waiterName: staff.find((m) => m.id === waiterId)?.name ?? "Unknown",
-      pending: computeWaiterCashAllTime(waiterId).pending,
-    }))
-    .filter((r) => r.pending > 0 && (!waiterFilter || r.waiterId === waiterFilter))
-    .sort((a, b) => b.pending - a.pending);
+  // One row per waiter, merging the period reconciliation figures (scoped
+  // to the selected day/week) with the all-time running balance (never
+  // scoped — carries forward across days until an actual Cash Drop clears
+  // it). Every waiter is listed, not just ones with activity in the
+  // selected period, so no one silently disappears from the board.
+  const owedRows = waiters
+    .filter((w) => !waiterFilter || w.id === waiterFilter)
+    .map((waiter) => {
+      const period = computeWaiterCash(waiter.id);
+      const totalPending = computeWaiterCashAllTime(waiter.id).pending;
+      return {
+        waiterId: waiter.id,
+        waiterName: waiter.name,
+        sumAll: period.mpesaAmount + period.cashAmount,
+        ...period,
+        pendingToday: period.pending,
+        totalPending,
+      };
+    })
+    .sort((a, b) => b.totalPending - a.totalPending);
 
   const historyRows = rangeDrops
     .filter((d) => !waiterFilter || d.waiterId === waiterFilter)
@@ -778,6 +757,35 @@ export default function CashierPage() {
 
         {tab === "reconciliation" && (
         <>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="inline-flex items-center rounded-full border border-warm-200 bg-warm-50 p-1">
+            <button
+              type="button"
+              onClick={() => setReconTab("owed")}
+              className={clsx(
+                "rounded-full px-3.5 py-1.5 text-xs font-extrabold transition-colors",
+                reconTab === "owed"
+                  ? "bg-accent-600 text-white"
+                  : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              Owed Now
+            </button>
+            <button
+              type="button"
+              onClick={() => setReconTab("history")}
+              className={clsx(
+                "rounded-full px-3.5 py-1.5 text-xs font-extrabold transition-colors",
+                reconTab === "history"
+                  ? "bg-accent-600 text-white"
+                  : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              History
+            </button>
+          </div>
+        </div>
+
         <div className="flex flex-wrap items-center gap-3">
           <div className="inline-flex items-center rounded-full border border-warm-200 bg-warm-50 p-1">
             <button
@@ -834,60 +842,19 @@ export default function CashierPage() {
           </span>
         </div>
 
-        <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
-          <div className="px-5 py-4 border-b border-warm-200">
-            <h2 className="font-extrabold text-slate-900">Pending Cash Drops</h2>
-            <p className="text-xs text-slate-500 font-semibold mt-0.5">
-              Running total of cash every waiter currently owes — carries
-              forward day to day until it&rsquo;s actually dropped. Not
-              limited to the period selected above.
-            </p>
-          </div>
-          {pendingRows.length === 0 ? (
-            <p className="text-slate-400 font-semibold text-center py-12">
-              Everyone is settled up — no pending cash right now.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[480px]">
-                <thead className="bg-warm-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
-                  <tr>
-                    <th className="text-left px-5 py-3">Waiter</th>
-                    <th className="text-right px-2 py-3">Pending</th>
-                    <th className="text-center px-5 py-3">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingRows.map((row) => (
-                    <tr key={row.waiterId} className="border-t border-warm-100">
-                      <td className="px-5 py-3 font-extrabold text-slate-900">
-                        {row.waiterName}
-                      </td>
-                      <td className="px-2 py-3 text-right font-extrabold text-amber-600">
-                        {formatKES(row.pending)}
-                      </td>
-                      <td className="px-5 py-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() => openAddCashDrop(row.waiterId)}
-                          className="inline-flex items-center gap-1.5 rounded-full bg-accent-600 hover:bg-accent-700 text-white text-xs font-extrabold px-3.5 py-1.5"
-                        >
-                          <Plus size={12} /> Add Cash Drop
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
+        {reconTab === "owed" ? (
         <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-warm-200">
-            <h2 className="font-extrabold text-slate-900">
-              Summary — Cash Per Waiter ({rangeLabel})
-            </h2>
+            <div>
+              <h2 className="font-extrabold text-slate-900">
+                Cash Owed Per Waiter
+              </h2>
+              <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                Bills/Drop columns are scoped to {rangeLabel}. Total Pending
+                carries forward day to day, regardless of the period above,
+                until it&rsquo;s actually dropped.
+              </p>
+            </div>
             <div className="flex items-center gap-2">
               <select
                 value={waiterFilter}
@@ -911,27 +878,35 @@ export default function CashierPage() {
               </button>
             </div>
           </div>
-          {filteredSummaryRows.length === 0 ? (
+          {owedRows.length === 0 ? (
             <p className="text-slate-400 font-semibold text-center py-12">
-              No payments or cash drops recorded for this period.
+              No waiters on file yet.
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[700px]">
+              <table className="w-full text-sm min-w-[980px]">
                 <thead className="bg-warm-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
                   <tr>
                     <th className="text-left px-5 py-3">Waiter</th>
                     <th className="text-right px-2 py-3">
-                      Sum of all bills (cash &amp; M-Pesa)
+                      Bills ({rangeLabel})
                     </th>
                     <th className="text-right px-2 py-3">M-Pesa Amount</th>
-                    <th className="text-right px-2 py-3">Expected Drop</th>
+                    <th className="text-right px-2 py-3">
+                      Expected Drop ({rangeLabel})
+                    </th>
                     <th className="text-right px-2 py-3">Cash Drop</th>
-                    <th className="text-right px-5 py-3">Pending</th>
+                    <th className="text-right px-2 py-3">
+                      Pending ({rangeLabel})
+                    </th>
+                    <th className="text-right px-2 py-3">
+                      Total Pending (All-Time)
+                    </th>
+                    <th className="text-center px-5 py-3">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredSummaryRows.map((row) => (
+                  {owedRows.map((row) => (
                     <tr key={row.waiterId} className="border-t border-warm-100">
                       <td className="px-5 py-3 font-extrabold text-slate-900">
                         {row.waiterName}
@@ -956,11 +931,28 @@ export default function CashierPage() {
                       </td>
                       <td
                         className={clsx(
-                          "px-5 py-3 text-right font-extrabold",
-                          row.pending > 0 ? "text-amber-600" : "text-slate-400"
+                          "px-2 py-3 text-right font-semibold",
+                          row.pendingToday > 0 ? "text-amber-600" : "text-slate-400"
                         )}
                       >
-                        {formatKES(row.pending)}
+                        {formatKES(row.pendingToday)}
+                      </td>
+                      <td
+                        className={clsx(
+                          "px-2 py-3 text-right font-extrabold",
+                          row.totalPending > 0 ? "text-amber-600" : "text-slate-400"
+                        )}
+                      >
+                        {formatKES(row.totalPending)}
+                      </td>
+                      <td className="px-5 py-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => openAddCashDrop(row.waiterId)}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-accent-600 hover:bg-accent-700 text-white text-xs font-extrabold px-3.5 py-1.5"
+                        >
+                          <Plus size={12} /> Add Cash Drop
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -969,7 +961,8 @@ export default function CashierPage() {
             </div>
           )}
         </div>
-
+        ) : (
+        <>
         <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
           <div className="px-5 py-4 border-b border-warm-200">
             <h2 className="font-extrabold text-slate-900">
@@ -1104,6 +1097,8 @@ export default function CashierPage() {
             </div>
           )}
         </div>
+        </>
+        )}
         </>
         )}
       </main>
