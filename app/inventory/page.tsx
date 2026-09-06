@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import clsx from "clsx";
-import { Pencil, Plus, PackagePlus, Banknote, History } from "lucide-react";
+import { Pencil, Plus, PackagePlus, Banknote, History, Trash2 } from "lucide-react";
 import { usePosStore } from "@/lib/store";
 import { formatKES } from "@/lib/utils";
 import { AddIngredientModal } from "@/components/inventory/AddIngredientModal";
@@ -31,6 +31,7 @@ export default function InventoryPage() {
   const ingredients = usePosStore((s) => s.ingredients);
   const vendors = usePosStore((s) => s.vendors);
   const stockPurchases = usePosStore((s) => s.stockPurchases);
+  const deleteVendor = usePosStore((s) => s.deleteVendor);
 
   function balanceOwed(vendorId: string): number {
     return stockPurchases
@@ -223,7 +224,11 @@ export default function InventoryPage() {
                             onClick={() => setPayoutVendor(v)}
                             disabled={owed <= 0}
                             aria-label={`Add payout for ${v.name}`}
-                            title="Add payout"
+                            title={
+                              owed <= 0
+                                ? "Nothing owed to this vendor yet — restock an item with them selected as the vendor first"
+                                : "Add payout"
+                            }
                             className="inline-flex items-center gap-1.5 rounded-full bg-accent-600 hover:bg-accent-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-extrabold px-3 py-1.5"
                           >
                             <Banknote size={12} /> Payout
@@ -236,6 +241,20 @@ export default function InventoryPage() {
                             className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-warm-200 text-slate-500 hover:border-accent-300 hover:text-accent-700"
                           >
                             <Pencil size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteVendor(v.id)}
+                            disabled={owed > 0}
+                            aria-label={`Delete ${v.name}`}
+                            title={
+                              owed > 0
+                                ? "Settle the balance owed before deleting this vendor"
+                                : `Delete ${v.name}`
+                            }
+                            className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-warm-200 text-slate-500 hover:border-rose-300 hover:text-rose-600 disabled:opacity-40 disabled:hover:border-warm-200 disabled:hover:text-slate-500"
+                          >
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       </td>

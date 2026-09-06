@@ -99,6 +99,7 @@ interface PosState {
   updateIngredient: (ingredientId: string, updates: Omit<Ingredient, "id">) => void;
   addVendor: (vendor: Omit<Vendor, "id">) => string;
   updateVendor: (vendorId: string, updates: Omit<Vendor, "id">) => void;
+  deleteVendor: (vendorId: string) => void;
   // Records a purchase from a vendor: appends the ledger line (unpaid by
   // default) AND folds it into the ingredient's on-hand quantity/cost basis
   // in the same action, since the two must never happen independently —
@@ -636,6 +637,16 @@ export const usePosStore = create<PosState>()(
           vendors: s.vendors.map((v) =>
             v.id === vendorId ? { ...updates, id: v.id } : v
           ),
+        })),
+
+      // Purchase/payment history is left in place rather than cascade-
+      // deleted — it's the audit trail, and lookups elsewhere already
+      // fall back to "Unknown vendor" for an id that no longer resolves.
+      // The UI is expected to block this while a balance is still owed, so
+      // deleting never happens to be how an outstanding debt disappears.
+      deleteVendor: (vendorId) =>
+        set((s) => ({
+          vendors: s.vendors.filter((v) => v.id !== vendorId),
         })),
 
       recordStockPurchase: (purchase) =>
