@@ -2,7 +2,8 @@ import type {
   Receipt,
   Recipe,
   Ingredient,
-  Vendor,
+  VendorPayment,
+  StockPurchase,
   StaffMember,
   ShiftEntry,
   Payment,
@@ -41,39 +42,31 @@ export function isToday(timestampMs: number, now = new Date()): boolean {
   return new Date(timestampMs).toDateString() === now.toDateString();
 }
 
-// Sums what was paid to vendors in [start, end] — a cash-out figure distinct
-// from COGS (which only counts ingredients actually used in a sold, recipe-
-// tracked dish). A Vendor only stores its single most recent payment, so
-// this reflects that snapshot rather than a full payment ledger.
+// Sums what was actually paid to vendors in [start, end] — a cash-out
+// figure distinct from COGS (which only counts ingredients actually used in
+// a sold, recipe-tracked dish). Reads the real VendorPayment ledger, not a
+// vendor snapshot, so multiple payments to the same vendor all count.
 export function vendorPaymentsInRange(
-  vendors: Vendor[],
+  vendorPayments: VendorPayment[],
   start: Date,
   end: Date
 ): number {
-  return vendors
-    .filter((v) => {
-      const paidAt = new Date(`${v.lastPaymentDate}T12:00:00`);
-      return paidAt >= start && paidAt <= end;
-    })
-    .reduce((sum, v) => sum + v.lastPaymentAmount, 0);
+  return vendorPayments
+    .filter((p) => p.paidAt >= start.getTime() && p.paidAt <= end.getTime())
+    .reduce((sum, p) => sum + p.amount, 0);
 }
 
-// Sums stock recorded as purchased in [start, end] — another cash-out figure
-// distinct from COGS. Only ingredients with a `purchasedAt` timestamp count;
-// entries saved before that field existed are excluded rather than guessed.
+// Sums stock purchased in [start, end] — another cash-out figure distinct
+// from COGS. Reads the StockPurchase ledger, so every restock counts, not
+// just an ingredient's single latest purchase snapshot.
 export function stockPurchasesInRange(
-  ingredients: Ingredient[],
+  stockPurchases: StockPurchase[],
   start: Date,
   end: Date
 ): number {
-  return ingredients
-    .filter(
-      (ing) =>
-        ing.purchasedAt !== undefined &&
-        ing.purchasedAt >= start.getTime() &&
-        ing.purchasedAt <= end.getTime()
-    )
-    .reduce((sum, ing) => sum + ing.totalCost, 0);
+  return stockPurchases
+    .filter((p) => p.purchasedAt >= start.getTime() && p.purchasedAt <= end.getTime())
+    .reduce((sum, p) => sum + p.totalCost, 0);
 }
 
 export interface NetBreakdown {
@@ -99,7 +92,8 @@ export function computeNetBreakdown(
   shifts: ShiftEntry[],
   payments: Payment[],
   leaveRecords: LeaveRecord[],
-  vendors: Vendor[],
+  vendorPaymentRecords: VendorPayment[],
+  stockPurchaseRecords: StockPurchase[],
   start: Date,
   end: Date
 ): NetBreakdown {
@@ -115,8 +109,8 @@ export function computeNetBreakdown(
       sum + payoutForRange(member, shifts, payments, leaveRecords, start, end),
     0
   );
-  const vendorPayments = vendorPaymentsInRange(vendors, start, end);
-  const stockPurchases = stockPurchasesInRange(ingredients, start, end);
+  const vendorPayments = vendorPaymentsInRange(vendorPaymentRecords, start, end);
+  const stockPurchases = stockPurchasesInRange(stockPurchaseRecords, start, end);
   const net = grossMargin - staffPayouts - vendorPayments - stockPurchases;
   return {
     revenue,

@@ -22,13 +22,18 @@ export function AddIngredientModal({
   item,
   onClose,
 }: {
-  // When provided, the modal edits this existing ingredient (a price
-  // correction, restock, etc.) instead of creating a new one.
+  // When provided, the modal edits this existing ingredient's own fields
+  // (a name/packaging/threshold correction) instead of creating a new one.
+  // Restocking an existing item is a separate flow (RestockModal) — it
+  // creates a purchase obligation with a vendor, which a plain correction
+  // here never should.
   item?: Ingredient;
   onClose: () => void;
 }) {
   const addIngredient = usePosStore((s) => s.addIngredient);
   const updateIngredient = usePosStore((s) => s.updateIngredient);
+  const recordStockPurchase = usePosStore((s) => s.recordStockPurchase);
+  const vendors = usePosStore((s) => s.vendors);
   const isEditing = Boolean(item);
 
   const [name, setName] = useState(item?.name ?? "");
@@ -37,13 +42,22 @@ export function AddIngredientModal({
   const [quantity, setQuantity] = useState(item ? String(item.quantity) : "");
   const [piece, setPiece] = useState(item ? String(item.piecesPerPackage) : "");
   const [unit, setUnit] = useState(item?.unit ?? UNIT_OPTIONS[0]);
+  const [vendorId, setVendorId] = useState(vendors[0]?.id ?? "");
 
   const amountNum = Number(amount) || 0;
   const quantityNum = Number(quantity) || 0;
   const pieceNum = Number(piece) || 0;
   const totalUnits = quantityNum * pieceNum;
   const unitCost = totalUnits > 0 ? amountNum / totalUnits : 0;
-  const canSave = name.trim().length > 0 && amountNum > 0 && quantityNum > 0 && pieceNum > 0;
+  // A brand-new item is also its opening purchase — a vendor obligation is
+  // created either way, so a vendor is required here too, not just on
+  // restock. Editing an existing item's own fields needs no vendor.
+  const canSave =
+    name.trim().length > 0 &&
+    amountNum > 0 &&
+    quantityNum > 0 &&
+    pieceNum > 0 &&
+    (isEditing || Boolean(vendorId));
 
   function handleSave() {
     if (!canSave) return;
@@ -67,7 +81,14 @@ export function AddIngredientModal({
     if (item) {
       updateIngredient(item.id, fields);
     } else {
-      addIngredient(fields);
+      const newId = addIngredient(fields);
+      recordStockPurchase({
+        vendorId,
+        ingredientId: newId,
+        quantity: quantityNum,
+        unitCost,
+        totalCost: amountNum,
+      });
     }
     onClose();
   }
@@ -101,6 +122,32 @@ export function AddIngredientModal({
               className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400"
             />
           </div>
+
+          {!isEditing && (
+            <div>
+              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
+                Vendor
+              </label>
+              {vendors.length === 0 ? (
+                <p className="mt-1 text-xs font-semibold text-rose-600">
+                  No vendors yet — add one on the Vendors tab before stocking
+                  an item, so this purchase has somewhere to be owed to.
+                </p>
+              ) : (
+                <select
+                  value={vendorId}
+                  onChange={(e) => setVendorId(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400 bg-white"
+                >
+                  {vendors.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>

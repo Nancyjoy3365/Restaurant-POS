@@ -10,6 +10,9 @@ import type {
   OrderLineItem,
   Ingredient,
   Vendor,
+  StockPurchase,
+  VendorPayment,
+  VendorPaymentMethod,
   Recipe,
   StaffMember,
   Receipt,
@@ -48,6 +51,8 @@ interface PosState {
   tickets: Ticket[];
   ingredients: Ingredient[];
   vendors: Vendor[];
+  stockPurchases: StockPurchase[];
+  vendorPayments: VendorPayment[];
   recipes: Recipe[];
   staff: StaffMember[];
   shifts: ShiftEntry[];
@@ -90,10 +95,29 @@ interface PosState {
   toggleMenuPriority: (menuItemId: string) => void;
   addMenuItem: (item: Omit<MenuItem, "id">) => void;
   updateMenuItem: (menuItemId: string, updates: Omit<MenuItem, "id">) => void;
-  addIngredient: (item: Omit<Ingredient, "id">) => void;
+  addIngredient: (item: Omit<Ingredient, "id">) => string;
   updateIngredient: (ingredientId: string, updates: Omit<Ingredient, "id">) => void;
-  addVendor: (vendor: Omit<Vendor, "id">) => void;
+  addVendor: (vendor: Omit<Vendor, "id">) => string;
   updateVendor: (vendorId: string, updates: Omit<Vendor, "id">) => void;
+  // Records a purchase from a vendor: appends the ledger line (unpaid by
+  // default) AND folds it into the ingredient's on-hand quantity/cost basis
+  // in the same action, since the two must never happen independently —
+  // this is the only link between Stock and Vendors.
+  recordStockPurchase: (purchase: {
+    vendorId: string;
+    ingredientId: string;
+    quantity: number;
+    unitCost: number;
+    totalCost: number;
+  }) => void;
+  // Settles a vendor's balance: records the payment and marks their oldest
+  // unpaid purchases as paid up to `amount`, without deleting any history.
+  recordVendorPayout: (
+    vendorId: string,
+    amount: number,
+    method: VendorPaymentMethod,
+    reference?: string
+  ) => void;
   addStaffMember: (member: Omit<StaffMember, "id">) => string;
   updateStaffMember: (staffId: string, updates: Omit<StaffMember, "id">) => void;
   clockIn: (staffId: string) => void;
@@ -213,6 +237,8 @@ export const usePosStore = create<PosState>()(
       tickets: seedTickets,
       ingredients: seedIngredients,
       vendors: seedVendors,
+      stockPurchases: [],
+      vendorPayments: [],
       recipes: seedRecipes,
       staff: seedStaff,
       shifts: seedShifts,
@@ -582,10 +608,13 @@ export const usePosStore = create<PosState>()(
           ),
         })),
 
-      addIngredient: (item) =>
+      addIngredient: (item) => {
+        const id = makeId("ingredient");
         set((s) => ({
-          ingredients: [...s.ingredients, { ...item, id: makeId("ingredient") }],
-        })),
+          ingredients: [...s.ingredients, { ...item, id }],
+        }));
+        return id;
+      },
 
       updateIngredient: (ingredientId, updates) =>
         set((s) => ({
@@ -594,10 +623,13 @@ export const usePosStore = create<PosState>()(
           ),
         })),
 
-      addVendor: (vendor) =>
+      addVendor: (vendor) => {
+        const id = makeId("vendor");
         set((s) => ({
-          vendors: [...s.vendors, { ...vendor, id: makeId("vendor") }],
-        })),
+          vendors: [...s.vendors, { ...vendor, id }],
+        }));
+        return id;
+      },
 
       updateVendor: (vendorId, updates) =>
         set((s) => ({
@@ -605,6 +637,78 @@ export const usePosStore = create<PosState>()(
             v.id === vendorId ? { ...updates, id: v.id } : v
           ),
         })),
+
+      recordStockPurchase: (purchase) =>
+        set((s) => {
+          const stockPurchase: StockPurchase = {
+            id: makeId("stockpurchase"),
+            vendorId: purchase.vendorId,
+            ingredientId: purchase.ingredientId,
+            quantity: purchase.quantity,
+            unitCost: purchase.unitCost,
+            totalCost: purchase.totalCost,
+            purchasedAt: Date.now(),
+            paid: false,
+          };
+          const ingredient = s.ingredients.find(
+            (ing) => ing.id === purchase.ingredientId
+          );
+          const ingredients = ingredient
+            ? s.ingredients.map((ing) =>
+                ing.id === purchase.ingredientId
+                  ? {
+                      ...ing,
+                      // On-hand quantity accumulates — a restock adds to
+                      // what's already there. Cost fields take the latest
+                      // purchase's basis (a "last cost" simplification)
+                      // since that's what the next sale should be costed
+                      // against going forward.
+                      quantity: ing.quantity + purchase.quantity,
+                      unitCost: purchase.unitCost,
+                      totalCost: purchase.totalCost,
+                    }
+                  : ing
+              )
+            : s.ingredients;
+          return {
+            stockPurchases: [...s.stockPurchases, stockPurchase],
+            ingredients,
+          };
+        }),
+
+      recordVendorPayout: (vendorId, amount, method, reference) =>
+        set((s) => {
+          if (amount <= 0) return s;
+          const payment: VendorPayment = {
+            id: makeId("vendorpayment"),
+            vendorId,
+            amount,
+            method,
+            reference: method === "mpesa" ? reference?.trim() || undefined : undefined,
+            paidAt: Date.now(),
+          };
+          // Oldest-first: keep marking whole purchases paid as long as the
+          // payout covers their full total. A payout that doesn't exactly
+          // cover the next oldest purchase just leaves it (and everything
+          // after it) unpaid — there's no partial-purchase state to track,
+          // only whole purchases.
+          const unpaidOldestFirst = s.stockPurchases
+            .filter((p) => p.vendorId === vendorId && !p.paid)
+            .sort((a, b) => a.purchasedAt - b.purchasedAt);
+          const paidIds = new Set<string>();
+          let remaining = amount;
+          for (const purchase of unpaidOldestFirst) {
+            if (remaining < purchase.totalCost) break;
+            paidIds.add(purchase.id);
+            remaining -= purchase.totalCost;
+          }
+          return {
+            vendorPayments: [...s.vendorPayments, payment],
+            stockPurchases: s.stockPurchases.map((p) =>
+              paidIds.has(p.id) ? { ...p, paid: true } : p
+            ),
+          };
+        }),
 
       addStaffMember: (member) => {
         const id = makeId("staff");
@@ -923,11 +1027,14 @@ export const usePosStore = create<PosState>()(
     }),
     {
       name: "pos-storage",
-      version: 26,
+      version: 27,
       migrate: (persistedState) => {
         const state = persistedState as Partial<PosState> & {
           menu?: Array<Record<string, unknown>>;
           ingredients?: Array<Record<string, unknown>>;
+          vendors?: Array<Record<string, unknown>>;
+          stockPurchases?: Array<Record<string, unknown>>;
+          vendorPayments?: Array<Record<string, unknown>>;
           recipes?: Array<Record<string, unknown>>;
           staff?: Array<Record<string, unknown>>;
           orders?: Record<string, Record<string, unknown>>;
@@ -971,9 +1078,21 @@ export const usePosStore = create<PosState>()(
               (ing) => !RETIRED_SEED_INGREDIENT_IDS.has(ing.id)
             )
           : seedIngredients;
-        const vendors = ((state.vendors ?? []) as unknown as Vendor[]).filter(
-          (v) => !RETIRED_SEED_VENDOR_IDS.has(v.id)
-        );
+        // Vendor dropped its payment-snapshot fields (paymentMethod,
+        // lastPaymentAmount, lastPaymentDate, lastPaymentReference,
+        // lastPaymentRecipientName) in favor of StockPurchase/VendorPayment
+        // ledgers — normalize away any of those from a browser that still
+        // has the old shape persisted rather than carrying dead fields
+        // forward forever.
+        const vendors = (state.vendors ?? [])
+          .filter((v) => !RETIRED_SEED_VENDOR_IDS.has(v.id as string))
+          .map((v) => ({
+            id: v.id as string,
+            name: v.name as string,
+            category: v.category as string,
+          }));
+        const stockPurchases = (state.stockPurchases ?? []) as unknown as StockPurchase[];
+        const vendorPayments = (state.vendorPayments ?? []) as unknown as VendorPayment[];
         const hasCurrentRecipeShape = state.recipes?.every(
           (r) => typeof r.menuItemId === "string"
         );
@@ -1077,6 +1196,8 @@ export const usePosStore = create<PosState>()(
           menu: [...seedMenu, ...(customMenuItems as unknown as MenuItem[])],
           ingredients,
           vendors,
+          stockPurchases,
+          vendorPayments,
           recipes: hasCurrentRecipeShape ? state.recipes : seedRecipes,
           staff,
           currentStaffId,

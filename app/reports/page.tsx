@@ -48,6 +48,8 @@ export default function ReportsPage() {
   const payments = usePosStore((s) => s.payments);
   const leaveRecords = usePosStore((s) => s.leaveRecords);
   const vendors = usePosStore((s) => s.vendors);
+  const stockPurchases = usePosStore((s) => s.stockPurchases);
+  const vendorPayments = usePosStore((s) => s.vendorPayments);
 
   const todayStr = toDateInputValue(new Date());
   const [fromDate, setFromDate] = useState(todayStr);
@@ -77,7 +79,8 @@ export default function ReportsPage() {
     shifts,
     payments,
     leaveRecords,
-    vendors,
+    vendorPayments,
+    stockPurchases,
     rangeStart,
     rangeEnd
   );
@@ -102,15 +105,12 @@ export default function ReportsPage() {
     }))
     .filter((r) => r.payout > 0);
 
-  const vendorsInRange = vendors.filter((v) => {
-    const paidAt = new Date(`${v.lastPaymentDate}T12:00:00`);
-    return paidAt >= rangeStart && paidAt <= rangeEnd;
-  });
-  const stockInRange = ingredients.filter(
-    (ing) =>
-      ing.purchasedAt !== undefined &&
-      ing.purchasedAt >= rangeStart.getTime() &&
-      ing.purchasedAt <= rangeEnd.getTime()
+  const vendorPaymentsInRangeList = vendorPayments.filter(
+    (p) => p.paidAt >= rangeStart.getTime() && p.paidAt <= rangeEnd.getTime()
+  );
+  const stockPurchasesInRangeList = stockPurchases.filter(
+    (p) =>
+      p.purchasedAt >= rangeStart.getTime() && p.purchasedAt <= rangeEnd.getTime()
   );
 
   const itemTally = itemSalesTally(receiptsInRange);
@@ -135,7 +135,7 @@ export default function ReportsPage() {
       dayEnd.setHours(23, 59, 59, 999);
       const dayBreakdown = computeNetBreakdown(
         receipts, recipes, ingredients, staff, shifts, payments,
-        leaveRecords, vendors, dayStart, dayEnd
+        leaveRecords, vendorPayments, stockPurchases, dayStart, dayEnd
       );
       trendPoints.push({
         dateKey: toDateInputValue(cursor),
@@ -328,58 +328,64 @@ export default function ReportsPage() {
           </div>
         )}
 
-        {vendorsInRange.length > 0 && (
+        {vendorPaymentsInRangeList.length > 0 && (
           <div className="rounded-xl border border-warm-200 bg-white p-5">
             <h2 className="font-extrabold text-slate-900 mb-1">
               Vendor Payments
             </h2>
             <p className="text-xs text-slate-500 font-semibold mb-3">
-              Vendors whose last recorded payment date falls in the selected
-              period.
+              Payouts recorded to vendors in the selected period.
             </p>
             <div className="space-y-1.5">
-              {vendorsInRange.map((v) => (
-                <div key={v.id} className="flex justify-between text-sm">
-                  <span className="font-bold text-slate-700">
-                    {v.name}{" "}
-                    <span className="text-slate-400 font-semibold">
-                      · {v.category}
-                      {v.paymentMethod === "mpesa" && v.lastPaymentReference
-                        ? ` · Code: ${v.lastPaymentReference}`
-                        : ""}
+              {vendorPaymentsInRangeList.map((p) => {
+                const vendor = vendors.find((v) => v.id === p.vendorId);
+                return (
+                  <div key={p.id} className="flex justify-between text-sm">
+                    <span className="font-bold text-slate-700">
+                      {vendor?.name ?? "Unknown vendor"}{" "}
+                      <span className="text-slate-400 font-semibold">
+                        · {p.method === "mpesa" ? "M-Pesa" : "Cash"}
+                        {p.method === "mpesa" && p.reference
+                          ? ` · Code: ${p.reference}`
+                          : ""}
+                      </span>
                     </span>
-                  </span>
-                  <span className="font-extrabold text-slate-900">
-                    {formatKES(v.lastPaymentAmount)}
-                  </span>
-                </div>
-              ))}
+                    <span className="font-extrabold text-slate-900">
+                      {formatKES(p.amount)}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {stockInRange.length > 0 && (
+        {stockPurchasesInRangeList.length > 0 && (
           <div className="rounded-xl border border-warm-200 bg-white p-5">
             <h2 className="font-extrabold text-slate-900 mb-1">
               Stock Purchases
             </h2>
             <p className="text-xs text-slate-500 font-semibold mb-3">
-              Inventory items recorded as purchased in the selected period.
+              Purchases recorded from vendors in the selected period.
             </p>
             <div className="space-y-1.5">
-              {stockInRange.map((ing) => (
-                <div key={ing.id} className="flex justify-between text-sm">
-                  <span className="font-bold text-slate-700">
-                    {ing.name}{" "}
-                    <span className="text-slate-400 font-semibold">
-                      · {ing.packaging}
+              {stockPurchasesInRangeList.map((p) => {
+                const ingredient = ingredients.find((i) => i.id === p.ingredientId);
+                const vendor = vendors.find((v) => v.id === p.vendorId);
+                return (
+                  <div key={p.id} className="flex justify-between text-sm">
+                    <span className="font-bold text-slate-700">
+                      {ingredient?.name ?? "Deleted item"}{" "}
+                      <span className="text-slate-400 font-semibold">
+                        · {vendor?.name ?? "Unknown vendor"}
+                      </span>
                     </span>
-                  </span>
-                  <span className="font-extrabold text-slate-900">
-                    {formatKES(ing.totalCost)}
-                  </span>
-                </div>
-              ))}
+                    <span className="font-extrabold text-slate-900">
+                      {formatKES(p.totalCost)}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

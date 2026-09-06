@@ -131,25 +131,56 @@ export interface Ingredient {
   unitCost: number;
   // When this stock entry was first recorded — optional so ingredients
   // saved before this field existed aren't wiped. Set once on creation and
-  // never touched by an edit (a price correction isn't a new purchase), so
-  // Financial Summary can scope "Stock Purchases" to a date range without
-  // double-counting a corrected entry as a fresh purchase.
+  // never touched by an edit (a price correction isn't a new purchase).
+  // `totalCost`/`unitCost` reflect the most recent purchase (a "last cost"
+  // basis for quick display and COGS lookups) — the actual purchase-by-
+  // purchase record lives in StockPurchase below, which is what Financial
+  // Summary and vendor balances are computed from.
   purchasedAt?: number;
 }
 
 export type VendorPaymentMethod = "cash" | "mpesa";
 
+// A vendor is just an identity — name/category. It carries no payment
+// snapshot of its own: how much is owed and what's been paid are both
+// derived from StockPurchase/VendorPayment below, never stored here.
 export interface Vendor {
   id: string;
   name: string;
   category: string;
-  paymentMethod: VendorPaymentMethod;
-  lastPaymentAmount: number;
-  lastPaymentDate: string;
-  // Only meaningful when paymentMethod is "mpesa" — the confirmation code
-  // and the name on the M-Pesa transaction, for reconciliation.
-  lastPaymentReference?: string;
-  lastPaymentRecipientName?: string;
+}
+
+// One purchase event from a vendor — the accounts-payable ledger line. A
+// purchase both restocks an ingredient (its `quantity` adds to the
+// ingredient's on-hand quantity) and creates an obligation to pay the
+// vendor `totalCost`, tracked via `paid` until a VendorPayment settles it.
+export interface StockPurchase {
+  id: string;
+  vendorId: string;
+  ingredientId: string;
+  // Packages purchased in this event (same unit as Ingredient.quantity).
+  quantity: number;
+  // Cost per base unit (kg/litre/pc/g/ml) — same meaning as
+  // Ingredient.unitCost, computed the same way (totalCost ÷ (quantity ×
+  // piecesPerPackage)) at the time of this purchase.
+  unitCost: number;
+  totalCost: number;
+  purchasedAt: number;
+  paid: boolean;
+}
+
+// A real payment made to a vendor — settles one or more StockPurchase rows
+// (oldest first) up to `amount`. This is what Financial Summary's "Vendor
+// Payments" figure sums, and what a vendor's balance owed is reduced by.
+export interface VendorPayment {
+  id: string;
+  vendorId: string;
+  amount: number;
+  method: VendorPaymentMethod;
+  // Only meaningful when method is "mpesa" — the confirmation code, for
+  // reconciliation.
+  reference?: string;
+  paidAt: number;
 }
 
 export interface RecipeComponent {

@@ -1,16 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import clsx from "clsx";
-import { X, Banknote, Smartphone } from "lucide-react";
+import { X } from "lucide-react";
 import { usePosStore } from "@/lib/store";
-import { toDateKey } from "@/lib/utils";
-import type { Vendor, VendorPaymentMethod } from "@/lib/types";
-
-const PAYMENT_METHODS: { id: VendorPaymentMethod; label: string; icon: typeof Banknote }[] = [
-  { id: "cash", label: "Cash", icon: Banknote },
-  { id: "mpesa", label: "M-Pesa", icon: Smartphone },
-];
+import type { Vendor } from "@/lib/types";
 
 export function AddVendorModal({
   vendor,
@@ -27,23 +20,7 @@ export function AddVendorModal({
 
   const [name, setName] = useState(vendor?.name ?? "");
   const [category, setCategory] = useState(vendor?.category ?? "");
-  const [paymentMethod, setPaymentMethod] = useState<VendorPaymentMethod>(
-    vendor?.paymentMethod ?? "cash"
-  );
-  const [lastPaymentAmount, setLastPaymentAmount] = useState(
-    vendor ? String(vendor.lastPaymentAmount) : ""
-  );
-  const [lastPaymentDate, setLastPaymentDate] = useState(
-    vendor?.lastPaymentDate ?? toDateKey(new Date())
-  );
-  const [lastPaymentReference, setLastPaymentReference] = useState(
-    vendor?.lastPaymentReference ?? ""
-  );
-  const [lastPaymentRecipientName, setLastPaymentRecipientName] = useState(
-    vendor?.lastPaymentRecipientName ?? ""
-  );
 
-  const amountNum = Number(lastPaymentAmount) || 0;
   const canSave = name.trim().length > 0 && category.trim().length > 0;
 
   function handleSave() {
@@ -51,17 +28,6 @@ export function AddVendorModal({
     const fields = {
       name: name.trim(),
       category: category.trim(),
-      paymentMethod,
-      lastPaymentAmount: amountNum,
-      lastPaymentDate,
-      lastPaymentReference:
-        paymentMethod === "mpesa"
-          ? lastPaymentReference.trim() || undefined
-          : undefined,
-      lastPaymentRecipientName:
-        paymentMethod === "mpesa"
-          ? lastPaymentRecipientName.trim() || undefined
-          : undefined,
     };
     if (vendor) {
       updateVendor(vendor.id, fields);
@@ -97,6 +63,7 @@ export function AddVendorModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Wangige Grain Millers"
+              autoFocus
               className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400"
             />
           </div>
@@ -111,83 +78,6 @@ export function AddVendorModal({
               placeholder="e.g. Grains & Flour"
               className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400"
             />
-          </div>
-
-          <div>
-            <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-              Payment Method
-            </label>
-            <div className="grid grid-cols-2 gap-2 mt-1">
-              {PAYMENT_METHODS.map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setPaymentMethod(id)}
-                  className={clsx(
-                    "flex items-center justify-center gap-2 rounded-xl border-2 py-2.5 font-extrabold text-sm transition-colors",
-                    paymentMethod === id
-                      ? "border-accent-600 bg-accent-50 text-accent-700"
-                      : "border-warm-200 text-slate-500 hover:border-accent-300"
-                  )}
-                >
-                  <Icon size={16} />
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {paymentMethod === "mpesa" && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-                  M-Pesa Code
-                </label>
-                <input
-                  value={lastPaymentReference}
-                  onChange={(e) => setLastPaymentReference(e.target.value)}
-                  placeholder="e.g. QAB1XYZ23"
-                  className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-                  Name on M-Pesa
-                </label>
-                <input
-                  value={lastPaymentRecipientName}
-                  onChange={(e) => setLastPaymentRecipientName(e.target.value)}
-                  placeholder="e.g. Jane Wanjiru"
-                  className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400"
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-                Last Payment (KES)
-              </label>
-              <input
-                type="number"
-                value={lastPaymentAmount}
-                onChange={(e) => setLastPaymentAmount(e.target.value)}
-                placeholder="e.g. 24000"
-                className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-                Date
-              </label>
-              <input
-                type="date"
-                value={lastPaymentDate}
-                onChange={(e) => setLastPaymentDate(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400"
-              />
-            </div>
           </div>
         </div>
 

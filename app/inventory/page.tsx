@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import clsx from "clsx";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, PackagePlus, Banknote, History } from "lucide-react";
 import { usePosStore } from "@/lib/store";
 import { formatKES } from "@/lib/utils";
 import { AddIngredientModal } from "@/components/inventory/AddIngredientModal";
+import { RestockModal } from "@/components/inventory/RestockModal";
 import { AddVendorModal } from "@/components/inventory/AddVendorModal";
+import { VendorPayoutModal } from "@/components/inventory/VendorPayoutModal";
+import { VendorHistoryModal } from "@/components/inventory/VendorHistoryModal";
 import type { Ingredient, Vendor } from "@/lib/types";
 
 type Tab = "stock" | "vendors";
@@ -20,10 +23,20 @@ export default function InventoryPage() {
   const [tab, setTab] = useState<Tab>("stock");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
+  const [restockingItem, setRestockingItem] = useState<Ingredient | null>(null);
   const [showAddVendorModal, setShowAddVendorModal] = useState(false);
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
+  const [payoutVendor, setPayoutVendor] = useState<Vendor | null>(null);
+  const [historyVendor, setHistoryVendor] = useState<Vendor | null>(null);
   const ingredients = usePosStore((s) => s.ingredients);
   const vendors = usePosStore((s) => s.vendors);
+  const stockPurchases = usePosStore((s) => s.stockPurchases);
+
+  function balanceOwed(vendorId: string): number {
+    return stockPurchases
+      .filter((p) => p.vendorId === vendorId && !p.paid)
+      .reduce((sum, p) => sum + p.totalCost, 0);
+  }
 
   return (
     <div className="flex-1 flex flex-col lg:h-full lg:overflow-hidden">
@@ -75,6 +88,7 @@ export default function InventoryPage() {
                 No stock items yet — use &ldquo;Add Item&rdquo; to get started.
               </p>
             ) : (
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-warm-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
                 <tr>
@@ -114,7 +128,16 @@ export default function InventoryPage() {
                         {ing.unit}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex justify-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setRestockingItem(ing)}
+                            aria-label={`Restock ${ing.name}`}
+                            title={`Restock ${ing.name}`}
+                            className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-warm-200 text-slate-500 hover:border-accent-300 hover:text-accent-700"
+                          >
+                            <PackagePlus size={14} />
+                          </button>
                           <button
                             type="button"
                             onClick={() => setEditingIngredient(ing)}
@@ -144,6 +167,7 @@ export default function InventoryPage() {
                 </tr>
               </tfoot>
             </table>
+            </div>
             )}
           </div>
         )}
@@ -160,64 +184,64 @@ export default function InventoryPage() {
                 <tr>
                   <th className="text-left px-4 py-3">Vendor</th>
                   <th className="text-left px-2 py-3">Category</th>
-                  <th className="text-center px-2 py-3">Payment Method</th>
-                  <th className="text-right px-2 py-3">Last Payment</th>
-                  <th className="text-right px-2 py-3">Date</th>
+                  <th className="text-right px-2 py-3">Balance Owed</th>
                   <th className="text-center px-4 py-3">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {vendors.map((v) => (
-                  <tr key={v.id} className="border-t border-slate-100">
-                    <td className="px-4 py-3 font-bold text-slate-900">
-                      {v.name}
-                    </td>
-                    <td className="px-2 py-3 text-slate-600 font-semibold">
-                      {v.category}
-                    </td>
-                    <td className="px-2 py-3">
-                      <div className="flex flex-col items-center gap-0.5">
-                        <span
-                          className={clsx(
-                            "rounded-full text-[11px] font-extrabold px-2.5 py-1 text-white",
-                            v.paymentMethod === "mpesa"
-                              ? "bg-status-occupied"
-                              : "bg-status-free"
-                          )}
-                        >
-                          {v.paymentMethod === "mpesa" ? "M-Pesa" : "Cash"}
-                        </span>
-                        {v.paymentMethod === "mpesa" &&
-                          (v.lastPaymentReference || v.lastPaymentRecipientName) && (
-                            <span className="text-[10px] text-slate-400 font-semibold whitespace-nowrap">
-                              {v.lastPaymentReference}
-                              {v.lastPaymentReference && v.lastPaymentRecipientName && " · "}
-                              {v.lastPaymentRecipientName}
-                            </span>
-                          )}
-                      </div>
-                    </td>
-                    <td className="px-2 py-3 text-right font-semibold text-slate-700">
-                      {formatKES(v.lastPaymentAmount)}
-                    </td>
-                    <td className="px-2 py-3 text-right text-slate-500 font-semibold">
-                      {v.lastPaymentDate}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-center">
-                        <button
-                          type="button"
-                          onClick={() => setEditingVendor(v)}
-                          aria-label={`Edit ${v.name}`}
-                          title={`Edit ${v.name}`}
-                          className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-warm-200 text-slate-500 hover:border-accent-300 hover:text-accent-700"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {vendors.map((v) => {
+                  const owed = balanceOwed(v.id);
+                  return (
+                    <tr key={v.id} className="border-t border-slate-100">
+                      <td className="px-4 py-3 font-bold text-slate-900">
+                        {v.name}
+                      </td>
+                      <td className="px-2 py-3 text-slate-600 font-semibold">
+                        {v.category}
+                      </td>
+                      <td
+                        className={clsx(
+                          "px-2 py-3 text-right font-extrabold",
+                          owed > 0 ? "text-amber-600" : "text-slate-400"
+                        )}
+                      >
+                        {formatKES(owed)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setHistoryVendor(v)}
+                            aria-label={`View history for ${v.name}`}
+                            title="Purchase & payment history"
+                            className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-warm-200 text-slate-500 hover:border-accent-300 hover:text-accent-700"
+                          >
+                            <History size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPayoutVendor(v)}
+                            disabled={owed <= 0}
+                            aria-label={`Add payout for ${v.name}`}
+                            title="Add payout"
+                            className="inline-flex items-center gap-1.5 rounded-full bg-accent-600 hover:bg-accent-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-extrabold px-3 py-1.5"
+                          >
+                            <Banknote size={12} /> Payout
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingVendor(v)}
+                            aria-label={`Edit ${v.name}`}
+                            title={`Edit ${v.name}`}
+                            className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-warm-200 text-slate-500 hover:border-accent-300 hover:text-accent-700"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             )}
@@ -234,6 +258,12 @@ export default function InventoryPage() {
           onClose={() => setEditingIngredient(null)}
         />
       )}
+      {restockingItem && (
+        <RestockModal
+          item={restockingItem}
+          onClose={() => setRestockingItem(null)}
+        />
+      )}
       {showAddVendorModal && (
         <AddVendorModal onClose={() => setShowAddVendorModal(false)} />
       )}
@@ -241,6 +271,19 @@ export default function InventoryPage() {
         <AddVendorModal
           vendor={editingVendor}
           onClose={() => setEditingVendor(null)}
+        />
+      )}
+      {payoutVendor && (
+        <VendorPayoutModal
+          vendor={payoutVendor}
+          balanceOwed={balanceOwed(payoutVendor.id)}
+          onClose={() => setPayoutVendor(null)}
+        />
+      )}
+      {historyVendor && (
+        <VendorHistoryModal
+          vendor={historyVendor}
+          onClose={() => setHistoryVendor(null)}
         />
       )}
     </div>
