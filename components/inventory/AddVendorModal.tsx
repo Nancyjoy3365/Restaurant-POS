@@ -28,6 +28,7 @@ export function AddVendorModal({
     const fields = {
       name: name.trim(),
       category: category.trim(),
+      active: vendor?.active,
     };
     if (vendor) {
       updateVendor(vendor.id, fields);

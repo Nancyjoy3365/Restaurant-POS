@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import clsx from "clsx";
-import { Pencil, Plus, PackagePlus, Banknote, History, Trash2 } from "lucide-react";
+import { Pencil, Plus, PackagePlus, Banknote, History, Ban, RotateCcw } from "lucide-react";
 import { usePosStore } from "@/lib/store";
 import { formatKES } from "@/lib/utils";
 import { AddIngredientModal } from "@/components/inventory/AddIngredientModal";
@@ -12,12 +12,21 @@ import { VendorPayoutModal } from "@/components/inventory/VendorPayoutModal";
 import { VendorHistoryModal } from "@/components/inventory/VendorHistoryModal";
 import type { Ingredient, Vendor } from "@/lib/types";
 
-type Tab = "stock" | "vendors";
+type Tab = "stock" | "vendors" | "history";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "stock", label: "Stock" },
   { id: "vendors", label: "Vendors" },
+  { id: "history", label: "Payment History" },
 ];
+
+function formatPaymentDate(ts: number): string {
+  return new Date(ts).toLocaleDateString("en-KE", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 export default function InventoryPage() {
   const [tab, setTab] = useState<Tab>("stock");
@@ -28,10 +37,17 @@ export default function InventoryPage() {
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
   const [payoutVendor, setPayoutVendor] = useState<Vendor | null>(null);
   const [historyVendor, setHistoryVendor] = useState<Vendor | null>(null);
+  const [historyVendorFilter, setHistoryVendorFilter] = useState("");
   const ingredients = usePosStore((s) => s.ingredients);
   const vendors = usePosStore((s) => s.vendors);
   const stockPurchases = usePosStore((s) => s.stockPurchases);
-  const deleteVendor = usePosStore((s) => s.deleteVendor);
+  const vendorPayments = usePosStore((s) => s.vendorPayments);
+  const setVendorActive = usePosStore((s) => s.setVendorActive);
+
+  const paymentHistory = vendorPayments
+    .filter((p) => !historyVendorFilter || p.vendorId === historyVendorFilter)
+    .slice()
+    .sort((a, b) => b.paidAt - a.paidAt);
 
   function balanceOwed(vendorId: string): number {
     return stockPurchases
@@ -190,12 +206,28 @@ export default function InventoryPage() {
                 </tr>
               </thead>
               <tbody>
-                {vendors.map((v) => {
+                {[...vendors]
+                  .sort(
+                    (a, b) => Number(a.active === false) - Number(b.active === false)
+                  )
+                  .map((v) => {
                   const owed = balanceOwed(v.id);
+                  const isActive = v.active !== false;
                   return (
-                    <tr key={v.id} className="border-t border-slate-100">
+                    <tr
+                      key={v.id}
+                      className={clsx(
+                        "border-t border-slate-100",
+                        !isActive && "bg-slate-50 opacity-60"
+                      )}
+                    >
                       <td className="px-4 py-3 font-bold text-slate-900">
                         {v.name}
+                        {!isActive && (
+                          <span className="ml-2 inline-flex items-center rounded-full bg-slate-200 text-slate-600 text-[10px] font-extrabold px-2 py-0.5 align-middle">
+                            Deactivated
+                          </span>
+                        )}
                       </td>
                       <td className="px-2 py-3 text-slate-600 font-semibold">
                         {v.category}
@@ -242,20 +274,32 @@ export default function InventoryPage() {
                           >
                             <Pencil size={14} />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => deleteVendor(v.id)}
-                            disabled={owed > 0}
-                            aria-label={`Delete ${v.name}`}
-                            title={
-                              owed > 0
-                                ? "Settle the balance owed before deleting this vendor"
-                                : `Delete ${v.name}`
-                            }
-                            className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-warm-200 text-slate-500 hover:border-rose-300 hover:text-rose-600 disabled:opacity-40 disabled:hover:border-warm-200 disabled:hover:text-slate-500"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          {isActive ? (
+                            <button
+                              type="button"
+                              onClick={() => setVendorActive(v.id, false)}
+                              disabled={owed > 0}
+                              aria-label={`Deactivate ${v.name}`}
+                              title={
+                                owed > 0
+                                  ? "Settle the balance owed before deactivating this vendor"
+                                  : `Deactivate ${v.name}`
+                              }
+                              className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-warm-200 text-slate-500 hover:border-rose-300 hover:text-rose-600 disabled:opacity-40 disabled:hover:border-warm-200 disabled:hover:text-slate-500"
+                            >
+                              <Ban size={14} />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setVendorActive(v.id, true)}
+                              aria-label={`Reactivate ${v.name}`}
+                              title={`Reactivate ${v.name}`}
+                              className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-warm-200 text-slate-500 hover:border-emerald-300 hover:text-emerald-600"
+                            >
+                              <RotateCcw size={14} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -263,6 +307,85 @@ export default function InventoryPage() {
                 })}
               </tbody>
             </table>
+            )}
+          </div>
+        )}
+
+        {tab === "history" && (
+          <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-warm-200">
+              <h2 className="font-extrabold text-slate-900">
+                Vendor Payment History
+              </h2>
+              <select
+                value={historyVendorFilter}
+                onChange={(e) => setHistoryVendorFilter(e.target.value)}
+                className="rounded-full border border-warm-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-600 outline-none focus:border-accent-400"
+              >
+                <option value="">All Vendors</option>
+                {vendors.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {paymentHistory.length === 0 ? (
+              <p className="text-slate-400 font-semibold text-center py-12">
+                No vendor payments recorded yet.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
+                    <tr>
+                      <th className="text-left px-4 py-3">Date</th>
+                      <th className="text-left px-2 py-3">Vendor</th>
+                      <th className="text-left px-2 py-3">Method</th>
+                      <th className="text-left px-2 py-3">Reference</th>
+                      <th className="text-right px-4 py-3">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paymentHistory.map((p) => {
+                      const vendorName =
+                        vendors.find((v) => v.id === p.vendorId)?.name ??
+                        "Unknown vendor";
+                      return (
+                        <tr key={p.id} className="border-t border-slate-100">
+                          <td className="px-4 py-3 text-slate-600 font-semibold whitespace-nowrap">
+                            {formatPaymentDate(p.paidAt)}
+                          </td>
+                          <td className="px-2 py-3 font-bold text-slate-900">
+                            {vendorName}
+                          </td>
+                          <td className="px-2 py-3 text-slate-700 font-semibold">
+                            {p.method === "mpesa" ? "M-Pesa" : "Cash"}
+                          </td>
+                          <td className="px-2 py-3 text-slate-600 font-semibold">
+                            {p.reference || "—"}
+                          </td>
+                          <td className="px-4 py-3 text-right font-extrabold text-slate-900">
+                            {formatKES(p.amount)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-warm-200 bg-warm-50">
+                      <td colSpan={4} className="px-4 py-3 text-right font-extrabold text-slate-700">
+                        Total Paid
+                      </td>
+                      <td className="px-4 py-3 text-right font-black text-slate-900">
+                        {formatKES(
+                          paymentHistory.reduce((sum, p) => sum + p.amount, 0)
+                        )}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             )}
           </div>
         )}

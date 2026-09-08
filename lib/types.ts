@@ -154,6 +154,12 @@ export interface Vendor {
   id: string;
   name: string;
   category: string;
+  // A deactivated vendor is kept (and its history intact) rather than
+  // deleted, so past purchases/payments never lose their vendor — it's
+  // just excluded from new activity and pushed to the bottom of the list.
+  // Optional so vendors saved before this field existed aren't wiped;
+  // treat a missing value as active.
+  active?: boolean;
 }
 
 // One purchase event from a vendor — the accounts-payable ledger line. A

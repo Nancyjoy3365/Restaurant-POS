@@ -106,7 +106,7 @@ export function BillPreview({
             <span>{formatKES(total)}</span>
           </div>
           <div className="text-center text-[10px] text-slate-500">
-            VAT is included
+            Prices inclusive of VAT where applicable
           </div>
         </div>
 

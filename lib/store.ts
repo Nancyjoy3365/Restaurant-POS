@@ -99,7 +99,7 @@ interface PosState {
   updateIngredient: (ingredientId: string, updates: Omit<Ingredient, "id">) => void;
   addVendor: (vendor: Omit<Vendor, "id">) => string;
   updateVendor: (vendorId: string, updates: Omit<Vendor, "id">) => void;
-  deleteVendor: (vendorId: string) => void;
+  setVendorActive: (vendorId: string, active: boolean) => void;
   // Records a purchase from a vendor: appends the ledger line (unpaid by
   // default) AND folds it into the ingredient's on-hand quantity/cost basis
   // in the same action, since the two must never happen independently —
@@ -639,14 +639,16 @@ export const usePosStore = create<PosState>()(
           ),
         })),
 
-      // Purchase/payment history is left in place rather than cascade-
-      // deleted — it's the audit trail, and lookups elsewhere already
-      // fall back to "Unknown vendor" for an id that no longer resolves.
-      // The UI is expected to block this while a balance is still owed, so
-      // deleting never happens to be how an outstanding debt disappears.
-      deleteVendor: (vendorId) =>
+      // A vendor is deactivated rather than deleted — its purchase/payment
+      // history stays intact and fully attributed, it just drops out of new
+      // activity (e.g. vendor pickers elsewhere) and sinks to the bottom of
+      // the list, greyed out. The UI is expected to block this while a
+      // balance is still owed, same as the old delete used to.
+      setVendorActive: (vendorId, active) =>
         set((s) => ({
-          vendors: s.vendors.filter((v) => v.id !== vendorId),
+          vendors: s.vendors.map((v) =>
+            v.id === vendorId ? { ...v, active } : v
+          ),
         })),
 
       recordStockPurchase: (purchase) =>
@@ -1101,6 +1103,7 @@ export const usePosStore = create<PosState>()(
             id: v.id as string,
             name: v.name as string,
             category: v.category as string,
+            active: v.active as boolean | undefined,
           }));
         const stockPurchases = (state.stockPurchases ?? []) as unknown as StockPurchase[];
         const vendorPayments = (state.vendorPayments ?? []) as unknown as VendorPayment[];
