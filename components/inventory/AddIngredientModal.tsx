@@ -40,7 +40,6 @@ export function AddIngredientModal({
   const [name, setName] = useState(item?.name ?? "");
   const [packaging, setPackaging] = useState(item?.packaging ?? PACKAGING_OPTIONS[0]);
   const [amount, setAmount] = useState(item ? String(item.totalCost) : "");
-  const [piece, setPiece] = useState(item ? String(item.piecesPerPackage) : "");
   const [unit, setUnit] = useState(item?.unit ?? UNIT_OPTIONS[0]);
   const [unitAmount, setUnitAmount] = useState(
     item ? String(item.unitAmount ?? 1) : "1"
@@ -51,16 +50,14 @@ export function AddIngredientModal({
   // is fixed at 1; restocking more packages later is RestockModal's job.
   const quantityNum = item?.quantity ?? 1;
   const amountNum = Number(amount) || 0;
-  const pieceNum = Number(piece) || 0;
   const unitAmountNum = Number(unitAmount) || 0;
-  const unitCost = pieceNum > 0 ? amountNum / pieceNum : 0;
+  const unitCost = unitAmountNum > 0 ? amountNum / unitAmountNum : 0;
   // A brand-new item is also its opening purchase — a vendor obligation is
   // created either way, so a vendor is required here too, not just on
   // restock. Editing an existing item's own fields needs no vendor.
   const canSave =
     name.trim().length > 0 &&
     amountNum > 0 &&
-    pieceNum > 0 &&
     unitAmountNum >= 1 &&
     unitAmountNum <= 100 &&
     (isEditing || Boolean(vendorId));
@@ -72,7 +69,10 @@ export function AddIngredientModal({
       packaging,
       totalCost: amountNum,
       quantity: quantityNum,
-      piecesPerPackage: pieceNum,
+      // No standalone "pieces per package" input anymore — this field only
+      // still matters to RestockModal's own math, so preserve whatever an
+      // existing item already had rather than resetting it.
+      piecesPerPackage: item?.piecesPerPackage ?? 1,
       unit,
       unitAmount: unitAmountNum,
       unitCost,
@@ -176,21 +176,6 @@ export function AddIngredientModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-                Amount per unit
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="100"
-                step="0.1"
-                value={unitAmount}
-                onChange={(e) => setUnitAmount(e.target.value)}
-                placeholder="e.g. 2.5"
-                className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
                 Unit of measure
               </label>
               <select
@@ -205,33 +190,34 @@ export function AddIngredientModal({
                 ))}
               </select>
             </div>
+            <div>
+              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
+                Unit
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="100"
+                step="0.1"
+                value={unitAmount}
+                onChange={(e) => setUnitAmount(e.target.value)}
+                placeholder="e.g. 2.5"
+                className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-                Amount (KES)
-              </label>
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="e.g. 17280"
-                className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-                Piece (per package)
-              </label>
-              <input
-                type="number"
-                value={piece}
-                onChange={(e) => setPiece(e.target.value)}
-                placeholder="e.g. 12"
-                className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-            </div>
+          <div>
+            <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
+              Amount (KES)
+            </label>
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="e.g. 17280"
+              className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
           </div>
 
           <div className="rounded-lg bg-warm-50 px-3 py-2.5">
@@ -240,7 +226,7 @@ export function AddIngredientModal({
               <span>{formatKES(unitCost)}</span>
             </div>
             <div className="text-[11px] font-semibold text-slate-500 mt-0.5">
-              Calculated automatically as Amount ÷ Piece
+              Calculated automatically as Amount ÷ Unit
             </div>
           </div>
         </div>
