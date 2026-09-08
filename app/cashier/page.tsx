@@ -384,34 +384,113 @@ export default function CashierPage() {
 
   return (
     <div className="flex-1 flex flex-col lg:h-full lg:overflow-hidden">
-      <header className="shrink-0 h-16 flex items-center justify-between px-6 border-b border-warm-200 bg-white">
-        <h1 className="text-xl font-black text-slate-900">Cashier</h1>
-        <div className="inline-flex items-center rounded-full border border-warm-200 bg-warm-50 p-1">
-          <button
-            type="button"
-            onClick={() => setTab("live")}
-            className={clsx(
-              "rounded-full px-4 py-1.5 text-xs font-extrabold transition-colors",
-              tab === "live"
-                ? "bg-accent-600 text-white"
-                : "text-slate-500 hover:text-slate-700"
-            )}
-          >
-            Live Payments
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("reconciliation")}
-            className={clsx(
-              "rounded-full px-4 py-1.5 text-xs font-extrabold transition-colors",
-              tab === "reconciliation"
-                ? "bg-accent-600 text-white"
-                : "text-slate-500 hover:text-slate-700"
-            )}
-          >
-            Reconciliation
-          </button>
+      <header className="shrink-0 flex flex-col border-b border-warm-200 bg-white">
+        <div className="h-16 flex items-center justify-between px-6">
+          <h1 className="text-xl font-black text-slate-900">Cashier</h1>
+          <div className="inline-flex items-center rounded-full border border-warm-200 bg-warm-50 p-1">
+            <button
+              type="button"
+              onClick={() => setTab("live")}
+              className={clsx(
+                "rounded-full px-4 py-1.5 text-xs font-extrabold transition-colors",
+                tab === "live"
+                  ? "bg-accent-600 text-white"
+                  : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              Live Payments
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("reconciliation")}
+              className={clsx(
+                "rounded-full px-4 py-1.5 text-xs font-extrabold transition-colors",
+                tab === "reconciliation"
+                  ? "bg-accent-600 text-white"
+                  : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              Reconciliation
+            </button>
+          </div>
         </div>
+
+        {tab === "reconciliation" && (
+          <div className="flex flex-wrap items-center gap-3 px-6 pb-4">
+            <div className="inline-flex items-center rounded-full border border-warm-200 bg-warm-50 p-1">
+              <button
+                type="button"
+                onClick={() => setReconTab("owed")}
+                className={clsx(
+                  "rounded-full px-3.5 py-1.5 text-xs font-extrabold transition-colors",
+                  reconTab === "owed"
+                    ? "bg-accent-600 text-white"
+                    : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                Owed Now
+              </button>
+              <button
+                type="button"
+                onClick={() => setReconTab("history")}
+                className={clsx(
+                  "rounded-full px-3.5 py-1.5 text-xs font-extrabold transition-colors",
+                  reconTab === "history"
+                    ? "bg-accent-600 text-white"
+                    : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                History
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative">
+                <Calendar
+                  size={14}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  type="date"
+                  value={fromDate}
+                  max={toDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="rounded-full border border-warm-200 bg-white pl-8 pr-3 py-2 text-xs font-extrabold text-slate-600 outline-none focus:border-accent-400"
+                />
+              </div>
+              <span className="text-xs font-extrabold text-slate-400">to</span>
+              <div className="relative">
+                <Calendar
+                  size={14}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  type="date"
+                  value={toDate}
+                  min={fromDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="rounded-full border border-warm-200 bg-white pl-8 pr-3 py-2 text-xs font-extrabold text-slate-600 outline-none focus:border-accent-400"
+                />
+              </div>
+              {!isCurrentDay && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const today = toISODate(new Date());
+                    setFromDate(today);
+                    setToDate(today);
+                  }}
+                  className="rounded-full border border-warm-200 px-3.5 py-2 text-xs font-extrabold text-slate-500 hover:text-slate-700"
+                >
+                  Jump to Today
+                </button>
+              )}
+              <span className="text-xs font-extrabold text-slate-400">
+                Showing {rangeLabel}
+              </span>
+            </div>
+          </div>
+        )}
       </header>
 
       <main className="flex-1 lg:min-h-0 overflow-y-auto p-6 space-y-6">
@@ -747,81 +826,6 @@ export default function CashierPage() {
 
         {tab === "reconciliation" && (
         <>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="inline-flex items-center rounded-full border border-warm-200 bg-warm-50 p-1">
-            <button
-              type="button"
-              onClick={() => setReconTab("owed")}
-              className={clsx(
-                "rounded-full px-3.5 py-1.5 text-xs font-extrabold transition-colors",
-                reconTab === "owed"
-                  ? "bg-accent-600 text-white"
-                  : "text-slate-500 hover:text-slate-700"
-              )}
-            >
-              Owed Now
-            </button>
-            <button
-              type="button"
-              onClick={() => setReconTab("history")}
-              className={clsx(
-                "rounded-full px-3.5 py-1.5 text-xs font-extrabold transition-colors",
-                reconTab === "history"
-                  ? "bg-accent-600 text-white"
-                  : "text-slate-500 hover:text-slate-700"
-              )}
-            >
-              History
-            </button>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
-            <Calendar
-              size={14}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            />
-            <input
-              type="date"
-              value={fromDate}
-              max={toDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="rounded-full border border-warm-200 bg-white pl-8 pr-3 py-2 text-xs font-extrabold text-slate-600 outline-none focus:border-accent-400"
-            />
-          </div>
-          <span className="text-xs font-extrabold text-slate-400">to</span>
-          <div className="relative">
-            <Calendar
-              size={14}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            />
-            <input
-              type="date"
-              value={toDate}
-              min={fromDate}
-              onChange={(e) => setToDate(e.target.value)}
-              className="rounded-full border border-warm-200 bg-white pl-8 pr-3 py-2 text-xs font-extrabold text-slate-600 outline-none focus:border-accent-400"
-            />
-          </div>
-          {!isCurrentDay && (
-            <button
-              type="button"
-              onClick={() => {
-                const today = toISODate(new Date());
-                setFromDate(today);
-                setToDate(today);
-              }}
-              className="rounded-full border border-warm-200 px-3.5 py-2 text-xs font-extrabold text-slate-500 hover:text-slate-700"
-            >
-              Jump to Today
-            </button>
-          )}
-          <span className="text-xs font-extrabold text-slate-400">
-            Showing {rangeLabel}
-          </span>
-        </div>
-
         {reconTab === "owed" ? (
         <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-warm-200">
