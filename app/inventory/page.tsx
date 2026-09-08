@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import clsx from "clsx";
-import { Pencil, Plus, PackagePlus, Banknote, History, Ban, RotateCcw } from "lucide-react";
+import { Pencil, Plus, PackagePlus, Banknote, History, Ban, RotateCcw, Search, X } from "lucide-react";
 import { usePosStore } from "@/lib/store";
 import { formatKES } from "@/lib/utils";
 import { AddIngredientModal } from "@/components/inventory/AddIngredientModal";
@@ -37,15 +37,28 @@ export default function InventoryPage() {
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
   const [payoutVendor, setPayoutVendor] = useState<Vendor | null>(null);
   const [historyVendor, setHistoryVendor] = useState<Vendor | null>(null);
-  const [historyVendorFilter, setHistoryVendorFilter] = useState("");
+  const [historySearch, setHistorySearch] = useState("");
   const ingredients = usePosStore((s) => s.ingredients);
   const vendors = usePosStore((s) => s.vendors);
   const stockPurchases = usePosStore((s) => s.stockPurchases);
   const vendorPayments = usePosStore((s) => s.vendorPayments);
   const setVendorActive = usePosStore((s) => s.setVendorActive);
 
+  const historyQuery = historySearch.trim().toLowerCase();
   const paymentHistory = vendorPayments
-    .filter((p) => !historyVendorFilter || p.vendorId === historyVendorFilter)
+    .filter((p) => {
+      if (!historyQuery) return true;
+      const vendorName = vendors.find((v) => v.id === p.vendorId)?.name.toLowerCase() ?? "";
+      const reference = (p.reference ?? "").toLowerCase();
+      const vendorItemNames = stockPurchases
+        .filter((sp) => sp.vendorId === p.vendorId)
+        .map((sp) => ingredients.find((i) => i.id === sp.ingredientId)?.name.toLowerCase() ?? "");
+      return (
+        vendorName.includes(historyQuery) ||
+        reference.includes(historyQuery) ||
+        vendorItemNames.some((name) => name.includes(historyQuery))
+      );
+    })
     .slice()
     .sort((a, b) => b.paidAt - a.paidAt);
 
@@ -317,18 +330,28 @@ export default function InventoryPage() {
               <h2 className="font-extrabold text-slate-900">
                 Vendor Payment History
               </h2>
-              <select
-                value={historyVendorFilter}
-                onChange={(e) => setHistoryVendorFilter(e.target.value)}
-                className="rounded-full border border-warm-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-600 outline-none focus:border-accent-400"
-              >
-                <option value="">All Vendors</option>
-                {vendors.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name}
-                  </option>
-                ))}
-              </select>
+              <div className="relative w-full sm:w-72">
+                <Search
+                  size={15}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  value={historySearch}
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                  placeholder="Search by M-Pesa code, vendor, or item"
+                  className="w-full rounded-full border border-warm-200 bg-white pl-8 pr-8 py-2 text-sm font-semibold outline-none focus:border-accent-400"
+                />
+                {historySearch && (
+                  <button
+                    type="button"
+                    onClick={() => setHistorySearch("")}
+                    aria-label="Clear search"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
             </div>
             {paymentHistory.length === 0 ? (
               <p className="text-slate-400 font-semibold text-center py-12">
