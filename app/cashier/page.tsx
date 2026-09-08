@@ -58,6 +58,7 @@ export default function CashierPage() {
   const cashDrops = usePosStore((s) => s.cashDrops);
   const recordPayment = usePosStore((s) => s.recordPayment);
   const finalizeReceipt = usePosStore((s) => s.finalizeReceipt);
+  const confirmOrderComplete = usePosStore((s) => s.confirmOrderComplete);
   const reverseLastPayment = usePosStore((s) => s.reverseLastPayment);
   const reverseCompletedPayment = usePosStore((s) => s.reverseCompletedPayment);
   const recordCashDrop = usePosStore((s) => s.recordCashDrop);
@@ -74,6 +75,7 @@ export default function CashierPage() {
   const [reconTab, setReconTab] = useState<"owed" | "history">("owed");
 
   const [cashDropOpen, setCashDropOpen] = useState(false);
+  const [cashDropIsLumpsum, setCashDropIsLumpsum] = useState(false);
   const [cashDropWaiterId, setCashDropWaiterId] = useState("");
   const [cashDropMethod, setCashDropMethod] = useState<PaymentMethod>("cash");
   const [cashDropAmount, setCashDropAmount] = useState("");
@@ -197,7 +199,16 @@ export default function CashierPage() {
       return next;
     });
     if (mpesaAmount + draftAmount < total) return;
-    const updatedOrder = usePosStore.getState().orders[ticketId];
+    // Clicking Complete here is itself the cashier's verification — this
+    // covers the case where an M-Pesa payment already covers the total but
+    // never got a confirmation code, so recordPayment deliberately left the
+    // order short of "paid" (it can't tell a real transfer from an empty
+    // code left blank by mistake).
+    let updatedOrder = usePosStore.getState().orders[ticketId];
+    if (updatedOrder?.paymentStatus !== "paid") {
+      confirmOrderComplete(ticketId);
+      updatedOrder = usePosStore.getState().orders[ticketId];
+    }
     if (updatedOrder?.paymentStatus === "paid") {
       setFinalizing(true);
       const r = await finalizeReceipt(ticketId);
@@ -291,6 +302,18 @@ export default function CashierPage() {
     return computeWaiterCashFrom(waiterId, payments, cashDrops);
   }
 
+  // Waiters who actually owe something right now — the set a lumpsum
+  // Add Cash Drop covers and splits across.
+  function waitersWithPending() {
+    return waiters
+      .map((w) => ({ waiter: w, pending: computeWaiterCashAllTime(w.id).pending }))
+      .filter((r) => r.pending > 0);
+  }
+
+  function totalPendingAllWaiters() {
+    return waitersWithPending().reduce((sum, r) => sum + r.pending, 0);
+  }
+
   // One row per waiter, merging the period reconciliation figures (scoped
   // to the selected day/week) with the all-time running balance (never
   // scoped — carries forward across days until an actual Cash Drop clears
@@ -335,29 +358,71 @@ export default function CashierPage() {
   }
   completedRange.sort((a, b) => b.payment.paidAt - a.payment.paidAt);
 
-  function openAddCashDrop(preselectWaiterId?: string) {
-    const initialWaiterId = preselectWaiterId || waiterFilter || waiters[0]?.id || "";
-    setCashDropWaiterId(initialWaiterId);
+  // Opened from a specific waiter's row — locked to that waiter, no picker.
+  function openAddCashDropForWaiter(waiterId: string) {
+    setCashDropIsLumpsum(false);
+    setCashDropWaiterId(waiterId);
     setCashDropMethod("cash");
-    const pending = initialWaiterId ? computeWaiterCashAllTime(initialWaiterId).pending : 0;
+    const pending = computeWaiterCashAllTime(waiterId).pending;
     setCashDropAmount(pending > 0 ? String(pending) : "");
     setCashDropReference("");
     setCashDropNote("");
     setCashDropOpen(true);
   }
 
-  function selectCashDropWaiter(waiterId: string) {
-    setCashDropWaiterId(waiterId);
-    const pending = computeWaiterCashAllTime(waiterId).pending;
-    setCashDropAmount(pending > 0 ? String(pending) : "");
+  // Opened from the header button — a single lumpsum covering every waiter
+  // with a pending balance at once. Only accepted if it matches the
+  // combined total exactly; a partial or per-waiter drop still belongs on
+  // that waiter's own row.
+  function openAddCashDropLumpsum() {
+    setCashDropIsLumpsum(true);
+    setCashDropWaiterId("");
+    setCashDropMethod("cash");
+    const total = totalPendingAllWaiters();
+    setCashDropAmount(total > 0 ? String(total) : "");
+    setCashDropReference("");
     setCashDropNote("");
+    setCashDropOpen(true);
+  }
+
+  function jumpReconciliationViewToToday() {
+    // The drop is always stamped with the real current time (never
+    // backdated to whatever period is being reviewed) — jump the view back
+    // to Today so it's immediately visible in History/Summary instead of
+    // silently landing outside the currently selected range.
+    const today = toISODate(new Date());
+    setFromDate(today);
+    setToDate(today);
   }
 
   function submitCashDrop() {
-    if (!cashDropWaiterId) return;
     const amount = Math.max(0, Number(cashDropAmount) || 0);
     if (amount <= 0) return;
     if (cashDropMethod === "mpesa" && !cashDropReference.trim()) return;
+
+    if (cashDropIsLumpsum) {
+      const pendingRows = waitersWithPending();
+      const expectedTotal = pendingRows.reduce((sum, r) => sum + r.pending, 0);
+      // A lumpsum drop must land on the combined total exactly — anything
+      // else (more or less) is ambiguous to split across waiters, and
+      // belongs on that specific waiter's own row instead.
+      if (expectedTotal <= 0 || amount !== expectedTotal) return;
+      for (const { waiter, pending } of pendingRows) {
+        recordCashDrop(
+          waiter.id,
+          pending,
+          pending,
+          cashDropMethod,
+          cashDropMethod === "mpesa" ? cashDropReference : undefined,
+          undefined
+        );
+      }
+      setCashDropOpen(false);
+      jumpReconciliationViewToToday();
+      return;
+    }
+
+    if (!cashDropWaiterId) return;
     const expectedNow = computeWaiterCashAllTime(cashDropWaiterId).pending;
     // Bringing less than the full amount is a normal partial drop — the
     // waiter can clear the rest later, no explanation needed. Only bringing
@@ -373,13 +438,7 @@ export default function CashierPage() {
       isOverage ? cashDropNote : undefined
     );
     setCashDropOpen(false);
-    // The drop is always stamped with the real current time (never
-    // backdated to whatever period is being reviewed) — jump the view back
-    // to Today so it's immediately visible in History/Summary instead of
-    // silently landing outside the currently selected range.
-    const today = toISODate(new Date());
-    setFromDate(today);
-    setToDate(today);
+    jumpReconciliationViewToToday();
   }
 
   return (
@@ -853,8 +912,13 @@ export default function CashierPage() {
               </select>
               <button
                 type="button"
-                onClick={() => openAddCashDrop()}
-                disabled={waiters.length === 0}
+                onClick={openAddCashDropLumpsum}
+                disabled={totalPendingAllWaiters() <= 0}
+                title={
+                  totalPendingAllWaiters() <= 0
+                    ? "No waiter currently has a pending balance"
+                    : "Record one lumpsum drop covering every waiter's pending balance"
+                }
                 className="inline-flex items-center gap-1.5 rounded-full bg-accent-600 hover:bg-accent-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-extrabold px-3.5 py-2"
               >
                 <Plus size={13} /> Add Cash Drop
@@ -931,7 +995,7 @@ export default function CashierPage() {
                       <td className="px-5 py-3 text-center">
                         <button
                           type="button"
-                          onClick={() => openAddCashDrop(row.waiterId)}
+                          onClick={() => openAddCashDropForWaiter(row.waiterId)}
                           className="inline-flex items-center gap-1.5 rounded-full bg-accent-600 hover:bg-accent-700 text-white text-xs font-extrabold px-3.5 py-1.5"
                         >
                           <Plus size={12} /> Add Cash Drop
@@ -1087,22 +1151,29 @@ export default function CashierPage() {
       </main>
 
       {cashDropOpen && (() => {
-        const cash = cashDropWaiterId ? computeWaiterCashAllTime(cashDropWaiterId) : null;
-        const expectedNow = cash?.pending ?? 0;
+        const isLumpsum = cashDropIsLumpsum;
+        const pendingRows = waitersWithPending();
+        const lumpsumExpected = pendingRows.reduce((sum, r) => sum + r.pending, 0);
+        const cash = !isLumpsum && cashDropWaiterId ? computeWaiterCashAllTime(cashDropWaiterId) : null;
+        const expectedNow = isLumpsum ? lumpsumExpected : cash?.pending ?? 0;
         const counted = Math.max(0, Number(cashDropAmount) || 0);
         const hasAmount = cashDropAmount.trim() !== "";
         const variance = counted - expectedNow;
         // Bringing less than expected is a normal partial drop, not an
         // error — only bringing more than expected is unusual enough to
-        // require an explanation.
-        const isPartial = hasAmount && variance < 0;
-        const isOverage = hasAmount && variance > 0;
+        // require an explanation. Neither applies to a lumpsum drop, which
+        // must match the combined total exactly or not go through at all.
+        const isPartial = !isLumpsum && hasAmount && variance < 0;
+        const isOverage = !isLumpsum && hasAmount && variance > 0;
+        const lumpsumMismatch = isLumpsum && hasAmount && counted !== expectedNow;
         const referenceOk = cashDropMethod === "cash" || cashDropReference.trim() !== "";
-        const canConfirm =
-          Boolean(cashDropWaiterId) &&
-          counted > 0 &&
-          referenceOk &&
-          (!isOverage || cashDropNote.trim() !== "");
+        const waiterName = waiters.find((w) => w.id === cashDropWaiterId)?.name ?? "—";
+        const canConfirm = isLumpsum
+          ? expectedNow > 0 && counted === expectedNow && referenceOk
+          : Boolean(cashDropWaiterId) &&
+            counted > 0 &&
+            referenceOk &&
+            (!isOverage || cashDropNote.trim() !== "");
         return (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
@@ -1113,7 +1184,9 @@ export default function CashierPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-1">
-                <h3 className="font-extrabold text-slate-900">Add New Cash Drop</h3>
+                <h3 className="font-extrabold text-slate-900">
+                  {isLumpsum ? "Add Cash Drop — All Waiters" : "Add New Cash Drop"}
+                </h3>
                 <button
                   type="button"
                   onClick={() => setCashDropOpen(false)}
@@ -1124,40 +1197,51 @@ export default function CashierPage() {
                 </button>
               </div>
               <p className="text-xs text-slate-500 font-semibold mb-3">
-                Cash and M-Pesa sent to a waiter&rsquo;s personal number are
-                combined into one outstanding balance.
+                {isLumpsum
+                  ? "One lumpsum drop settling every waiter's pending balance at once — the amount must match the combined total exactly."
+                  : "Cash and M-Pesa sent to a waiter’s personal number are combined into one outstanding balance."}
               </p>
 
-              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-                Waiter
-              </label>
-              <select
-                value={cashDropWaiterId}
-                onChange={(e) => selectCashDropWaiter(e.target.value)}
-                className="mt-1 mb-3 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-bold outline-none focus:border-accent-400"
-              >
-                <option value="" disabled>
-                  Select a waiter
-                </option>
-                {waiters.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}
-                  </option>
-                ))}
-              </select>
-
-              {cash && (
-                <div className="rounded-lg bg-warm-50 px-3 py-2.5 mb-4">
-                  <div className="flex justify-between text-sm font-black text-slate-900">
-                    <span>Expected</span>
-                    <span>{formatKES(expectedNow)}</span>
+              {isLumpsum ? (
+                <div className="rounded-lg bg-warm-50 px-3 py-2.5 mb-3">
+                  <div className="text-xs font-extrabold text-slate-500 uppercase tracking-wide mb-1.5">
+                    Covers {pendingRows.length} waiter{pendingRows.length === 1 ? "" : "s"}
                   </div>
+                  <div className="space-y-1">
+                    {pendingRows.map(({ waiter, pending }) => (
+                      <div
+                        key={waiter.id}
+                        className="flex justify-between text-xs font-semibold text-slate-600"
+                      >
+                        <span>{waiter.name}</span>
+                        <span>{formatKES(pending)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
+                    Waiter
+                  </label>
+                  <div className="mt-1 mb-3 w-full rounded-lg border border-warm-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700">
+                    {waiterName}
+                  </div>
+                </>
+              )}
+
+              <div className="rounded-lg bg-warm-50 px-3 py-2.5 mb-4">
+                <div className="flex justify-between text-sm font-black text-slate-900">
+                  <span>Expected</span>
+                  <span>{formatKES(expectedNow)}</span>
+                </div>
+                {cash && (
                   <div className="text-[11px] font-semibold text-slate-500 mt-0.5">
                     Cash: {formatKES(cash.cashAmount)} · M-Pesa substitution:{" "}
                     {formatKES(cash.substitutionAmount)}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
               <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
                 Method
@@ -1232,6 +1316,16 @@ export default function CashierPage() {
                     rows={2}
                     className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-semibold outline-none focus:border-accent-400 resize-none"
                   />
+                </div>
+              )}
+
+              {lumpsumMismatch && (
+                <div className="mt-3 flex items-start gap-1.5 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold px-3 py-2">
+                  <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                  A lumpsum drop must match the total owed exactly (
+                  {formatKES(expectedNow)}). For a different amount, use
+                  &ldquo;Add Cash Drop&rdquo; on that specific waiter&rsquo;s
+                  row instead.
                 </div>
               )}
 

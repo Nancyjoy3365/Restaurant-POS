@@ -138,6 +138,11 @@ interface PosState {
     }
   ) => void;
   finalizeReceipt: (ticketId: string) => Promise<Receipt>;
+  // The cashier's manual "Complete" action on an order already fully
+  // covered (mpesaAmount + cash draft >= total) even when the covering
+  // M-Pesa payment never got a confirmation code — the cashier physically
+  // confirming it here is the verification recordPayment alone can't do.
+  confirmOrderComplete: (ticketId: string) => void;
   reverseLastPayment: (ticketId: string) => void;
   reverseCompletedPayment: (paymentId: string) => void;
   recordCashDrop: (
@@ -184,6 +189,24 @@ export function cyclePaidAmount(payments: Payment[], order: TicketOrder | undefi
   const cycleNumber = currentCycleNumber(order);
   return payments
     .filter((p) => p.orderId === order.id && (p.billingCycle ?? 1) === cycleNumber)
+    .reduce((sum, p) => sum + p.amount, 0);
+}
+
+// Same as cyclePaidAmount, but an M-Pesa payment with no confirmation code
+// doesn't count — it hasn't actually been verified yet, so it must never be
+// enough on its own to mark an order "paid" (that would skip the cashier's
+// verification step and silently drop it out of the Awaiting Payment
+// queue). Cash is always physically in hand, so it never needs a code.
+export function verifiedCyclePaidAmount(payments: Payment[], order: TicketOrder | undefined): number {
+  if (!order) return 0;
+  const cycleNumber = currentCycleNumber(order);
+  return payments
+    .filter(
+      (p) =>
+        p.orderId === order.id &&
+        (p.billingCycle ?? 1) === cycleNumber &&
+        (p.method !== "mpesa" || Boolean(p.reference && p.reference.trim()))
+    )
     .reduce((sum, p) => sum + p.amount, 0);
 }
 
@@ -771,7 +794,7 @@ export const usePosStore = create<PosState>()(
           const order = s.orders[ticketId];
           if (!order) return s;
           const billTotals = unbilledOrderTotal(order, s.restaurantSettings.vatRate);
-          const paidForCycle = cyclePaidAmount(s.payments, order);
+          const paidForCycle = verifiedCyclePaidAmount(s.payments, order);
           const paymentStatus: OrderPaymentStatus =
             billTotals.total > 0 && paidForCycle >= billTotals.total
               ? "paid"
@@ -811,7 +834,7 @@ export const usePosStore = create<PosState>()(
             paidAt: Date.now(),
           };
           const allPayments = [...s.payments, newPayment];
-          const paidForCycle = cyclePaidAmount(allPayments, order);
+          const paidForCycle = verifiedCyclePaidAmount(allPayments, order);
           const billTotal = order.billTotals?.total ?? 0;
           const paymentStatus: OrderPaymentStatus =
             billTotal > 0 && paidForCycle >= billTotal
@@ -904,6 +927,23 @@ export const usePosStore = create<PosState>()(
         return receipt;
       },
 
+      confirmOrderComplete: (ticketId) =>
+        set((s) => {
+          const order = s.orders[ticketId];
+          if (!order) return s;
+          return {
+            orders: {
+              ...s.orders,
+              [ticketId]: { ...order, paymentStatus: "paid" },
+            },
+            tickets: s.tickets.map((t) =>
+              t.id === ticketId
+                ? { ...t, status: "paid" as TicketStatus, closedAt: Date.now() }
+                : t
+            ),
+          };
+        }),
+
       reverseLastPayment: (ticketId) =>
         set((s) => {
           const order = s.orders[ticketId];
@@ -914,7 +954,7 @@ export const usePosStore = create<PosState>()(
             a.paidAt > b.paidAt ? a : b
           );
           const remainingPayments = s.payments.filter((p) => p.id !== last.id);
-          const paidForCycle = cyclePaidAmount(remainingPayments, order);
+          const paidForCycle = verifiedCyclePaidAmount(remainingPayments, order);
           const billTotal = order.billTotals?.total ?? 0;
           const paymentStatus: OrderPaymentStatus =
             billTotal > 0 && paidForCycle >= billTotal

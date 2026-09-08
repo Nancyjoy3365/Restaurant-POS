@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock } from "lucide-react";
 import { usePosStore, unbilledOrderTotal, paymentsForCurrentCycle } from "@/lib/store";
 import { BillSummary } from "@/components/billing/BillSummary";
 import { BillPreview } from "@/components/billing/BillPreview";
@@ -187,10 +187,16 @@ export default function BillingPage() {
                 </div>
               )}
 
-              {balanceDue === 0 ? (
+              {balanceDue === 0 && order?.paymentStatus === "paid" ? (
                 <div className="rounded-xl border border-status-free bg-white p-5 flex items-center gap-2 text-status-free font-extrabold">
                   <CheckCircle2 size={20} />
                   {finalizing ? "Finalizing receipt…" : "Fully paid"}
+                </div>
+              ) : balanceDue === 0 ? (
+                <div className="rounded-xl border border-amber-300 bg-amber-50 p-5 flex items-center gap-2 text-amber-700 font-extrabold">
+                  <Clock size={20} />
+                  Amount recorded — awaiting cashier verification (no M-Pesa
+                  code entered)
                 </div>
               ) : (
                 <PaymentMethodPicker
