@@ -503,22 +503,6 @@ export default function CashierPage() {
                   className="rounded-full border border-warm-200 bg-white pl-8 pr-3 py-2 text-xs font-extrabold text-slate-600 outline-none focus:border-accent-400"
                 />
               </div>
-              {!isCurrentDay && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const today = toISODate(new Date());
-                    setFromDate(today);
-                    setToDate(today);
-                  }}
-                  className="rounded-full border border-warm-200 px-3.5 py-2 text-xs font-extrabold text-slate-500 hover:text-slate-700"
-                >
-                  Jump to Today
-                </button>
-              )}
-              <span className="text-xs font-extrabold text-slate-400">
-                Showing {rangeLabel}
-              </span>
             </>
           )}
 
