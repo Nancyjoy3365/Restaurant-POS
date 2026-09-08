@@ -49,13 +49,6 @@ function startOfDay(d: Date): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 }
 
-function startOfWeek(d: Date): number {
-  const day = d.getDay();
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + diffToMonday);
-  return startOfDay(monday);
-}
-
 export default function CashierPage() {
   const tickets = usePosStore((s) => s.tickets);
   const orders = usePosStore((s) => s.orders);
@@ -76,8 +69,8 @@ export default function CashierPage() {
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [finalizing, setFinalizing] = useState(false);
   const [waiterFilter, setWaiterFilter] = useState("");
-  const [dateMode, setDateMode] = useState<"day" | "week">("day");
-  const [dateValue, setDateValue] = useState(() => toISODate(new Date()));
+  const [fromDate, setFromDate] = useState(() => toISODate(new Date()));
+  const [toDate, setToDate] = useState(() => toISODate(new Date()));
   const [reconTab, setReconTab] = useState<"owed" | "history">("owed");
 
   const [cashDropOpen, setCashDropOpen] = useState(false);
@@ -222,31 +215,27 @@ export default function CashierPage() {
     });
   }
 
-  // Reconciliation reporting window — a single day, or the Mon–Sun week
-  // containing the selected date. Defaults to today.
-  const selectedDate = parseLocalDate(dateValue);
-  const rangeStart =
-    dateMode === "day" ? startOfDay(selectedDate) : startOfWeek(selectedDate);
-  const rangeEnd =
-    dateMode === "day"
-      ? rangeStart + 24 * 60 * 60 * 1000
-      : rangeStart + 7 * 24 * 60 * 60 * 1000;
+  // Reconciliation reporting window — a custom from/to date range,
+  // inclusive of both endpoints. Defaults to today on both ends.
+  const rangeStart = startOfDay(parseLocalDate(fromDate));
+  const rangeEnd = startOfDay(parseLocalDate(toDate)) + 24 * 60 * 60 * 1000;
   function inRange(ts: number): boolean {
     return ts >= rangeStart && ts < rangeEnd;
   }
-  const isCurrentDay = dateMode === "day" && rangeStart === startOfDay(new Date());
+  const isSingleDay = fromDate === toDate;
+  const isCurrentDay = isSingleDay && rangeStart === startOfDay(new Date());
   const rangeLabel = isCurrentDay
     ? "Today"
-    : dateMode === "day"
-    ? selectedDate.toLocaleDateString("en-KE", {
+    : isSingleDay
+    ? parseLocalDate(fromDate).toLocaleDateString("en-KE", {
         weekday: "short",
         day: "numeric",
         month: "short",
       })
-    : `${new Date(rangeStart).toLocaleDateString("en-KE", {
+    : `${parseLocalDate(fromDate).toLocaleDateString("en-KE", {
         day: "numeric",
         month: "short",
-      })} – ${new Date(rangeEnd - 1).toLocaleDateString("en-KE", {
+      })} – ${parseLocalDate(toDate).toLocaleDateString("en-KE", {
         day: "numeric",
         month: "short",
         year: "numeric",
@@ -387,9 +376,10 @@ export default function CashierPage() {
     // The drop is always stamped with the real current time (never
     // backdated to whatever period is being reviewed) — jump the view back
     // to Today so it's immediately visible in History/Summary instead of
-    // silently landing outside the currently selected day/week.
-    setDateMode("day");
-    setDateValue(toISODate(new Date()));
+    // silently landing outside the currently selected range.
+    const today = toISODate(new Date());
+    setFromDate(today);
+    setToDate(today);
   }
 
   return (
@@ -787,32 +777,6 @@ export default function CashierPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="inline-flex items-center rounded-full border border-warm-200 bg-warm-50 p-1">
-            <button
-              type="button"
-              onClick={() => setDateMode("day")}
-              className={clsx(
-                "rounded-full px-3.5 py-1.5 text-xs font-extrabold transition-colors",
-                dateMode === "day"
-                  ? "bg-accent-600 text-white"
-                  : "text-slate-500 hover:text-slate-700"
-              )}
-            >
-              Day
-            </button>
-            <button
-              type="button"
-              onClick={() => setDateMode("week")}
-              className={clsx(
-                "rounded-full px-3.5 py-1.5 text-xs font-extrabold transition-colors",
-                dateMode === "week"
-                  ? "bg-accent-600 text-white"
-                  : "text-slate-500 hover:text-slate-700"
-              )}
-            >
-              Week
-            </button>
-          </div>
           <div className="relative">
             <Calendar
               size={14}
@@ -820,8 +784,23 @@ export default function CashierPage() {
             />
             <input
               type="date"
-              value={dateValue}
-              onChange={(e) => setDateValue(e.target.value)}
+              value={fromDate}
+              max={toDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="rounded-full border border-warm-200 bg-white pl-8 pr-3 py-2 text-xs font-extrabold text-slate-600 outline-none focus:border-accent-400"
+            />
+          </div>
+          <span className="text-xs font-extrabold text-slate-400">to</span>
+          <div className="relative">
+            <Calendar
+              size={14}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+            <input
+              type="date"
+              value={toDate}
+              min={fromDate}
+              onChange={(e) => setToDate(e.target.value)}
               className="rounded-full border border-warm-200 bg-white pl-8 pr-3 py-2 text-xs font-extrabold text-slate-600 outline-none focus:border-accent-400"
             />
           </div>
@@ -829,8 +808,9 @@ export default function CashierPage() {
             <button
               type="button"
               onClick={() => {
-                setDateMode("day");
-                setDateValue(toISODate(new Date()));
+                const today = toISODate(new Date());
+                setFromDate(today);
+                setToDate(today);
               }}
               className="rounded-full border border-warm-200 px-3.5 py-2 text-xs font-extrabold text-slate-500 hover:text-slate-700"
             >
@@ -990,7 +970,7 @@ export default function CashierPage() {
                   {historyRows.map(({ drop, waiterName }) => (
                     <tr key={drop.id} className="border-t border-warm-100">
                       <td className="px-5 py-3 text-slate-600 font-semibold whitespace-nowrap">
-                        {formatTime(drop.droppedAt, dateMode === "week")}
+                        {formatTime(drop.droppedAt, !isSingleDay)}
                       </td>
                       <td className="px-2 py-3 font-extrabold text-slate-900">
                         {waiterName}
@@ -1074,7 +1054,7 @@ export default function CashierPage() {
                           {payment.customerName || ticket.customerName || "—"}
                         </td>
                         <td className="px-2 py-3 text-slate-600 font-semibold whitespace-nowrap">
-                          {formatTime(payment.paidAt, dateMode === "week")}
+                          {formatTime(payment.paidAt, !isSingleDay)}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex justify-center">
