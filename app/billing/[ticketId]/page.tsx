@@ -129,8 +129,6 @@ export default function BillingPage() {
             <div className="space-y-6">
               <BillPreview
                 order={order}
-                subtotal={subtotal}
-                vat={vat}
                 total={total}
                 checkNo={ticket?.displayNumber}
                 waiterName={staff.find((m) => m.id === ticket?.waiterId)?.name}

@@ -8,15 +8,11 @@ import { flattenOrderItems, lineRawTotal, formatKES } from "@/lib/utils";
 
 export function BillPreview({
   order,
-  subtotal,
-  vat,
   total,
   checkNo,
   waiterName,
 }: {
   order: TicketOrder | undefined;
-  subtotal: number;
-  vat: number;
   total: number;
   checkNo?: number;
   waiterName?: string;
@@ -45,7 +41,7 @@ export function BillPreview({
         id="receipt-print"
         className="rounded-xl border border-dashed border-slate-300 p-4 font-sans text-[12px] text-slate-800"
       >
-        <div className="text-center mb-2">
+        <div className="text-center">
           <div className="font-black text-base tracking-wide">
             {settings.name.toUpperCase()}
           </div>
@@ -55,7 +51,7 @@ export function BillPreview({
           <div className="text-[10px] font-extrabold mt-0.5">NON FISCAL BILL</div>
         </div>
 
-        <div className="border-t border-dashed border-slate-300 pt-1.5 mb-1.5 text-[10px] space-y-0.5">
+        <div className="mt-1.5 border-t border-dashed border-slate-300 pt-1.5 mb-1.5 text-[10px] space-y-0.5">
           {checkNo !== undefined && (
             <div className="flex justify-between">
               <span>Chk. No.</span>
@@ -83,18 +79,18 @@ export function BillPreview({
               whatever the physical paper actually is — a 58mm/80mm thermal
               roll or a full page — instead of assuming one fixed width. */}
           <div className="flex justify-between text-[9px] font-extrabold uppercase tracking-wide text-slate-500 pb-0.5">
-            <span className="w-[12%]">Qty</span>
-            <span className="w-[46%]">Item Name</span>
-            <span className="w-[21%] text-right">Price</span>
-            <span className="w-[21%] text-right">Total</span>
+            <span className="w-[40%]">Item</span>
+            <span className="w-[12%] text-right">Qty</span>
+            <span className="w-[24%] text-right">Price</span>
+            <span className="w-[24%] text-right">Amt</span>
           </div>
           <div className="space-y-0.5">
             {lines.map(({ item }) => (
-              <div key={item.id} className="flex justify-between">
-                <span className="w-[12%]">{item.qty.toFixed(1)}</span>
-                <span className="w-[46%] truncate pr-1">{item.name}</span>
-                <span className="w-[21%] text-right">{item.price}</span>
-                <span className="w-[21%] text-right">{lineRawTotal(item)}</span>
+              <div key={item.id} className="flex justify-between items-start">
+                <span className="w-[40%] pr-1 break-words">{item.name}</span>
+                <span className="w-[12%] text-right">{item.qty.toFixed(1)}</span>
+                <span className="w-[24%] text-right">{item.price}</span>
+                <span className="w-[24%] text-right">{lineRawTotal(item)}</span>
               </div>
             ))}
           </div>
@@ -109,13 +105,8 @@ export function BillPreview({
             <span>BILL TOTAL</span>
             <span>{formatKES(total)}</span>
           </div>
-          <div className="flex justify-between text-[10px] text-slate-500">
-            <span>VAT ({Math.round(settings.vatRate * 100)}%, inclusive)</span>
-            <span>{formatKES(vat)}</span>
-          </div>
-          <div className="flex justify-between text-[10px] text-slate-500">
-            <span>Subtotal (excl. VAT)</span>
-            <span>{formatKES(subtotal)}</span>
+          <div className="text-center text-[10px] text-slate-500">
+            VAT is included
           </div>
         </div>
 
