@@ -38,7 +38,7 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-type Step = "role" | "pin" | "staff";
+type Step = "role" | "staff" | "pin";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -50,6 +50,10 @@ export default function LoginPage() {
 
   const [step, setStep] = useState<Step>("role");
   const [role, setRole] = useState<StaffRole | null>(null);
+  const [selectedStaff, setSelectedStaff] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
   const [leaveConfirmStaff, setLeaveConfirmStaff] = useState<{
@@ -60,16 +64,30 @@ export default function LoginPage() {
 
   function selectRole(r: StaffRole) {
     setRole(r);
+    setStep("staff");
+  }
+
+  function goToPin(staffId: string, staffName: string) {
+    setSelectedStaff({ id: staffId, name: staffName });
     setPin("");
     setError(false);
     setStep("pin");
   }
 
+  function proceedWithLogin(staffId: string) {
+    login(staffId);
+    // Picking yourself off the staff grid is how staff start their shift —
+    // clockIn is already a no-op if they're still clocked in from earlier
+    // today, so this is safe to call every time without double-counting.
+    clockIn(staffId);
+    router.push(role ? getDefaultRouteForRole(role) : "/");
+  }
+
   function submitPin(candidate: string) {
-    if (!role) return;
+    if (!selectedStaff) return;
     if (candidate === staffPin) {
       setError(false);
-      setStep("staff");
+      proceedWithLogin(selectedStaff.id);
     } else {
       setError(true);
       setPin("");
@@ -83,15 +101,6 @@ export default function LoginPage() {
     if (digits.length === 3) submitPin(digits);
   }
 
-  function proceedWithLogin(staffId: string) {
-    login(staffId);
-    // Picking yourself off the staff grid is how staff start their shift —
-    // clockIn is already a no-op if they're still clocked in from earlier
-    // today, so this is safe to call every time without double-counting.
-    clockIn(staffId);
-    router.push(role ? getDefaultRouteForRole(role) : "/");
-  }
-
   function selectStaff(staffId: string, staffName: string) {
     // On leave doesn't hard-block clocking in — someone marked on leave
     // might still come in to cover a shift — it just asks for a confirming
@@ -101,7 +110,7 @@ export default function LoginPage() {
       setLeaveConfirmStaff({ id: staffId, name: staffName });
       return;
     }
-    proceedWithLogin(staffId);
+    goToPin(staffId, staffName);
   }
 
   const roleStaff = role ? staff.filter((m) => m.role === role) : [];
@@ -115,8 +124,8 @@ export default function LoginPage() {
           </h1>
           <p className="text-sm font-bold text-slate-500 mt-1">
             {step === "role" && "Select your role"}
-            {step === "pin" && `${role} Login`}
             {step === "staff" && `${role} · Who’s clocking in?`}
+            {step === "pin" && `${selectedStaff?.name} · Enter PIN`}
           </p>
         </div>
 
@@ -140,65 +149,6 @@ export default function LoginPage() {
                 </button>
               );
             })}
-          </div>
-        )}
-
-        {step === "pin" && role && (
-          <div className="flex flex-col items-center">
-            <span className="h-14 w-14 flex items-center justify-center rounded-full bg-accent-600 text-white mb-3">
-              <Lock size={22} />
-            </span>
-            <div className="font-extrabold text-slate-900 mb-4">
-              Enter PIN
-            </div>
-            <div className="relative mb-2">
-              <div className="flex items-center gap-3">
-                {[0, 1, 2].map((i) => (
-                  <span
-                    key={i}
-                    className={clsx(
-                      "h-14 w-12 rounded-lg border-2 flex items-center justify-center text-2xl font-black transition-colors",
-                      error
-                        ? "border-rose-400 text-rose-600"
-                        : pin.length > i
-                        ? "border-accent-500 text-slate-900"
-                        : "border-warm-200 text-slate-300"
-                    )}
-                  >
-                    {pin[i] ? "•" : ""}
-                  </span>
-                ))}
-              </div>
-              <input
-                type="tel"
-                inputMode="numeric"
-                autoComplete="off"
-                value={pin}
-                onChange={(e) => handlePinChange(e.target.value)}
-                autoFocus
-                aria-label="3-digit PIN"
-                className="absolute inset-0 opacity-0 cursor-default"
-              />
-            </div>
-            {error && (
-              <p className="text-xs font-extrabold text-rose-600 mb-2">
-                Incorrect PIN — try again.
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={() => setStep("role")}
-              className="flex items-center gap-1 text-xs font-extrabold text-slate-400 hover:text-slate-600 mt-4"
-            >
-              <ArrowLeft size={13} /> Choose a different role
-            </button>
-            <button
-              type="button"
-              onClick={() => setChangePinOpen(true)}
-              className="text-xs font-extrabold text-accent-600 hover:text-accent-700 mt-2"
-            >
-              Change PIN
-            </button>
           </div>
         )}
 
@@ -262,6 +212,65 @@ export default function LoginPage() {
             </button>
           </div>
         )}
+
+        {step === "pin" && selectedStaff && (
+          <div className="flex flex-col items-center">
+            <span className="h-14 w-14 flex items-center justify-center rounded-full bg-accent-600 text-white mb-3">
+              <Lock size={22} />
+            </span>
+            <div className="font-extrabold text-slate-900 mb-4">
+              Enter PIN
+            </div>
+            <div className="relative mb-2">
+              <div className="flex items-center gap-3">
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className={clsx(
+                      "h-14 w-12 rounded-lg border-2 flex items-center justify-center text-2xl font-black transition-colors",
+                      error
+                        ? "border-rose-400 text-rose-600"
+                        : pin.length > i
+                        ? "border-accent-500 text-slate-900"
+                        : "border-warm-200 text-slate-300"
+                    )}
+                  >
+                    {pin[i] ? "•" : ""}
+                  </span>
+                ))}
+              </div>
+              <input
+                type="tel"
+                inputMode="numeric"
+                autoComplete="off"
+                value={pin}
+                onChange={(e) => handlePinChange(e.target.value)}
+                autoFocus
+                aria-label="3-digit PIN"
+                className="absolute inset-0 opacity-0 cursor-default"
+              />
+            </div>
+            {error && (
+              <p className="text-xs font-extrabold text-rose-600 mb-2">
+                Incorrect PIN — try again.
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => setStep("staff")}
+              className="flex items-center gap-1 text-xs font-extrabold text-slate-400 hover:text-slate-600 mt-4"
+            >
+              <ArrowLeft size={13} /> Not you? Choose someone else
+            </button>
+            <button
+              type="button"
+              onClick={() => setChangePinOpen(true)}
+              className="text-xs font-extrabold text-accent-600 hover:text-accent-700 mt-2"
+            >
+              Change PIN
+            </button>
+          </div>
+        )}
       </div>
 
       {leaveConfirmStaff && (
@@ -300,7 +309,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => {
-                  proceedWithLogin(leaveConfirmStaff.id);
+                  goToPin(leaveConfirmStaff.id, leaveConfirmStaff.name);
                   setLeaveConfirmStaff(null);
                 }}
                 className="flex-1 rounded-lg bg-accent-600 hover:bg-accent-700 text-white font-extrabold py-2.5 transition-colors"

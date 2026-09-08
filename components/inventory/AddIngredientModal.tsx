@@ -14,6 +14,7 @@ const PACKAGING_OPTIONS = [
   "Tray",
   "Net Bag",
   "Sack",
+  "Pieces",
 ];
 
 const UNIT_OPTIONS = ["kg", "litre", "pc", "g", "ml"];
@@ -41,6 +42,9 @@ export function AddIngredientModal({
   const [amount, setAmount] = useState(item ? String(item.totalCost) : "");
   const [piece, setPiece] = useState(item ? String(item.piecesPerPackage) : "");
   const [unit, setUnit] = useState(item?.unit ?? UNIT_OPTIONS[0]);
+  const [unitAmount, setUnitAmount] = useState(
+    item ? String(item.unitAmount ?? 1) : "1"
+  );
   const [vendorId, setVendorId] = useState(vendors[0]?.id ?? "");
 
   // A single package is bought/created here — quantity (packages on hand)
@@ -48,6 +52,7 @@ export function AddIngredientModal({
   const quantityNum = item?.quantity ?? 1;
   const amountNum = Number(amount) || 0;
   const pieceNum = Number(piece) || 0;
+  const unitAmountNum = Number(unitAmount) || 0;
   const unitCost = pieceNum > 0 ? amountNum / pieceNum : 0;
   // A brand-new item is also its opening purchase — a vendor obligation is
   // created either way, so a vendor is required here too, not just on
@@ -56,6 +61,8 @@ export function AddIngredientModal({
     name.trim().length > 0 &&
     amountNum > 0 &&
     pieceNum > 0 &&
+    unitAmountNum >= 1 &&
+    unitAmountNum <= 100 &&
     (isEditing || Boolean(vendorId));
 
   function handleSave() {
@@ -67,6 +74,7 @@ export function AddIngredientModal({
       quantity: quantityNum,
       piecesPerPackage: pieceNum,
       unit,
+      unitAmount: unitAmountNum,
       unitCost,
       // No stock level has been observed yet for a brand-new item, so flag
       // it low as soon as it drops below a third of the opening quantity.
@@ -148,26 +156,42 @@ export function AddIngredientModal({
             </div>
           )}
 
+          <div>
+            <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
+              Packaging
+            </label>
+            <select
+              value={packaging}
+              onChange={(e) => setPackaging(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400 bg-white"
+            >
+              {PACKAGING_OPTIONS.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-                Packaging
+                Amount per unit
               </label>
-              <select
-                value={packaging}
-                onChange={(e) => setPackaging(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400 bg-white"
-              >
-                {PACKAGING_OPTIONS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
+              <input
+                type="number"
+                min="1"
+                max="100"
+                step="0.1"
+                value={unitAmount}
+                onChange={(e) => setUnitAmount(e.target.value)}
+                placeholder="e.g. 2.5"
+                className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
             </div>
             <div>
               <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-                Unit
+                Unit of measure
               </label>
               <select
                 value={unit}

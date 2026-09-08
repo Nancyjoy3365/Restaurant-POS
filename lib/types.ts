@@ -127,6 +127,12 @@ export interface Ingredient {
   piecesPerPackage: number;
   totalCost: number;
   unit: string;
+  // How much of `unit` a single piece holds (e.g. 2.5 for a 2.5-litre
+  // bottle) — descriptive sizing only, separate from piecesPerPackage
+  // (how many such pieces make up one package) and not used in unitCost.
+  // Optional so ingredients saved before this field existed aren't wiped;
+  // treat a missing value as 1.
+  unitAmount?: number;
   reorderThreshold: number;
   unitCost: number;
   // When this stock entry was first recorded — optional so ingredients

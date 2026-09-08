@@ -126,7 +126,7 @@ export default function InventoryPage() {
                         {formatKES(ing.unitCost)}
                       </td>
                       <td className="px-2 py-3 text-slate-500 font-semibold">
-                        {ing.unit}
+                        {ing.unitAmount ?? 1} {ing.unit}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-2">
