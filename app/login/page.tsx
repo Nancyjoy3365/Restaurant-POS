@@ -18,6 +18,7 @@ import {
 import { usePosStore } from "@/lib/store";
 import { ROLE_LOGIN_ORDER, getDefaultRouteForRole } from "@/lib/roles";
 import { isOnApprovedLeave } from "@/lib/payroll";
+import { ChangePinModal } from "@/components/shared/ChangePinModal";
 import type { StaffRole } from "@/lib/types";
 
 const ROLE_ICON: Record<StaffRole, typeof UtensilsCrossed> = {
@@ -55,6 +56,7 @@ export default function LoginPage() {
     id: string;
     name: string;
   } | null>(null);
+  const [changePinOpen, setChangePinOpen] = useState(false);
 
   function selectRole(r: StaffRole) {
     setRole(r);
@@ -190,6 +192,13 @@ export default function LoginPage() {
             >
               <ArrowLeft size={13} /> Choose a different role
             </button>
+            <button
+              type="button"
+              onClick={() => setChangePinOpen(true)}
+              className="text-xs font-extrabold text-accent-600 hover:text-accent-700 mt-2"
+            >
+              Change PIN
+            </button>
           </div>
         )}
 
@@ -301,6 +310,10 @@ export default function LoginPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {changePinOpen && (
+        <ChangePinModal onClose={() => setChangePinOpen(false)} />
       )}
     </div>
   );

@@ -43,7 +43,7 @@ export function BillPreview({
 
       <div
         id="receipt-print"
-        className="rounded-xl border border-dashed border-slate-300 p-4 font-mono text-[12px] text-slate-800"
+        className="rounded-xl border border-dashed border-slate-300 p-4 font-sans text-[12px] text-slate-800"
       >
         <div className="text-center mb-2">
           <div className="font-black text-base tracking-wide">

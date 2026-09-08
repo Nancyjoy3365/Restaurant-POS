@@ -29,7 +29,9 @@ export function VariantPickerSheet({
   function chooseVariant(item: MenuItem) {
     if (item.spiceLevels && item.spiceLevels.length > 0) {
       setPendingVariant(item);
-      setSpiceLevel(item.spiceLevels[0]);
+      setSpiceLevel(
+        item.spiceLevels.includes("Normal") ? "Normal" : item.spiceLevels[0]
+      );
     } else {
       onSelect(item, {});
     }

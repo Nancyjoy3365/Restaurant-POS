@@ -384,67 +384,39 @@ export default function CashierPage() {
 
   return (
     <div className="flex-1 flex flex-col lg:h-full lg:overflow-hidden">
-      <header className="shrink-0 flex flex-col border-b border-warm-200 bg-white">
-        <div className="h-16 flex items-center justify-between px-6">
-          <h1 className="text-xl font-black text-slate-900">Cashier</h1>
-          <div className="inline-flex items-center rounded-full border border-warm-200 bg-warm-50 p-1">
-            <button
-              type="button"
-              onClick={() => setTab("live")}
-              className={clsx(
-                "rounded-full px-4 py-1.5 text-xs font-extrabold transition-colors",
-                tab === "live"
-                  ? "bg-accent-600 text-white"
-                  : "text-slate-500 hover:text-slate-700"
-              )}
-            >
-              Live Payments
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab("reconciliation")}
-              className={clsx(
-                "rounded-full px-4 py-1.5 text-xs font-extrabold transition-colors",
-                tab === "reconciliation"
-                  ? "bg-accent-600 text-white"
-                  : "text-slate-500 hover:text-slate-700"
-              )}
-            >
-              Reconciliation
-            </button>
-          </div>
-        </div>
+      <header className="shrink-0 flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-warm-200 bg-white">
+        <h1 className="text-xl font-black text-slate-900">Cashier</h1>
 
-        {tab === "reconciliation" && (
-          <div className="flex flex-wrap items-center gap-3 px-6 pb-4">
-            <div className="inline-flex items-center rounded-full border border-warm-200 bg-warm-50 p-1">
-              <button
-                type="button"
-                onClick={() => setReconTab("owed")}
-                className={clsx(
-                  "rounded-full px-3.5 py-1.5 text-xs font-extrabold transition-colors",
-                  reconTab === "owed"
-                    ? "bg-accent-600 text-white"
-                    : "text-slate-500 hover:text-slate-700"
-                )}
-              >
-                Owed Now
-              </button>
-              <button
-                type="button"
-                onClick={() => setReconTab("history")}
-                className={clsx(
-                  "rounded-full px-3.5 py-1.5 text-xs font-extrabold transition-colors",
-                  reconTab === "history"
-                    ? "bg-accent-600 text-white"
-                    : "text-slate-500 hover:text-slate-700"
-                )}
-              >
-                History
-              </button>
-            </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {tab === "reconciliation" && (
+            <>
+              <div className="inline-flex items-center rounded-full border border-warm-200 bg-warm-50 p-1">
+                <button
+                  type="button"
+                  onClick={() => setReconTab("owed")}
+                  className={clsx(
+                    "rounded-full px-3.5 py-1.5 text-xs font-extrabold transition-colors",
+                    reconTab === "owed"
+                      ? "bg-accent-600 text-white"
+                      : "text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  Owed Now
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReconTab("history")}
+                  className={clsx(
+                    "rounded-full px-3.5 py-1.5 text-xs font-extrabold transition-colors",
+                    reconTab === "history"
+                      ? "bg-accent-600 text-white"
+                      : "text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  History
+                </button>
+              </div>
 
-            <div className="flex flex-wrap items-center gap-3">
               <div className="relative">
                 <Calendar
                   size={14}
@@ -488,9 +460,36 @@ export default function CashierPage() {
               <span className="text-xs font-extrabold text-slate-400">
                 Showing {rangeLabel}
               </span>
-            </div>
+            </>
+          )}
+
+          <div className="inline-flex items-center rounded-full border border-warm-200 bg-warm-50 p-1">
+            <button
+              type="button"
+              onClick={() => setTab("live")}
+              className={clsx(
+                "rounded-full px-4 py-1.5 text-xs font-extrabold transition-colors",
+                tab === "live"
+                  ? "bg-accent-600 text-white"
+                  : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              Live Payments
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("reconciliation")}
+              className={clsx(
+                "rounded-full px-4 py-1.5 text-xs font-extrabold transition-colors",
+                tab === "reconciliation"
+                  ? "bg-accent-600 text-white"
+                  : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              Reconciliation
+            </button>
           </div>
-        )}
+        </div>
       </header>
 
       <main className="flex-1 lg:min-h-0 overflow-y-auto p-6 space-y-6">
