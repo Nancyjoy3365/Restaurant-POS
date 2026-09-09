@@ -26,6 +26,7 @@ import type {
   LeaveRecord,
   IncentiveRecord,
   RestaurantSettings,
+  ServiceExpense,
 } from "./types";
 import {
   seedMenu,
@@ -53,6 +54,7 @@ interface PosState {
   vendors: Vendor[];
   stockPurchases: StockPurchase[];
   vendorPayments: VendorPayment[];
+  serviceExpenses: ServiceExpense[];
   recipes: Recipe[];
   staff: StaffMember[];
   shifts: ShiftEntry[];
@@ -100,6 +102,9 @@ interface PosState {
   addVendor: (vendor: Omit<Vendor, "id">) => string;
   updateVendor: (vendorId: string, updates: Omit<Vendor, "id">) => void;
   setVendorActive: (vendorId: string, active: boolean) => void;
+  addServiceExpense: (expense: Omit<ServiceExpense, "id">) => void;
+  updateServiceExpense: (expenseId: string, updates: Omit<ServiceExpense, "id">) => void;
+  deleteServiceExpense: (expenseId: string) => void;
   // Records a purchase from a vendor: appends the ledger line (unpaid by
   // default) AND folds it into the ingredient's on-hand quantity/cost basis
   // in the same action, since the two must never happen independently —
@@ -263,6 +268,7 @@ export const usePosStore = create<PosState>()(
       vendors: seedVendors,
       stockPurchases: [],
       vendorPayments: [],
+      serviceExpenses: [],
       recipes: seedRecipes,
       staff: seedStaff,
       shifts: seedShifts,
@@ -672,6 +678,23 @@ export const usePosStore = create<PosState>()(
           vendors: s.vendors.map((v) =>
             v.id === vendorId ? { ...v, active } : v
           ),
+        })),
+
+      addServiceExpense: (expense) =>
+        set((s) => ({
+          serviceExpenses: [...s.serviceExpenses, { ...expense, id: makeId("serviceexpense") }],
+        })),
+
+      updateServiceExpense: (expenseId, updates) =>
+        set((s) => ({
+          serviceExpenses: s.serviceExpenses.map((e) =>
+            e.id === expenseId ? { ...updates, id: e.id } : e
+          ),
+        })),
+
+      deleteServiceExpense: (expenseId) =>
+        set((s) => ({
+          serviceExpenses: s.serviceExpenses.filter((e) => e.id !== expenseId),
         })),
 
       recordStockPurchase: (purchase) =>

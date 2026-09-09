@@ -195,6 +195,14 @@ export interface VendorPayment {
   paidAt: number;
 }
 
+export interface ServiceExpense {
+  id: string;
+  description: string;
+  category: string;
+  amount: number;
+  incurredAt: number;
+}
+
 export interface RecipeComponent {
   ingredientId: string;
   qty: number;
