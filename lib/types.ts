@@ -147,6 +147,8 @@ export interface Ingredient {
 
 export type VendorPaymentMethod = "cash" | "mpesa";
 
+export type VendorPaymentTerms = "due-on-receipt" | "net-15" | "net-30" | "net-60";
+
 // A vendor is just an identity — name/category. It carries no payment
 // snapshot of its own: how much is owed and what's been paid are both
 // derived from StockPurchase/VendorPayment below, never stored here.
@@ -160,6 +162,9 @@ export interface Vendor {
   // Optional so vendors saved before this field existed aren't wiped;
   // treat a missing value as active.
   active?: boolean;
+  contactPerson?: string;
+  phone?: string;
+  paymentTerms?: VendorPaymentTerms;
 }
 
 // One purchase event from a vendor — the accounts-payable ledger line. A
