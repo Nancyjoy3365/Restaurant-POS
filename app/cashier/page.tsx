@@ -82,7 +82,9 @@ export default function CashierPage() {
   const [cashDropReference, setCashDropReference] = useState("");
   const [cashDropNote, setCashDropNote] = useState("");
 
-  const waiters = staff.filter((m) => m.role === "Waiter");
+  // Every staff member can take an order now, not just Waiters — anyone
+  // could be holding cash/M-Pesa-substitution money owed to the cashier.
+  const waiters = staff;
 
   const queue: { ticket: Ticket; order: TicketOrder }[] = [];
   for (const ticket of tickets) {
@@ -314,11 +316,11 @@ export default function CashierPage() {
     return waitersWithPending().reduce((sum, r) => sum + r.pending, 0);
   }
 
-  // One row per waiter, merging the period reconciliation figures (scoped
-  // to the selected day/week) with the all-time running balance (never
-  // scoped — carries forward across days until an actual Cash Drop clears
-  // it). Every waiter is listed, not just ones with activity in the
-  // selected period, so no one silently disappears from the board.
+  // One row per staff member, merging the period reconciliation figures
+  // (scoped to the selected day/week) with the all-time running balance
+  // (never scoped — carries forward across days until an actual Cash Drop
+  // clears it). Only staff who actually owe something appear here — anyone
+  // with nothing pending drops off the board instead of cluttering it.
   const owedRows = waiters
     .filter((w) => !waiterFilter || w.id === waiterFilter)
     .map((waiter) => {
@@ -333,6 +335,7 @@ export default function CashierPage() {
         totalPending,
       };
     })
+    .filter((row) => row.totalPending > 0)
     .sort((a, b) => b.totalPending - a.totalPending);
 
   const historyRows = rangeDrops
@@ -873,7 +876,7 @@ export default function CashierPage() {
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-warm-200">
             <div>
               <h2 className="font-extrabold text-slate-900">
-                Cash Owed Per Waiter
+                Cash Owed Per Staff Member
               </h2>
               <p className="text-xs text-slate-500 font-semibold mt-0.5">
                 Bills/Drop columns are scoped to {rangeLabel}. Total Pending
@@ -887,7 +890,7 @@ export default function CashierPage() {
                 onChange={(e) => setWaiterFilter(e.target.value)}
                 className="rounded-full border border-warm-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-600 outline-none focus:border-accent-400"
               >
-                <option value="">All Waiters</option>
+                <option value="">All Staff</option>
                 {waiters.map((w) => (
                   <option key={w.id} value={w.id}>
                     {w.name}
@@ -900,8 +903,8 @@ export default function CashierPage() {
                 disabled={totalPendingAllWaiters() <= 0}
                 title={
                   totalPendingAllWaiters() <= 0
-                    ? "No waiter currently has a pending balance"
-                    : "Record one lumpsum drop covering every waiter's pending balance"
+                    ? "No staff member currently has a pending balance"
+                    : "Record one lumpsum drop covering every staff member's pending balance"
                 }
                 className="inline-flex items-center gap-1.5 rounded-full bg-accent-600 hover:bg-accent-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-extrabold px-3.5 py-2"
               >
@@ -911,14 +914,14 @@ export default function CashierPage() {
           </div>
           {owedRows.length === 0 ? (
             <p className="text-slate-400 font-semibold text-center py-12">
-              No waiters on file yet.
+              Nobody currently owes anything.
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[980px]">
                 <thead className="bg-warm-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
                   <tr>
-                    <th className="text-left px-5 py-3">Waiter</th>
+                    <th className="text-left px-5 py-3">Staff</th>
                     <th className="text-right px-2 py-3">
                       Bills ({rangeLabel})
                     </th>
@@ -1010,7 +1013,7 @@ export default function CashierPage() {
                 <thead className="bg-warm-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
                   <tr>
                     <th className="text-left px-5 py-3">Date/Time</th>
-                    <th className="text-left px-2 py-3">Waiter</th>
+                    <th className="text-left px-2 py-3">Staff</th>
                     <th className="text-left px-2 py-3">Method</th>
                     <th className="text-left px-2 py-3">Reference</th>
                     <th className="text-right px-2 py-3">Amount</th>
@@ -1169,7 +1172,7 @@ export default function CashierPage() {
             >
               <div className="flex items-center justify-between mb-1">
                 <h3 className="font-extrabold text-slate-900">
-                  {isLumpsum ? "Add Cash Drop — All Waiters" : "Add New Cash Drop"}
+                  {isLumpsum ? "Add Cash Drop — All Staff" : "Add New Cash Drop"}
                 </h3>
                 <button
                   type="button"
@@ -1182,14 +1185,14 @@ export default function CashierPage() {
               </div>
               <p className="text-xs text-slate-500 font-semibold mb-3">
                 {isLumpsum
-                  ? "One lumpsum drop settling every waiter's pending balance at once — the amount must match the combined total exactly."
-                  : "Cash and M-Pesa sent to a waiter’s personal number are combined into one outstanding balance."}
+                  ? "One lumpsum drop settling every staff member's pending balance at once — the amount must match the combined total exactly."
+                  : "Cash and M-Pesa sent to a staff member’s personal number are combined into one outstanding balance."}
               </p>
 
               {isLumpsum ? (
                 <div className="rounded-lg bg-warm-50 px-3 py-2.5 mb-3">
                   <div className="text-xs font-extrabold text-slate-500 uppercase tracking-wide mb-1.5">
-                    Covers {pendingRows.length} waiter{pendingRows.length === 1 ? "" : "s"}
+                    Covers {pendingRows.length} staff member{pendingRows.length === 1 ? "" : "s"}
                   </div>
                   <div className="space-y-1">
                     {pendingRows.map(({ waiter, pending }) => (
@@ -1206,7 +1209,7 @@ export default function CashierPage() {
               ) : (
                 <>
                   <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-                    Waiter
+                    Staff
                   </label>
                   <div className="mt-1 mb-3 w-full rounded-lg border border-warm-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700">
                     {waiterName}
@@ -1308,8 +1311,8 @@ export default function CashierPage() {
                   <AlertCircle size={14} className="shrink-0 mt-0.5" />
                   A lumpsum drop must match the total owed exactly (
                   {formatKES(expectedNow)}). For a different amount, use
-                  &ldquo;Add Cash Drop&rdquo; on that specific waiter&rsquo;s
-                  row instead.
+                  &ldquo;Add Cash Drop&rdquo; on that specific staff
+                  member&rsquo;s row instead.
                 </div>
               )}
 

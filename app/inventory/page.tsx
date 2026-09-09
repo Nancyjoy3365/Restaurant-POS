@@ -17,7 +17,7 @@ type Tab = "stock" | "vendors" | "history";
 const TABS: { id: Tab; label: string }[] = [
   { id: "stock", label: "Stock" },
   { id: "vendors", label: "Vendors" },
-  { id: "history", label: "Payment History" },
+  { id: "history", label: "Vendor Statement" },
 ];
 
 function formatPaymentDate(ts: number): string {
@@ -328,7 +328,7 @@ export default function InventoryPage() {
           <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-warm-200">
               <h2 className="font-extrabold text-slate-900">
-                Vendor Payment History
+                Vendor Statement
               </h2>
               <div className="relative w-full sm:w-72">
                 <Search

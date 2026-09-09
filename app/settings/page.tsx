@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import { CheckCircle2, KeyRound, Building2, Smartphone, Percent, Printer } from "lucide-react";
+import { CheckCircle2, Building2, Smartphone, Percent, Printer } from "lucide-react";
 import { usePosStore } from "@/lib/store";
 import type { ReceiptWidth } from "@/lib/types";
 
@@ -12,7 +12,7 @@ function SettingsCard({
   description,
   children,
 }: {
-  icon: typeof KeyRound;
+  icon: typeof Building2;
   title: string;
   description: string;
   children: React.ReactNode;
@@ -52,40 +52,8 @@ function useSavedFlash() {
 }
 
 export default function SettingsPage() {
-  const staffPin = usePosStore((s) => s.staffPin);
-  const setStaffPin = usePosStore((s) => s.setStaffPin);
   const settings = usePosStore((s) => s.restaurantSettings);
   const updateRestaurantSettings = usePosStore((s) => s.updateRestaurantSettings);
-
-  // --- Change PIN ---
-  const [currentPin, setCurrentPin] = useState("");
-  const [newPin, setNewPin] = useState("");
-  const [confirmPin, setConfirmPin] = useState("");
-  const [pinError, setPinError] = useState("");
-  const pinFlash = useSavedFlash();
-
-  const pinDigits = (v: string) => v.replace(/\D/g, "").slice(0, 3);
-
-  function handleChangePin() {
-    setPinError("");
-    if (currentPin !== staffPin) {
-      setPinError("Current PIN is incorrect.");
-      return;
-    }
-    if (newPin.length !== 3) {
-      setPinError("New PIN must be exactly 3 digits.");
-      return;
-    }
-    if (newPin !== confirmPin) {
-      setPinError("New PIN and confirmation don't match.");
-      return;
-    }
-    setStaffPin(newPin);
-    setCurrentPin("");
-    setNewPin("");
-    setConfirmPin("");
-    pinFlash.flash();
-  }
 
   // --- Restaurant details ---
   const [name, setName] = useState(settings.name);
@@ -142,68 +110,6 @@ export default function SettingsPage() {
       </header>
 
       <main className="flex-1 lg:min-h-0 overflow-y-auto p-6 space-y-6 max-w-2xl">
-        <SettingsCard
-          icon={KeyRound}
-          title="Change PIN"
-          description="The shared PIN every staff member uses to log in. Changing it applies immediately for everyone."
-        >
-          <SuccessBanner show={pinFlash.saved} />
-          {pinError && (
-            <div className="mb-3 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold px-3 py-2">
-              {pinError}
-            </div>
-          )}
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-                Current PIN
-              </label>
-              <input
-                type="password"
-                inputMode="numeric"
-                value={currentPin}
-                onChange={(e) => setCurrentPin(pinDigits(e.target.value))}
-                placeholder="•••"
-                className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-bold outline-none focus:border-accent-400 tracking-widest"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-                New PIN
-              </label>
-              <input
-                type="password"
-                inputMode="numeric"
-                value={newPin}
-                onChange={(e) => setNewPin(pinDigits(e.target.value))}
-                placeholder="•••"
-                className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-bold outline-none focus:border-accent-400 tracking-widest"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-                Confirm New PIN
-              </label>
-              <input
-                type="password"
-                inputMode="numeric"
-                value={confirmPin}
-                onChange={(e) => setConfirmPin(pinDigits(e.target.value))}
-                placeholder="•••"
-                className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-bold outline-none focus:border-accent-400 tracking-widest"
-              />
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={handleChangePin}
-            disabled={!currentPin || !newPin || !confirmPin}
-            className="w-full mt-4 rounded-lg bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-2.5 transition-colors"
-          >
-            Update PIN
-          </button>
-        </SettingsCard>
-
         <SettingsCard
           icon={Building2}
           title="Restaurant Details"
