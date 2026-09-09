@@ -228,6 +228,13 @@ export default function CashierPage() {
     });
   }
 
+  const [confirmReverseTicketId, setConfirmReverseTicketId] = useState<string | null>(null);
+
+  function confirmReverse() {
+    if (confirmReverseTicketId) handleReverse(confirmReverseTicketId);
+    setConfirmReverseTicketId(null);
+  }
+
   // Reconciliation reporting window — a custom from/to date range,
   // inclusive of both endpoints. Defaults to today on both ends.
   const rangeStart = startOfDay(parseLocalDate(fromDate));
@@ -707,7 +714,7 @@ export default function CashierPage() {
                                   <button
                                     type="button"
                                     disabled={!canReverse}
-                                    onClick={() => handleReverse(ticket.id)}
+                                    onClick={() => setConfirmReverseTicketId(ticket.id)}
                                     aria-label="Reverse last payment"
                                     title="Reverse last payment"
                                     className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-rose-200 text-rose-600 hover:bg-rose-50 disabled:border-warm-200 disabled:text-slate-300"
@@ -910,6 +917,11 @@ export default function CashierPage() {
               >
                 <Plus size={13} /> Add Cash Drop
               </button>
+              {totalPendingAllWaiters() <= 0 && (
+                <span className="text-xs font-semibold text-slate-400">
+                  Nothing pending to collect right now.
+                </span>
+              )}
             </div>
           </div>
           {owedRows.length === 0 ? (
@@ -1344,6 +1356,42 @@ export default function CashierPage() {
           total={receipt.total}
           onClose={() => setReceipt(null)}
         />
+      )}
+
+      {confirmReverseTicketId && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          onClick={() => setConfirmReverseTicketId(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-extrabold text-slate-900 mb-1">
+              Reverse this payment?
+            </h3>
+            <p className="text-xs text-slate-500 font-semibold mb-4">
+              This undoes the most recent payment recorded against this
+              order — it can&rsquo;t be undone from here.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmReverseTicketId(null)}
+                className="rounded-xl border-2 border-warm-200 text-slate-600 hover:border-slate-300 hover:bg-warm-50 font-extrabold py-3 transition-colors"
+              >
+                No
+              </button>
+              <button
+                type="button"
+                onClick={confirmReverse}
+                className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold py-3 transition-colors"
+              >
+                Yes, reverse
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

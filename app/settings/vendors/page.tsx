@@ -3,20 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
-import {
-  ArrowLeft,
-  Plus,
-  Pencil,
-  Banknote,
-  History,
-  Ban,
-  RotateCcw,
-} from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Ban, RotateCcw } from "lucide-react";
 import { usePosStore } from "@/lib/store";
 import { formatKES } from "@/lib/utils";
 import { AddVendorModal } from "@/components/inventory/AddVendorModal";
-import { VendorPayoutModal } from "@/components/inventory/VendorPayoutModal";
-import { VendorHistoryModal } from "@/components/inventory/VendorHistoryModal";
 import type { Vendor } from "@/lib/types";
 
 export default function VendorsSettingsPage() {
@@ -26,8 +16,6 @@ export default function VendorsSettingsPage() {
 
   const [showAddVendorModal, setShowAddVendorModal] = useState(false);
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
-  const [payoutVendor, setPayoutVendor] = useState<Vendor | null>(null);
-  const [historyVendor, setHistoryVendor] = useState<Vendor | null>(null);
 
   function balanceOwed(vendorId: string): number {
     return stockPurchases
@@ -54,7 +42,8 @@ export default function VendorsSettingsPage() {
             <div>
               <h2 className="font-extrabold text-slate-900">Vendors</h2>
               <p className="text-xs text-slate-500 font-semibold mt-0.5">
-                Suppliers you buy stock from — track balances owed and settle payouts.
+                Suppliers you buy stock from — add, edit, and deactivate vendors here.
+                Payouts and payment history live on Inventory &rsaquo; Vendor Statement.
               </p>
             </div>
             <button
@@ -130,29 +119,6 @@ export default function VendorsSettingsPage() {
                             <div className="flex items-center justify-center gap-2">
                               <button
                                 type="button"
-                                onClick={() => setHistoryVendor(v)}
-                                aria-label={`View history for ${v.name}`}
-                                title="Purchase & payment history"
-                                className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-warm-200 text-slate-500 hover:border-accent-300 hover:text-accent-700"
-                              >
-                                <History size={14} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setPayoutVendor(v)}
-                                disabled={owed <= 0}
-                                aria-label={`Add payout for ${v.name}`}
-                                title={
-                                  owed <= 0
-                                    ? "Nothing owed to this vendor yet — restock an item with them selected as the vendor first"
-                                    : "Add payout"
-                                }
-                                className="inline-flex items-center gap-1.5 rounded-full bg-accent-600 hover:bg-accent-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-extrabold px-3 py-1.5"
-                              >
-                                <Banknote size={12} /> Payout
-                              </button>
-                              <button
-                                type="button"
                                 onClick={() => setEditingVendor(v)}
                                 aria-label={`Edit ${v.name}`}
                                 title={`Edit ${v.name}`}
@@ -205,19 +171,6 @@ export default function VendorsSettingsPage() {
         <AddVendorModal
           vendor={editingVendor}
           onClose={() => setEditingVendor(null)}
-        />
-      )}
-      {payoutVendor && (
-        <VendorPayoutModal
-          vendor={payoutVendor}
-          balanceOwed={balanceOwed(payoutVendor.id)}
-          onClose={() => setPayoutVendor(null)}
-        />
-      )}
-      {historyVendor && (
-        <VendorHistoryModal
-          vendor={historyVendor}
-          onClose={() => setHistoryVendor(null)}
         />
       )}
     </div>

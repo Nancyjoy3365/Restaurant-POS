@@ -11,7 +11,6 @@ import {
   Trash2,
   History,
   Banknote,
-  MoreVertical,
   RotateCcw,
   ChevronUp,
   ChevronDown,
@@ -77,7 +76,6 @@ export default function InventoryPage() {
   const [vendorSearch, setVendorSearch] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "balance">("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-  const [openMenuVendorId, setOpenMenuVendorId] = useState<string | null>(null);
   const [payoutVendor, setPayoutVendor] = useState<Vendor | null>(null);
   const [historyVendor, setHistoryVendor] = useState<Vendor | null>(null);
   const ingredients = usePosStore((s) => s.ingredients);
@@ -582,47 +580,32 @@ export default function InventoryPage() {
                           <td className="px-2 py-3 text-slate-600 font-semibold whitespace-nowrap">
                             {PAYMENT_TERMS_LABEL[row.vendor.paymentTerms ?? "net-30"]}
                           </td>
-                          <td className="px-4 py-3 text-center relative">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setOpenMenuVendorId(
-                                  openMenuVendorId === row.vendor.id ? null : row.vendor.id
-                                )
-                              }
-                              aria-label={`Actions for ${row.vendor.name}`}
-                              className="inline-flex items-center justify-center h-8 w-8 rounded-full hover:bg-slate-100 text-slate-500"
-                            >
-                              <MoreVertical size={16} />
-                            </button>
-                            {openMenuVendorId === row.vendor.id && (
-                              <div
-                                className="absolute right-4 top-10 z-10 w-44 rounded-xl border border-warm-200 bg-white shadow-lg py-1 text-left"
-                                onMouseLeave={() => setOpenMenuVendorId(null)}
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setHistoryVendor(row.vendor)}
+                                aria-label={`View statement for ${row.vendor.name}`}
+                                title="Purchase & payment history"
+                                className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-warm-200 text-slate-500 hover:border-accent-300 hover:text-accent-700"
                               >
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setHistoryVendor(row.vendor);
-                                    setOpenMenuVendorId(null);
-                                  }}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
-                                >
-                                  <History size={13} /> View Statement
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={currentBalanceOwed(row.vendor.id) <= 0}
-                                  onClick={() => {
-                                    setPayoutVendor(row.vendor);
-                                    setOpenMenuVendorId(null);
-                                  }}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-transparent"
-                                >
-                                  <Banknote size={13} /> Record Payout
-                                </button>
-                              </div>
-                            )}
+                                <History size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={currentBalanceOwed(row.vendor.id) <= 0}
+                                onClick={() => setPayoutVendor(row.vendor)}
+                                aria-label={`Add payout for ${row.vendor.name}`}
+                                title={
+                                  currentBalanceOwed(row.vendor.id) <= 0
+                                    ? "Nothing currently owed to this vendor"
+                                    : "Record payout"
+                                }
+                                className="inline-flex items-center gap-1.5 rounded-full bg-accent-600 hover:bg-accent-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-extrabold px-3 py-1.5"
+                              >
+                                <Banknote size={12} /> Payout
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
