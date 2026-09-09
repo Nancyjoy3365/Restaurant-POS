@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -17,6 +17,7 @@ import {
   PauseCircle,
   Settings,
   MoreHorizontal,
+  ChevronDown,
   X,
 } from "lucide-react";
 import clsx from "clsx";
@@ -24,10 +25,18 @@ import { usePosStore, MAX_HELD_ORDERS_PER_WAITER } from "@/lib/store";
 import { ROLE_ALLOWED_PATHS } from "@/lib/roles";
 import { ticketSubtitle } from "@/components/tickets/ticketStatus";
 
+interface NavItem {
+  href: string;
+  label: string;
+  mobileLabel: string;
+  icon: typeof LayoutGrid;
+  children?: { href: string; label: string }[];
+}
+
 // mobileLabel is a short, non-wrapping variant for the cramped bottom-nav
 // row — the full label is still used on the desktop sidebar and inside the
 // mobile "More" sheet, where there's room for it.
-const NAV_ITEMS = [
+const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "All Orders", mobileLabel: "Orders", icon: LayoutGrid },
   { href: "/my-tickets", label: "My Orders", mobileLabel: "Orders", icon: TicketIcon },
   { href: "/kitchen", label: "Kitchen", mobileLabel: "Kitchen", icon: ChefHat },
@@ -37,7 +46,13 @@ const NAV_ITEMS = [
   { href: "/staff", label: "Staff & Payroll", mobileLabel: "Staff", icon: Users },
   { href: "/reports", label: "Financial Summary", mobileLabel: "Finance", icon: BarChart3 },
   { href: "/performance", label: "Performance Tracker", mobileLabel: "Rank", icon: Trophy },
-  { href: "/settings", label: "Settings", mobileLabel: "Settings", icon: Settings },
+  {
+    href: "/settings",
+    label: "Settings",
+    mobileLabel: "Settings",
+    icon: Settings,
+    children: [{ href: "/settings/vendors", label: "Vendors" }],
+  },
 ];
 
 // However many role-relevant items exist, the bottom row never shows more
@@ -56,27 +71,55 @@ export function Sidebar() {
   const clockOut = usePosStore((s) => s.clockOut);
   const [showClockOutPrompt, setShowClockOutPrompt] = useState(false);
   const [moreSheetOpen, setMoreSheetOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const currentStaff = staff.find((s) => s.id === currentStaffId);
   const allowedPaths = currentStaff
     ? ROLE_ALLOWED_PATHS[currentStaff.role]
     : ["/"];
-  const navItems = NAV_ITEMS.filter((item) => allowedPaths.includes(item.href)).map(
-    (item) =>
+  const navItems = NAV_ITEMS.filter((item) => allowedPaths.includes(item.href))
+    .map((item) =>
       item.href === "/performance" && currentStaff?.role === "Waiter"
         ? { ...item, label: "My Performance" }
         : item
-  );
+    )
+    .map((item) =>
+      item.children
+        ? { ...item, children: item.children.filter((c) => allowedPaths.includes(c.href)) }
+        : item
+    );
   const showHeldOrders = allowedPaths.includes("/my-tickets");
+
+  useEffect(() => {
+    if (pathname.startsWith("/settings")) setSettingsOpen(true);
+  }, [pathname]);
+
+  // Nested Settings sub-links (e.g. Vendors) don't get their own row in the
+  // desktop sidebar — they're rendered indented underneath it instead — but
+  // mobile has no room for that nesting, so they're flattened into plain
+  // top-level entries there.
+  const mobileNavItems: NavItem[] = navItems.flatMap((item) =>
+    item.children
+      ? [
+          item,
+          ...item.children.map((c) => ({
+            href: c.href,
+            label: c.label,
+            mobileLabel: c.label,
+            icon: item.icon,
+          })),
+        ]
+      : [item]
+  );
 
   // Only split into primary + "More" once there's actually more than fits —
   // most roles (Waiter, Chef, Cashier) already have few enough items that
   // this never triggers; it's mainly Admin's broader set that overflows.
-  const needsMobileOverflow = navItems.length > MAX_MOBILE_PRIMARY_ITEMS + 1;
+  const needsMobileOverflow = mobileNavItems.length > MAX_MOBILE_PRIMARY_ITEMS + 1;
   const mobilePrimaryItems = needsMobileOverflow
-    ? navItems.slice(0, MAX_MOBILE_PRIMARY_ITEMS)
-    : navItems;
+    ? mobileNavItems.slice(0, MAX_MOBILE_PRIMARY_ITEMS)
+    : mobileNavItems;
   const mobileOverflowItems = needsMobileOverflow
-    ? navItems.slice(MAX_MOBILE_PRIMARY_ITEMS)
+    ? mobileNavItems.slice(MAX_MOBILE_PRIMARY_ITEMS)
     : [];
   const isNavPathActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -108,7 +151,62 @@ export function Sidebar() {
           </span>
         </div>
         <div className="flex-1 py-4 px-3 space-y-2">
-          {navItems.flatMap(({ href, label, icon: Icon }) => {
+          {navItems.flatMap(({ href, label, icon: Icon, children }) => {
+            if (children && children.length > 0) {
+              const active = pathname.startsWith(href);
+              return [
+                <div key={href}>
+                  <div
+                    className={clsx(
+                      "flex items-center rounded-2xl transition-colors",
+                      active
+                        ? "bg-accent-600 text-white shadow-sm"
+                        : "bg-warm-50 text-slate-600 hover:bg-accent-100 hover:text-accent-700"
+                    )}
+                  >
+                    <Link
+                      href={href}
+                      className="flex-1 flex items-center gap-3 px-4 py-3.5 text-base font-extrabold"
+                    >
+                      <Icon size={22} strokeWidth={2.5} />
+                      {label}
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setSettingsOpen((o) => !o)}
+                      aria-label={settingsOpen ? `Collapse ${label}` : `Expand ${label}`}
+                      className="pr-4 py-3.5"
+                    >
+                      <ChevronDown
+                        size={18}
+                        className={clsx("transition-transform", settingsOpen && "rotate-180")}
+                      />
+                    </button>
+                  </div>
+                  {settingsOpen && (
+                    <div className="pl-4 pt-2 space-y-1">
+                      {children.map((child) => {
+                        const childActive = pathname === child.href;
+                        return (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            className={clsx(
+                              "block rounded-xl px-4 py-2.5 text-sm font-bold transition-colors",
+                              childActive
+                                ? "bg-accent-100 text-accent-700"
+                                : "text-slate-500 hover:bg-warm-50 hover:text-accent-700"
+                            )}
+                          >
+                            {child.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>,
+              ];
+            }
             const active = pathname === href || (href !== "/" && pathname.startsWith(href));
             const link = (
               <Link

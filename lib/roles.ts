@@ -3,7 +3,7 @@ import type { StaffRole } from "./types";
 // Every role can take an order (/my-tickets), not just view the board — a
 // busy shift shouldn't block on whoever happens to be a Waiter.
 export const ROLE_ALLOWED_PATHS: Record<StaffRole, string[]> = {
-  Admin: ["/", "/my-tickets", "/menu-management", "/inventory", "/staff", "/cashier", "/reports", "/performance", "/settings"],
+  Admin: ["/", "/my-tickets", "/menu-management", "/inventory", "/staff", "/cashier", "/reports", "/performance", "/settings", "/settings/vendors"],
   Chef: ["/", "/my-tickets", "/menu-management", "/inventory", "/kitchen"],
   "Kitchen Assistant": ["/", "/my-tickets", "/menu-management", "/inventory", "/kitchen"],
   Cashier: ["/", "/my-tickets", "/cashier"],
