@@ -5,7 +5,6 @@ import Link from "next/link";
 import clsx from "clsx";
 import { ArrowLeft, Plus, Pencil, Ban, RotateCcw } from "lucide-react";
 import { usePosStore } from "@/lib/store";
-import { formatKES } from "@/lib/utils";
 import { AddVendorModal } from "@/components/inventory/AddVendorModal";
 import type { Vendor } from "@/lib/types";
 
@@ -66,7 +65,6 @@ export default function VendorsSettingsPage() {
                     <th className="text-left px-4 py-3">Vendor</th>
                     <th className="text-left px-2 py-3">Category</th>
                     <th className="text-left px-2 py-3">Contact Person</th>
-                    <th className="text-right px-2 py-3">Balance Owed</th>
                     <th className="text-center px-4 py-3">Action</th>
                   </tr>
                 </thead>
@@ -106,14 +104,6 @@ export default function VendorsSettingsPage() {
                                 {v.phone}
                               </div>
                             )}
-                          </td>
-                          <td
-                            className={clsx(
-                              "px-2 py-3 text-right font-extrabold",
-                              owed > 0 ? "text-amber-600" : "text-slate-400"
-                            )}
-                          >
-                            {formatKES(owed)}
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-center gap-2">
