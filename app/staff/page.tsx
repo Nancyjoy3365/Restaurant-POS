@@ -16,7 +16,14 @@ import {
   Check,
   Ban,
 } from "lucide-react";
-import { usePosStore } from "@/lib/store";
+import {
+  useIncentiveRecords,
+  useLeaveRecords,
+  useShifts,
+  useStaff,
+} from "@/lib/hooks/useStaff";
+import { createStaffMember, updateStaffMember, updateLeaveRecord, ApiError } from "@/lib/api/staff";
+import { usePayments } from "@/lib/hooks/useBilling";
 import { formatKES, formatDateTime, formatHours, toDateKey } from "@/lib/utils";
 import {
   getCurrentWeekLabel,
@@ -71,22 +78,22 @@ function downloadTemplate() {
 }
 
 export default function StaffPage() {
-  const staff = usePosStore((s) => s.staff);
-  const shifts = usePosStore((s) => s.shifts);
-  const payments = usePosStore((s) => s.payments);
-  const leaveRecords = usePosStore((s) => s.leaveRecords);
-  const incentiveRecords = usePosStore((s) => s.incentiveRecords);
-  const addStaffMember = usePosStore((s) => s.addStaffMember);
-  const updateStaffMember = usePosStore((s) => s.updateStaffMember);
-  const updateLeaveRecord = usePosStore((s) => s.updateLeaveRecord);
+  const { staff, mutate: mutateStaff } = useStaff();
+  const { shifts } = useShifts();
+  const { payments } = usePayments();
+  const { leaveRecords, mutate: mutateLeaveRecords } = useLeaveRecords();
+  const { incentiveRecords } = useIncentiveRecords();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [staffModalOpen, setStaffModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
+  const [savingStaff, setSavingStaff] = useState(false);
+  const [staffError, setStaffError] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<StaffImportResult | null>(
     null
   );
   const [importedCount, setImportedCount] = useState<number | null>(null);
+  const [importing, setImporting] = useState(false);
   const [search, setSearch] = useState("");
   const [leaveModalStaff, setLeaveModalStaff] = useState<StaffMember | null>(null);
   const [incentiveModalStaff, setIncentiveModalStaff] = useState<StaffMember | null>(null);
@@ -105,9 +112,14 @@ export default function StaffPage() {
     return staff.find((m) => m.id === staffId)?.name ?? "Unknown";
   }
 
-  function approveLeave(l: LeaveRecord) {
+  async function approveLeave(l: LeaveRecord) {
     const { id, ...rest } = l;
-    updateLeaveRecord(id, { ...rest, status: "approved" });
+    try {
+      await updateLeaveRecord(id, { ...rest, status: "approved" });
+      mutateLeaveRecords();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Failed to approve leave.");
+    }
   }
 
   function openDecline(l: LeaveRecord) {
@@ -115,14 +127,19 @@ export default function StaffPage() {
     setDeclineReasonDraft("");
   }
 
-  function confirmDecline() {
+  async function confirmDecline() {
     if (!decliningLeave) return;
     const { id, ...rest } = decliningLeave;
-    updateLeaveRecord(id, {
-      ...rest,
-      status: "declined",
-      declineReason: declineReasonDraft.trim() || undefined,
-    });
+    try {
+      await updateLeaveRecord(id, {
+        ...rest,
+        status: "declined",
+        declineReason: declineReasonDraft.trim() || undefined,
+      });
+      mutateLeaveRecords();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Failed to decline leave.");
+    }
     setDecliningLeave(null);
   }
 
@@ -183,15 +200,17 @@ export default function StaffPage() {
   function closeStaffModal() {
     setStaffModalOpen(false);
     setEditingStaff(null);
+    setStaffError(null);
   }
 
   const canSaveStaff =
     form.name.trim() !== "" &&
     (form.payType === "commission"
       ? form.commissionValue.trim() !== "" && !Number.isNaN(Number(form.commissionValue))
-      : form.rate.trim() !== "" && Number(form.rate) > 0);
+      : form.rate.trim() !== "" && Number(form.rate) > 0) &&
+    !savingStaff;
 
-  function handleSaveStaff() {
+  async function handleSaveStaff() {
     if (!canSaveStaff) return;
     const payload: Omit<StaffMember, "id"> = {
       name: form.name.trim(),
@@ -207,13 +226,22 @@ export default function StaffPage() {
           ? Number(form.commissionValue) || 0
           : undefined,
     };
-    if (editingStaff) {
-      updateStaffMember(editingStaff.id, payload);
-    } else {
-      addStaffMember(payload);
+    setSavingStaff(true);
+    setStaffError(null);
+    try {
+      if (editingStaff) {
+        await updateStaffMember(editingStaff.id, payload);
+      } else {
+        await createStaffMember(payload);
+      }
+      mutateStaff();
+      closeStaffModal();
+      resetForm();
+    } catch (err) {
+      setStaffError(err instanceof ApiError ? err.message : "Failed to save staff member.");
+    } finally {
+      setSavingStaff(false);
     }
-    closeStaffModal();
-    resetForm();
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -229,13 +257,21 @@ export default function StaffPage() {
     reader.readAsText(file);
   }
 
-  function confirmImport() {
+  async function confirmImport() {
     if (!importResult) return;
-    for (const row of importResult.valid) {
-      addStaffMember(row);
+    setImporting(true);
+    try {
+      for (const row of importResult.valid) {
+        await createStaffMember(row);
+      }
+      mutateStaff();
+      setImportedCount(importResult.valid.length);
+      setImportResult(null);
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Failed to import staff.");
+    } finally {
+      setImporting(false);
     }
-    setImportedCount(importResult.valid.length);
-    setImportResult(null);
   }
 
   return (
@@ -813,13 +849,19 @@ export default function StaffPage() {
               )}
             </div>
 
+            {staffError && (
+              <p className="mt-3 text-xs font-semibold text-rose-600">{staffError}</p>
+            )}
+
             <button
               type="button"
               disabled={!canSaveStaff}
               onClick={handleSaveStaff}
               className="w-full mt-5 flex items-center justify-center gap-2 rounded-lg bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-3 transition-colors"
             >
-              {editingStaff ? (
+              {savingStaff ? (
+                "Saving…"
+              ) : editingStaff ? (
                 <>
                   <Check size={16} strokeWidth={3} /> Save Changes
                 </>
@@ -930,11 +972,11 @@ export default function StaffPage() {
               </button>
               <button
                 type="button"
-                disabled={importResult.valid.length === 0}
+                disabled={importResult.valid.length === 0 || importing}
                 onClick={confirmImport}
                 className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-2.5 transition-colors"
               >
-                <Upload size={15} /> Import {importResult.valid.length}
+                <Upload size={15} /> {importing ? "Importing…" : `Import ${importResult.valid.length}`}
               </button>
             </div>
           </div>

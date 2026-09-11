@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
-import { usePosStore } from "@/lib/store";
+import { createServiceExpense, updateServiceExpense, ApiError } from "@/lib/api/inventoryExtras";
 import type { ServiceExpense } from "@/lib/types";
 
 function toISODate(d: Date): string {
@@ -20,12 +20,12 @@ function parseLocalDate(iso: string): number {
 export function AddServiceExpenseModal({
   expense,
   onClose,
+  onSaved,
 }: {
   expense?: ServiceExpense;
   onClose: () => void;
+  onSaved?: () => void;
 }) {
-  const addServiceExpense = usePosStore((s) => s.addServiceExpense);
-  const updateServiceExpense = usePosStore((s) => s.updateServiceExpense);
   const isEditing = Boolean(expense);
 
   const [description, setDescription] = useState(expense?.description ?? "");
@@ -34,15 +34,18 @@ export function AddServiceExpenseModal({
   const [date, setDate] = useState(
     expense ? toISODate(new Date(expense.incurredAt)) : toISODate(new Date())
   );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const amountNum = Number(amount) || 0;
   const canSave =
     description.trim().length > 0 &&
     category.trim().length > 0 &&
     amountNum > 0 &&
-    date.trim().length > 0;
+    date.trim().length > 0 &&
+    !saving;
 
-  function handleSave() {
+  async function handleSave() {
     if (!canSave) return;
     const fields = {
       description: description.trim(),
@@ -50,12 +53,20 @@ export function AddServiceExpenseModal({
       amount: amountNum,
       incurredAt: parseLocalDate(date),
     };
-    if (expense) {
-      updateServiceExpense(expense.id, fields);
-    } else {
-      addServiceExpense(fields);
+    setSaving(true);
+    setError(null);
+    try {
+      if (expense) {
+        await updateServiceExpense(expense.id, fields);
+      } else {
+        await createServiceExpense(fields);
+      }
+      onSaved?.();
+      onClose();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to save expense.");
+      setSaving(false);
     }
-    onClose();
   }
 
   return (
@@ -127,13 +138,17 @@ export function AddServiceExpenseModal({
           </div>
         </div>
 
+        {error && (
+          <p className="mt-4 text-xs font-semibold text-rose-600">{error}</p>
+        )}
+
         <button
           type="button"
           disabled={!canSave}
           onClick={handleSave}
           className="w-full mt-6 rounded-xl bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-3 transition-colors"
         >
-          {isEditing ? "Save Changes" : "Add Expense"}
+          {saving ? "Saving…" : isEditing ? "Save Changes" : "Add Expense"}
         </button>
       </div>
     </div>

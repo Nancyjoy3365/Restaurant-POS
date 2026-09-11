@@ -17,7 +17,9 @@ import {
   BarChart3,
   Award,
 } from "lucide-react";
-import { usePosStore } from "@/lib/store";
+import { useIngredients, useRecipes, useStockPurchases, useVendorPayments, useVendors } from "@/lib/hooks/useInventory";
+import { useLeaveRecords, useShifts, useStaff } from "@/lib/hooks/useStaff";
+import { usePayments, useReceipts } from "@/lib/hooks/useBilling";
 import { formatKES } from "@/lib/utils";
 import {
   computeNetBreakdown,
@@ -40,16 +42,16 @@ function toDateInputValue(d: Date): string {
 const MAX_TREND_DAYS = 62;
 
 export default function ReportsPage() {
-  const receipts = usePosStore((s) => s.receipts);
-  const recipes = usePosStore((s) => s.recipes);
-  const ingredients = usePosStore((s) => s.ingredients);
-  const staff = usePosStore((s) => s.staff);
-  const shifts = usePosStore((s) => s.shifts);
-  const payments = usePosStore((s) => s.payments);
-  const leaveRecords = usePosStore((s) => s.leaveRecords);
-  const vendors = usePosStore((s) => s.vendors);
-  const stockPurchases = usePosStore((s) => s.stockPurchases);
-  const vendorPayments = usePosStore((s) => s.vendorPayments);
+  const { receipts } = useReceipts();
+  const { recipes } = useRecipes();
+  const { staff } = useStaff();
+  const { shifts } = useShifts();
+  const { payments } = usePayments();
+  const { leaveRecords } = useLeaveRecords();
+  const { ingredients } = useIngredients();
+  const { vendors } = useVendors();
+  const { stockPurchases } = useStockPurchases();
+  const { vendorPayments } = useVendorPayments();
 
   const todayStr = toDateInputValue(new Date());
   const [fromDate, setFromDate] = useState(todayStr);

@@ -2,7 +2,7 @@
 
 import { X } from "lucide-react";
 import clsx from "clsx";
-import { usePosStore } from "@/lib/store";
+import { useIngredients, useStockPurchases, useVendorPayments } from "@/lib/hooks/useInventory";
 import { formatKES } from "@/lib/utils";
 import type { Vendor } from "@/lib/types";
 
@@ -21,9 +21,9 @@ export function VendorHistoryModal({
   vendor: Vendor;
   onClose: () => void;
 }) {
-  const ingredients = usePosStore((s) => s.ingredients);
-  const stockPurchases = usePosStore((s) => s.stockPurchases);
-  const vendorPayments = usePosStore((s) => s.vendorPayments);
+  const { ingredients } = useIngredients();
+  const { stockPurchases } = useStockPurchases();
+  const { vendorPayments } = useVendorPayments();
 
   const purchases = stockPurchases
     .filter((p) => p.vendorId === vendor.id)

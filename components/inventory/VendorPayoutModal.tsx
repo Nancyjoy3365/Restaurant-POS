@@ -3,7 +3,7 @@
 import { useState } from "react";
 import clsx from "clsx";
 import { X, Banknote, Smartphone } from "lucide-react";
-import { usePosStore } from "@/lib/store";
+import { recordVendorPayout, ApiError } from "@/lib/api/inventory";
 import { formatKES } from "@/lib/utils";
 import type { Vendor, VendorPaymentMethod } from "@/lib/types";
 
@@ -16,32 +16,42 @@ export function VendorPayoutModal({
   vendor,
   balanceOwed,
   onClose,
+  onSaved,
 }: {
   vendor: Vendor;
   balanceOwed: number;
   onClose: () => void;
+  onSaved?: () => void;
 }) {
-  const recordVendorPayout = usePosStore((s) => s.recordVendorPayout);
-
   const [amount, setAmount] = useState(
     balanceOwed > 0 ? String(balanceOwed) : ""
   );
   const [method, setMethod] = useState<VendorPaymentMethod>("cash");
   const [reference, setReference] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const amountNum = Number(amount) || 0;
   const referenceOk = method === "cash" || reference.trim() !== "";
-  const canConfirm = amountNum > 0 && referenceOk;
+  const canConfirm = amountNum > 0 && referenceOk && !saving;
 
-  function handleConfirm() {
+  async function handleConfirm() {
     if (!canConfirm) return;
-    recordVendorPayout(
-      vendor.id,
-      amountNum,
-      method,
-      method === "mpesa" ? reference : undefined
-    );
-    onClose();
+    setSaving(true);
+    setError(null);
+    try {
+      await recordVendorPayout(
+        vendor.id,
+        amountNum,
+        method,
+        method === "mpesa" ? reference : undefined
+      );
+      onSaved?.();
+      onClose();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to record payout.");
+      setSaving(false);
+    }
   }
 
   return (
@@ -125,13 +135,17 @@ export function VendorPayoutModal({
           </div>
         )}
 
+        {error && (
+          <p className="mt-3 text-xs font-semibold text-rose-600">{error}</p>
+        )}
+
         <button
           type="button"
           disabled={!canConfirm}
           onClick={handleConfirm}
           className="w-full mt-4 flex items-center justify-center gap-2 rounded-lg bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-3 transition-colors"
         >
-          <Banknote size={16} /> Confirm Payout
+          <Banknote size={16} /> {saving ? "Saving…" : "Confirm Payout"}
         </button>
       </div>
     </div>

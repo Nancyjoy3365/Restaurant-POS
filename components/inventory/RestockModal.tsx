@@ -2,41 +2,53 @@
 
 import { useState } from "react";
 import { X, PackagePlus } from "lucide-react";
-import { usePosStore } from "@/lib/store";
+import { useVendors } from "@/lib/hooks/useInventory";
+import { recordStockPurchase, ApiError } from "@/lib/api/inventory";
 import { formatKES } from "@/lib/utils";
 import type { Ingredient } from "@/lib/types";
 
 export function RestockModal({
   item,
   onClose,
+  onSaved,
 }: {
   item: Ingredient;
   onClose: () => void;
+  onSaved?: () => void;
 }) {
-  const vendors = usePosStore((s) => s.vendors);
-  const recordStockPurchase = usePosStore((s) => s.recordStockPurchase);
+  const { vendors } = useVendors();
 
   const [vendorId, setVendorId] = useState(vendors[0]?.id ?? "");
   const [amount, setAmount] = useState("");
   const [quantity, setQuantity] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const amountNum = Number(amount) || 0;
   const quantityNum = Number(quantity) || 0;
   const totalUnits = quantityNum * item.piecesPerPackage;
   const unitCost = totalUnits > 0 ? amountNum / totalUnits : 0;
   const canSave =
-    Boolean(vendorId) && amountNum > 0 && quantityNum > 0;
+    Boolean(vendorId) && amountNum > 0 && quantityNum > 0 && !saving;
 
-  function handleSave() {
+  async function handleSave() {
     if (!canSave) return;
-    recordStockPurchase({
-      vendorId,
-      ingredientId: item.id,
-      quantity: quantityNum,
-      unitCost,
-      totalCost: amountNum,
-    });
-    onClose();
+    setSaving(true);
+    setError(null);
+    try {
+      await recordStockPurchase({
+        vendorId,
+        ingredientId: item.id,
+        quantity: quantityNum,
+        unitCost,
+        totalCost: amountNum,
+      });
+      onSaved?.();
+      onClose();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to record stock purchase.");
+      setSaving(false);
+    }
   }
 
   return (
@@ -134,13 +146,17 @@ export function RestockModal({
           </div>
         </div>
 
+        {error && (
+          <p className="mt-3 text-xs font-semibold text-rose-600">{error}</p>
+        )}
+
         <button
           type="button"
           disabled={!canSave}
           onClick={handleSave}
           className="w-full mt-6 flex items-center justify-center gap-2 rounded-xl bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-3 transition-colors"
         >
-          <PackagePlus size={16} /> Add Stock Purchase
+          <PackagePlus size={16} /> {saving ? "Saving…" : "Add Stock Purchase"}
         </button>
       </div>
     </div>

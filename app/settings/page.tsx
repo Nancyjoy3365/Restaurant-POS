@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { CheckCircle2, Building2, Smartphone, Percent, Printer } from "lucide-react";
-import { usePosStore } from "@/lib/store";
+import { useRestaurantSettings } from "@/lib/hooks/useBilling";
+import { updateRestaurantSettings as updateRestaurantSettingsApi } from "@/lib/api/billing";
 import type { ReceiptWidth } from "@/lib/types";
 
 function SettingsCard({
@@ -52,55 +53,80 @@ function useSavedFlash() {
 }
 
 export default function SettingsPage() {
-  const settings = usePosStore((s) => s.restaurantSettings);
-  const updateRestaurantSettings = usePosStore((s) => s.updateRestaurantSettings);
+  const { settings, mutate: mutateSettings } = useRestaurantSettings();
 
   // --- Restaurant details ---
-  const [name, setName] = useState(settings.name);
-  const [address, setAddress] = useState(settings.address);
-  const [kraPin, setKraPin] = useState(settings.kraPin);
-  const [phone, setPhone] = useState(settings.phone);
+  const [name, setName] = useState("");
+  const [address, setAddress] = useState("");
+  const [kraPin, setKraPin] = useState("");
+  const [phone, setPhone] = useState("");
+  const [tillNumber, setTillNumber] = useState("");
+  const [vatPercent, setVatPercent] = useState("");
+
+  // Settings loads asynchronously now (fetched from the DB) — seed every
+  // field once it first arrives, same as the old store's always-present
+  // seeded default used to do synchronously.
+  const seededFrom = useRef<string | null>(null);
+  useEffect(() => {
+    if (!settings || seededFrom.current === settings.name + settings.tillNumber) return;
+    setName(settings.name);
+    setAddress(settings.address);
+    setKraPin(settings.kraPin);
+    setPhone(settings.phone);
+    setTillNumber(settings.tillNumber);
+    setVatPercent(String(Math.round(settings.vatRate * 100)));
+    seededFrom.current = settings.name + settings.tillNumber;
+  }, [settings]);
+
   const detailsFlash = useSavedFlash();
   const canSaveDetails = name.trim() !== "" && address.trim() !== "";
 
-  function handleSaveDetails() {
-    if (!canSaveDetails) return;
-    updateRestaurantSettings({
+  async function handleSaveDetails() {
+    if (!canSaveDetails || !settings) return;
+    await updateRestaurantSettingsApi({
+      ...settings,
       name: name.trim(),
       address: address.trim(),
       kraPin: kraPin.trim(),
       phone: phone.trim(),
     });
+    mutateSettings();
     detailsFlash.flash();
   }
 
   // --- Till number ---
-  const [tillNumber, setTillNumber] = useState(settings.tillNumber);
   const tillFlash = useSavedFlash();
 
-  function handleSaveTill() {
-    if (!tillNumber.trim()) return;
-    updateRestaurantSettings({ tillNumber: tillNumber.trim() });
+  async function handleSaveTill() {
+    if (!tillNumber.trim() || !settings) return;
+    await updateRestaurantSettingsApi({ ...settings, tillNumber: tillNumber.trim() });
+    mutateSettings();
     tillFlash.flash();
   }
 
   // --- VAT rate ---
-  const [vatPercent, setVatPercent] = useState(String(Math.round(settings.vatRate * 100)));
   const vatFlash = useSavedFlash();
   const vatPercentNum = Number(vatPercent);
   const canSaveVat = vatPercent.trim() !== "" && vatPercentNum >= 0 && vatPercentNum <= 100;
 
-  function handleSaveVat() {
-    if (!canSaveVat) return;
-    updateRestaurantSettings({ vatRate: vatPercentNum / 100 });
+  async function handleSaveVat() {
+    if (!canSaveVat || !settings) return;
+    await updateRestaurantSettingsApi({ ...settings, vatRate: vatPercentNum / 100 });
+    mutateSettings();
     vatFlash.flash();
   }
 
   // --- Receipt width ---
   const receiptFlash = useSavedFlash();
-  function handleSetReceiptWidth(width: ReceiptWidth) {
-    updateRestaurantSettings({ receiptWidth: width });
+  async function handleSetReceiptWidth(width: ReceiptWidth) {
+    if (!settings) return;
+    await updateRestaurantSettingsApi({ ...settings, receiptWidth: width });
+    mutateSettings();
     receiptFlash.flash();
+  }
+
+  if (!settings) {
+    return <div className="flex-1 min-h-screen bg-background" />;
   }
 
   return (

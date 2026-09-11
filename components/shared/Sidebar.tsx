@@ -21,9 +21,14 @@ import {
   X,
 } from "lucide-react";
 import clsx from "clsx";
-import { usePosStore, MAX_HELD_ORDERS_PER_WAITER } from "@/lib/store";
+import { usePosStore } from "@/lib/store";
+import { useStaff } from "@/lib/hooks/useStaff";
+import { clockOut as clockOutApi } from "@/lib/api/staff";
+import { useOpenOrders, cancelEmptyTickets } from "@/lib/hooks/useOrders";
 import { ROLE_ALLOWED_PATHS } from "@/lib/roles";
 import { ticketSubtitle } from "@/components/tickets/ticketStatus";
+
+const MAX_HELD_ORDERS_PER_WAITER = 3;
 
 interface NavItem {
   href: string;
@@ -64,11 +69,9 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const currentStaffId = usePosStore((s) => s.currentStaffId);
-  const staff = usePosStore((s) => s.staff);
-  const tickets = usePosStore((s) => s.tickets);
-  const orders = usePosStore((s) => s.orders);
+  const { staff } = useStaff();
+  const { tickets, orders } = useOpenOrders();
   const logout = usePosStore((s) => s.logout);
-  const clockOut = usePosStore((s) => s.clockOut);
   const [showClockOutPrompt, setShowClockOutPrompt] = useState(false);
   const [moreSheetOpen, setMoreSheetOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -136,7 +139,13 @@ export function Sidebar() {
   );
 
   function confirmClockOut(shouldClockOut: boolean) {
-    if (shouldClockOut && currentStaffId) clockOut(currentStaffId);
+    // Fired without waiting — logout shouldn't stall on the network, and
+    // neither the shift record nor the empty-ticket sweep are needed for
+    // the navigation that follows (mirrors the old logout()'s purgeEmptyTickets).
+    if (shouldClockOut && currentStaffId) {
+      clockOutApi(currentStaffId).catch((err) => console.error("Clock-out failed:", err));
+    }
+    cancelEmptyTickets().catch((err) => console.error("Empty-ticket cleanup failed:", err));
     setShowClockOutPrompt(false);
     logout();
     router.push("/login");

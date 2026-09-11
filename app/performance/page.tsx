@@ -14,6 +14,10 @@ import {
   Calendar,
 } from "lucide-react";
 import { usePosStore } from "@/lib/store";
+import { useAllTickets } from "@/lib/hooks/useOrders";
+import { usePayments, useReceipts } from "@/lib/hooks/useBilling";
+import { useMenu } from "@/lib/hooks/useMenu";
+import { useStaff } from "@/lib/hooks/useStaff";
 import { formatKES } from "@/lib/utils";
 import { salesInRange } from "@/lib/payroll";
 import { ordersCompletedInRange, priorityUnitsSoldInRange } from "@/lib/performance";
@@ -29,12 +33,12 @@ function toDateInputValue(d: Date): string {
 }
 
 export default function PerformanceTrackerPage() {
-  const staff = usePosStore((s) => s.staff);
+  const { staff } = useStaff();
   const currentStaffId = usePosStore((s) => s.currentStaffId);
-  const tickets = usePosStore((s) => s.tickets);
-  const payments = usePosStore((s) => s.payments);
-  const receipts = usePosStore((s) => s.receipts);
-  const menu = usePosStore((s) => s.menu);
+  const { tickets } = useAllTickets();
+  const { payments } = usePayments();
+  const { receipts } = useReceipts();
+  const { menu } = useMenu();
 
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
 

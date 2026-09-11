@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import clsx from "clsx";
-import { usePosStore } from "@/lib/store";
+import { useOpenOrders, cancelEmptyTickets } from "@/lib/hooks/useOrders";
+import { useStaff } from "@/lib/hooks/useStaff";
 import {
   TICKET_STATUS_CONFIG,
   avatarColorFor,
@@ -28,10 +29,8 @@ interface WaiterGroup {
 
 export function AllTicketsGrid() {
   const router = useRouter();
-  const tickets = usePosStore((s) => s.tickets);
-  const orders = usePosStore((s) => s.orders);
-  const staff = usePosStore((s) => s.staff);
-  const cancelEmptyTickets = usePosStore((s) => s.cancelEmptyTickets);
+  const { tickets, orders } = useOpenOrders();
+  const { staff } = useStaff();
   const [expanded, setExpanded] = useState<Set<string>>(
     () => new Set(staff.map((m) => m.id))
   );
@@ -40,7 +39,7 @@ export function AllTicketsGrid() {
   // sweep those away whenever this board is viewed.
   useEffect(() => {
     cancelEmptyTickets();
-  }, [cancelEmptyTickets]);
+  }, []);
 
   const openTickets = tickets.filter((t) => t.status === "open");
   const waiterIds = Array.from(new Set(openTickets.map((t) => t.waiterId)));

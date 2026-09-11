@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
-import { usePosStore } from "@/lib/store";
+import { createVendor, updateVendor, ApiError } from "@/lib/api/inventory";
 import type { Vendor, VendorPaymentTerms } from "@/lib/types";
 
 const PAYMENT_TERMS_OPTIONS: { id: VendorPaymentTerms; label: string }[] = [
@@ -15,14 +15,16 @@ const PAYMENT_TERMS_OPTIONS: { id: VendorPaymentTerms; label: string }[] = [
 export function AddVendorModal({
   vendor,
   onClose,
+  onSaved,
 }: {
   // When provided, the modal edits this existing vendor instead of creating
   // a new one.
   vendor?: Vendor;
   onClose: () => void;
+  // Called after a successful save so the caller can refresh its vendor
+  // list — the DB is the source of truth now, not local state.
+  onSaved?: () => void;
 }) {
-  const addVendor = usePosStore((s) => s.addVendor);
-  const updateVendor = usePosStore((s) => s.updateVendor);
   const isEditing = Boolean(vendor);
 
   const [name, setName] = useState(vendor?.name ?? "");
@@ -32,25 +34,34 @@ export function AddVendorModal({
   const [paymentTerms, setPaymentTerms] = useState<VendorPaymentTerms>(
     vendor?.paymentTerms ?? "net-30"
   );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const canSave = name.trim().length > 0 && category.trim().length > 0;
+  const canSave = name.trim().length > 0 && category.trim().length > 0 && !saving;
 
-  function handleSave() {
+  async function handleSave() {
     if (!canSave) return;
+    setSaving(true);
+    setError(null);
     const fields = {
       name: name.trim(),
       category: category.trim(),
-      active: vendor?.active,
       contactPerson: contactPerson.trim() || undefined,
       phone: phone.trim() || undefined,
       paymentTerms,
     };
-    if (vendor) {
-      updateVendor(vendor.id, fields);
-    } else {
-      addVendor(fields);
+    try {
+      if (vendor) {
+        await updateVendor(vendor.id, { ...fields, active: vendor.active });
+      } else {
+        await createVendor(fields);
+      }
+      onSaved?.();
+      onClose();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to save vendor.");
+      setSaving(false);
     }
-    onClose();
   }
 
   return (
@@ -139,13 +150,17 @@ export function AddVendorModal({
           </div>
         </div>
 
+        {error && (
+          <p className="mt-4 text-xs font-semibold text-rose-600">{error}</p>
+        )}
+
         <button
           type="button"
           disabled={!canSave}
           onClick={handleSave}
           className="w-full mt-6 rounded-xl bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-3 transition-colors"
         >
-          {isEditing ? "Save Changes" : "Add Vendor"}
+          {saving ? "Saving…" : isEditing ? "Save Changes" : "Add Vendor"}
         </button>
       </div>
     </div>

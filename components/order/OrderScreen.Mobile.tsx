@@ -17,12 +17,24 @@ import {
   X,
   Layers,
 } from "lucide-react";
+import { usePosStore } from "@/lib/store";
 import {
-  usePosStore,
-  getOrderTotal,
-  MAX_HELD_ORDERS_PER_WAITER,
-} from "@/lib/store";
-import { formatKES } from "@/lib/utils";
+  useOrder,
+  useOpenOrders,
+  addItem as addItemMutation,
+  updateItemQty as updateItemQtyMutation,
+  voidItem as voidItemMutation,
+  updateItemNote as updateItemNoteMutation,
+  addRound as addRoundMutation,
+  sendRoundToKitchen as sendRoundToKitchenMutation,
+} from "@/lib/hooks/useOrders";
+import { startBilling as startBillingMutation } from "@/lib/api/billing";
+import { useRestaurantSettings } from "@/lib/hooks/useBilling";
+import { useMenu } from "@/lib/hooks/useMenu";
+import { useStaff } from "@/lib/hooks/useStaff";
+import { getOrderTotal, formatKES } from "@/lib/utils";
+
+const MAX_HELD_ORDERS_PER_WAITER = 3;
 import { FoodImage } from "@/components/shared/FoodImage";
 import { CategoryTabs } from "@/components/order/CategoryTabs";
 import { SearchBar } from "@/components/order/SearchBar";
@@ -56,22 +68,18 @@ function createLongPressHandlers(onLongPress: () => void) {
 export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
   const router = useRouter();
 
-  const ticket = usePosStore((s) => s.tickets.find((t) => t.id === ticketId));
-  const order = usePosStore((s) => s.orders[ticketId]);
-  const menu = usePosStore((s) => s.menu);
-  const staff = usePosStore((s) => s.staff);
+  const { ticket, order } = useOrder(ticketId);
+  const { orders } = useOpenOrders();
+  const { menu } = useMenu();
+  const { staff } = useStaff();
   const currentStaffId = usePosStore((s) => s.currentStaffId);
   const currentStaff = staff.find((m) => m.id === currentStaffId);
+  const { vatRate } = useRestaurantSettings();
 
-  const addItem = usePosStore((s) => s.addItem);
-  const updateItemQty = usePosStore((s) => s.updateItemQty);
-  const voidItem = usePosStore((s) => s.voidItem);
-  const updateItemNote = usePosStore((s) => s.updateItemNote);
-  const addRound = usePosStore((s) => s.addRound);
-  const startBilling = usePosStore((s) => s.startBilling);
-  const sendRoundToKitchen = usePosStore((s) => s.sendRoundToKitchen);
-  const heldOrderCountForWaiter = usePosStore((s) => s.heldOrderCountForWaiter);
-  const vatRate = usePosStore((s) => s.restaurantSettings.vatRate);
+  function heldOrderCountForWaiter(waiterId: string | null): number {
+    if (!waiterId) return 0;
+    return Object.values(orders).filter((o) => o.onHold && o.waiterId === waiterId).length;
+  }
 
   const rounds = useMemo(() => order?.rounds ?? [], [order]);
   const latestRoundId = rounds[rounds.length - 1]?.id;
@@ -164,15 +172,15 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
       return;
     }
     setHoldBlocked(false);
-    sendRoundToKitchen(ticketId, activeRoundId);
+    sendRoundToKitchenMutation(activeRoundId);
   }
 
   function handleBackToTickets() {
     router.push("/my-tickets");
   }
 
-  function handleProceedToBill() {
-    startBilling(ticketId);
+  async function handleProceedToBill() {
+    await startBillingMutation(ticketId);
     router.push(`/billing/${ticketId}`);
   }
 
@@ -183,13 +191,13 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
 
   function saveNote() {
     if (!noteTarget) return;
-    updateItemNote(ticketId, noteTarget.id, noteDraft);
+    updateItemNoteMutation(noteTarget.id, noteDraft);
     setNoteTarget(null);
   }
 
   function confirmVoid(reason: string) {
     if (!voidTarget) return;
-    voidItem(ticketId, voidTarget.id, reason);
+    voidItemMutation(voidTarget.id, reason, currentStaffId ?? undefined);
     setVoidTarget(null);
   }
 
@@ -262,7 +270,7 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
           ))}
           <button
             type="button"
-            onClick={() => addRound(ticketId)}
+            onClick={() => addRoundMutation(ticketId)}
             className="shrink-0 flex items-center gap-1 rounded-full px-3.5 py-2 text-xs font-extrabold border-2 border-dashed border-accent-300 text-accent-700"
           >
             <Layers size={13} /> Add Item
@@ -364,7 +372,7 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
                                   <button
                                     type="button"
                                     onClick={() =>
-                                      updateItemQty(ticketId, item.id, item.qty - 1)
+                                      updateItemQtyMutation(ticketId, item.id, item.qty - 1, vatRate)
                                     }
                                     aria-label="Decrease quantity"
                                     className="h-11 w-11 flex items-center justify-center rounded-full bg-warm-50 border border-warm-200 text-slate-600 hover:border-accent-300"
@@ -377,7 +385,7 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
                                   <button
                                     type="button"
                                     onClick={() =>
-                                      updateItemQty(ticketId, item.id, item.qty + 1)
+                                      updateItemQtyMutation(ticketId, item.id, item.qty + 1, vatRate)
                                     }
                                     aria-label="Increase quantity"
                                     className="h-11 w-11 flex items-center justify-center rounded-full bg-warm-50 border border-warm-200 text-slate-600 hover:border-accent-300"
@@ -516,7 +524,7 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
                       item={entry.item}
                       onAdd={(opts) => {
                         if (latestRoundId)
-                          addItem(ticketId, latestRoundId, entry.item, opts);
+                          addItemMutation(ticketId, latestRoundId, entry.item, opts, vatRate);
                       }}
                     />
                   ) : (
@@ -526,7 +534,7 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
                       variants={entry.variants}
                       onSelect={(item, opts) => {
                         if (latestRoundId)
-                          addItem(ticketId, latestRoundId, item, opts);
+                          addItemMutation(ticketId, latestRoundId, item, opts, vatRate);
                       }}
                     />
                   )

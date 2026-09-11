@@ -3,12 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Clock } from "lucide-react";
-import { usePosStore, unbilledOrderTotal, paymentsForCurrentCycle } from "@/lib/store";
+import { usePosStore } from "@/lib/store";
+import { useOrder } from "@/lib/hooks/useOrders";
+import { usePayments, useRestaurantSettings } from "@/lib/hooks/useBilling";
+import * as billingApi from "@/lib/api/billing";
+import { useStaff } from "@/lib/hooks/useStaff";
 import { BillSummary } from "@/components/billing/BillSummary";
 import { BillPreview } from "@/components/billing/BillPreview";
 import { PaymentMethodPicker } from "@/components/billing/PaymentMethodPicker";
 import { PaymentSuccessModal } from "@/components/billing/PaymentSuccessModal";
-import { formatKES } from "@/lib/utils";
+import { formatKES, unbilledOrderTotal, paymentsForCurrentCycle } from "@/lib/utils";
 import { getDefaultRouteForRole } from "@/lib/roles";
 import { ticketDetailSubtitle } from "@/components/tickets/ticketStatus";
 import type { PaymentMethod, Receipt } from "@/lib/types";
@@ -23,16 +27,12 @@ export default function BillingPage() {
   const ticketId = params.ticketId;
   const router = useRouter();
 
-  const ticket = usePosStore((s) => s.tickets.find((t) => t.id === ticketId));
-  const order = usePosStore((s) => s.orders[ticketId]);
-  const allPayments = usePosStore((s) => s.payments);
-  const staff = usePosStore((s) => s.staff);
+  const { ticket, order, mutate: mutateOrder } = useOrder(ticketId);
+  const { payments: allPayments } = usePayments();
+  const { staff } = useStaff();
   const currentStaffId = usePosStore((s) => s.currentStaffId);
-  const vatRate = usePosStore((s) => s.restaurantSettings.vatRate);
+  const { vatRate } = useRestaurantSettings();
   const currentStaff = staff.find((m) => m.id === currentStaffId);
-  const startBilling = usePosStore((s) => s.startBilling);
-  const recordPayment = usePosStore((s) => s.recordPayment);
-  const finalizeReceipt = usePosStore((s) => s.finalizeReceipt);
 
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [finalizing, setFinalizing] = useState(false);
@@ -45,9 +45,9 @@ export default function BillingPage() {
   useEffect(() => {
     if (order && !order.billTotals && billingStartedForTicket.current !== ticketId) {
       billingStartedForTicket.current = ticketId;
-      startBilling(ticketId);
+      billingApi.startBilling(ticketId).then((result) => mutateOrder(result, { revalidate: false }));
     }
-  }, [order, ticketId, startBilling]);
+  }, [order, ticketId, mutateOrder]);
 
   const billTotals =
     order?.billTotals ??
@@ -85,11 +85,14 @@ export default function BillingPage() {
     reference: string;
     customerName?: string;
   }) {
-    recordPayment(ticketId, payment);
-    const updatedOrder = usePosStore.getState().orders[ticketId];
-    if (updatedOrder?.paymentStatus === "paid") {
+    const result = await billingApi.recordPayment(ticketId, {
+      ...payment,
+      collectedByStaffId: currentStaffId ?? undefined,
+    });
+    await mutateOrder(result, { revalidate: false });
+    if (result.order?.paymentStatus === "paid") {
       setFinalizing(true);
-      const r = await finalizeReceipt(ticketId);
+      const { receipt: r } = await billingApi.finalizeReceipt(ticketId);
       setFinalizing(false);
       setReceipt(r);
     }

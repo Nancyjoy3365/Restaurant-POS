@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
-import { usePosStore } from "@/lib/store";
+import { createMenuItem, updateMenuItem, ApiError } from "@/lib/api/menu";
 import type { MenuCategory, MenuItem } from "@/lib/types";
 
 const CATEGORY_OPTIONS: MenuCategory[] = [
@@ -17,14 +17,14 @@ const CATEGORY_OPTIONS: MenuCategory[] = [
 export function AddMenuItemModal({
   item,
   onClose,
+  onSaved,
 }: {
   // When provided, the modal edits this existing item (price correction,
   // renaming, etc.) instead of creating a new one.
   item?: MenuItem;
   onClose: () => void;
+  onSaved?: () => void;
 }) {
-  const addMenuItem = usePosStore((s) => s.addMenuItem);
-  const updateMenuItem = usePosStore((s) => s.updateMenuItem);
   const isEditing = Boolean(item);
 
   const [name, setName] = useState(item?.name ?? "");
@@ -37,9 +37,11 @@ export function AddMenuItemModal({
   const [imageUrl, setImageUrl] = useState(item?.imageUrl ?? "");
 
   const priceNum = Number(price);
-  const canSave = name.trim().length > 0 && priceNum > 0;
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const canSave = name.trim().length > 0 && priceNum > 0 && !saving;
 
-  function handleSave() {
+  async function handleSave() {
     if (!canSave) return;
     const spiceLevels = modifiers
       .split(",")
@@ -59,15 +61,23 @@ export function AddMenuItemModal({
       imageUrl: imageUrl.trim() || undefined,
       isPriority: isPriority || undefined,
     };
-    if (item) {
-      // Preserve fields this form doesn't expose (variantGroup/variantLabel,
-      // comboTag/comboComponents) rather than silently dropping them.
-      const { id, ...existing } = item;
-      updateMenuItem(id, { ...existing, ...fields });
-    } else {
-      addMenuItem(fields);
+    setSaving(true);
+    setError(null);
+    try {
+      if (item) {
+        // Preserve fields this form doesn't expose (variantGroup/variantLabel,
+        // comboTag/comboComponents) rather than silently dropping them.
+        const { id, ...existing } = item;
+        await updateMenuItem(id, { ...existing, ...fields });
+      } else {
+        await createMenuItem(fields);
+      }
+      onSaved?.();
+      onClose();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to save menu item.");
+      setSaving(false);
     }
-    onClose();
   }
 
   return (
@@ -199,13 +209,17 @@ export function AddMenuItemModal({
           </label>
         </div>
 
+        {error && (
+          <p className="mt-4 text-xs font-semibold text-rose-600">{error}</p>
+        )}
+
         <button
           type="button"
           disabled={!canSave}
           onClick={handleSave}
           className="w-full mt-6 rounded-xl bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-3 transition-colors"
         >
-          {isEditing ? "Save Changes" : "Add to Menu"}
+          {saving ? "Saving…" : isEditing ? "Save Changes" : "Add to Menu"}
         </button>
       </div>
     </div>

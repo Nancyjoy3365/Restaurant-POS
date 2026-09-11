@@ -11,22 +11,30 @@ import {
   AlertCircle,
   ChefHat,
 } from "lucide-react";
-import { usePosStore, getOrderTotal, MAX_HELD_ORDERS_PER_WAITER } from "@/lib/store";
-import { formatKES } from "@/lib/utils";
+import { usePosStore } from "@/lib/store";
+import {
+  useOrder,
+  useOpenOrders,
+  updateItemQty as updateItemQtyMutation,
+  removeItem as removeItemMutation,
+  addRound as addRoundMutation,
+  sendRoundToKitchen as sendRoundToKitchenMutation,
+} from "@/lib/hooks/useOrders";
+import { startBilling as startBillingMutation } from "@/lib/api/billing";
+import { useRestaurantSettings } from "@/lib/hooks/useBilling";
+import { useMenu } from "@/lib/hooks/useMenu";
+import { getOrderTotal, formatKES } from "@/lib/utils";
 import { FoodImage } from "@/components/shared/FoodImage";
+
+const MAX_HELD_ORDERS_PER_WAITER = 3;
 
 export function CartPanel({ ticketId }: { ticketId: string }) {
   const router = useRouter();
-  const order = usePosStore((s) => s.orders[ticketId]);
-  const menu = usePosStore((s) => s.menu);
-  const updateItemQty = usePosStore((s) => s.updateItemQty);
-  const removeItem = usePosStore((s) => s.removeItem);
-  const addRound = usePosStore((s) => s.addRound);
-  const startBilling = usePosStore((s) => s.startBilling);
-  const sendRoundToKitchen = usePosStore((s) => s.sendRoundToKitchen);
+  const { order } = useOrder(ticketId);
+  const { orders } = useOpenOrders();
+  const { menu } = useMenu();
   const currentStaffId = usePosStore((s) => s.currentStaffId);
-  const heldOrderCountForWaiter = usePosStore((s) => s.heldOrderCountForWaiter);
-  const vatRate = usePosStore((s) => s.restaurantSettings.vatRate);
+  const { vatRate } = useRestaurantSettings();
   const [holdBlocked, setHoldBlocked] = useState(false);
 
   const itemCount =
@@ -38,12 +46,17 @@ export function CartPanel({ ticketId }: { ticketId: string }) {
   const { subtotal, vat, total } = getOrderTotal(order, vatRate);
   const isHeld = order?.onHold ?? false;
 
-  function handleProceedToBill() {
-    startBilling(ticketId);
+  async function handleProceedToBill() {
+    await startBillingMutation(ticketId);
     router.push(`/billing/${ticketId}`);
   }
 
-  function handleSendToKitchen() {
+  function heldOrderCountForWaiter(waiterId: string | null): number {
+    if (!waiterId) return 0;
+    return Object.values(orders).filter((o) => o.onHold && o.waiterId === waiterId).length;
+  }
+
+  async function handleSendToKitchen() {
     if (!order) return;
     const latestRoundId = order.rounds[order.rounds.length - 1]?.id;
     if (!latestRoundId) return;
@@ -58,7 +71,7 @@ export function CartPanel({ ticketId }: { ticketId: string }) {
     // processed — and clears the working list by starting a fresh round on
     // this same ticket, ready for the next course.
     setHoldBlocked(false);
-    sendRoundToKitchen(ticketId, latestRoundId);
+    await sendRoundToKitchenMutation(latestRoundId);
   }
 
   return (
@@ -76,7 +89,7 @@ export function CartPanel({ ticketId }: { ticketId: string }) {
         </div>
         <button
           type="button"
-          onClick={() => addRound(ticketId)}
+          onClick={() => addRoundMutation(ticketId)}
           className="flex items-center gap-1.5 rounded-full border-2 border-accent-300 text-accent-700 hover:bg-accent-50 text-xs font-extrabold px-3.5 py-2"
         >
           <Layers size={14} /> Add Item
@@ -140,7 +153,7 @@ export function CartPanel({ ticketId }: { ticketId: string }) {
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    updateItemQty(ticketId, item.id, item.qty - 1)
+                                    updateItemQtyMutation(ticketId, item.id, item.qty - 1, vatRate)
                                   }
                                   className="h-7 w-7 flex items-center justify-center rounded-full bg-white border border-warm-200 text-slate-600 hover:border-accent-300"
                                 >
@@ -152,7 +165,7 @@ export function CartPanel({ ticketId }: { ticketId: string }) {
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    updateItemQty(ticketId, item.id, item.qty + 1)
+                                    updateItemQtyMutation(ticketId, item.id, item.qty + 1, vatRate)
                                   }
                                   className="h-7 w-7 flex items-center justify-center rounded-full bg-white border border-warm-200 text-slate-600 hover:border-accent-300"
                                 >
@@ -161,7 +174,7 @@ export function CartPanel({ ticketId }: { ticketId: string }) {
                               </div>
                               <button
                                 type="button"
-                                onClick={() => removeItem(ticketId, item.id)}
+                                onClick={() => removeItemMutation(ticketId, item.id, vatRate)}
                                 className="text-rose-500 hover:text-rose-700"
                                 aria-label="Remove item"
                               >

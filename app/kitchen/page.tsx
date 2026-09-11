@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { Check } from "lucide-react";
-import { usePosStore } from "@/lib/store";
+import {
+  useOpenOrders,
+  toggleItemReady as toggleItemReadyMutation,
+  markAllItemsReady as markAllItemsReadyMutation,
+} from "@/lib/hooks/useOrders";
+import { useMenu } from "@/lib/hooks/useMenu";
+import { useStaff } from "@/lib/hooks/useStaff";
 import {
   KITCHEN_URGENCY_CONFIG,
   KITCHEN_URGENCY_LEGEND,
@@ -31,12 +37,9 @@ interface KitchenRow {
 }
 
 export default function KitchenDisplayPage() {
-  const tickets = usePosStore((s) => s.tickets);
-  const orders = usePosStore((s) => s.orders);
-  const staff = usePosStore((s) => s.staff);
-  const menu = usePosStore((s) => s.menu);
-  const toggleItemReady = usePosStore((s) => s.toggleItemReady);
-  const markAllItemsReady = usePosStore((s) => s.markAllItemsReady);
+  const { tickets, orders } = useOpenOrders();
+  const { staff } = useStaff();
+  const { menu } = useMenu();
 
   // The ticket list itself is already reactive via the store subscription —
   // only the elapsed-time text needs a periodic nudge to keep advancing.
@@ -163,7 +166,7 @@ export default function KitchenDisplayPage() {
                           <KitchenItemRow
                             key={item.id}
                             item={item}
-                            onToggle={() => toggleItemReady(ticket.id, item.id)}
+                            onToggle={() => toggleItemReadyMutation(item.id, !item.kitchenReady)}
                           />
                         ))}
                       </div>
@@ -180,7 +183,7 @@ export default function KitchenDisplayPage() {
                           <KitchenItemRow
                             key={item.id}
                             item={item}
-                            onToggle={() => toggleItemReady(ticket.id, item.id)}
+                            onToggle={() => toggleItemReadyMutation(item.id, !item.kitchenReady)}
                           />
                         ))}
                       </div>
@@ -191,7 +194,7 @@ export default function KitchenDisplayPage() {
                     <button
                       type="button"
                       disabled={allReady}
-                      onClick={() => markAllItemsReady(ticket.id)}
+                      onClick={() => markAllItemsReadyMutation(ticket.id)}
                       className="w-full rounded-xl bg-status-free hover:opacity-90 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm lg:text-base font-extrabold py-2.5 transition-colors"
                     >
                       Mark All Ready

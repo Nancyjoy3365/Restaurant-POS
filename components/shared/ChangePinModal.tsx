@@ -2,26 +2,23 @@
 
 import { useState } from "react";
 import { X, CheckCircle2 } from "lucide-react";
-import { usePosStore } from "@/lib/store";
+import { useStaffPin } from "@/lib/hooks/useStaff";
+import { changeStaffPin, ApiError } from "@/lib/api/staff";
 
 export function ChangePinModal({ onClose }: { onClose: () => void }) {
-  const staffPin = usePosStore((s) => s.staffPin);
-  const setStaffPin = usePosStore((s) => s.setStaffPin);
+  const { mutate: mutateStaffPin } = useStaffPin();
 
   const [currentPin, setCurrentPin] = useState("");
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const pinDigits = (v: string) => v.replace(/\D/g, "").slice(0, 3);
 
-  function handleSave() {
+  async function handleSave() {
     setError("");
-    if (currentPin !== staffPin) {
-      setError("Current PIN is incorrect.");
-      return;
-    }
     if (newPin.length !== 3) {
       setError("New PIN must be exactly 3 digits.");
       return;
@@ -30,8 +27,15 @@ export function ChangePinModal({ onClose }: { onClose: () => void }) {
       setError("New PIN and confirmation don't match.");
       return;
     }
-    setStaffPin(newPin);
-    setSaved(true);
+    setSaving(true);
+    try {
+      await changeStaffPin(currentPin, newPin);
+      await mutateStaffPin();
+      setSaved(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to change PIN.");
+      setSaving(false);
+    }
   }
 
   return (
@@ -116,10 +120,10 @@ export function ChangePinModal({ onClose }: { onClose: () => void }) {
             <button
               type="button"
               onClick={handleSave}
-              disabled={!currentPin || !newPin || !confirmPin}
+              disabled={!currentPin || !newPin || !confirmPin || saving}
               className="w-full mt-4 rounded-lg bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-2.5 transition-colors"
             >
-              Update PIN
+              {saving ? "Updating…" : "Update PIN"}
             </button>
           </>
         )}

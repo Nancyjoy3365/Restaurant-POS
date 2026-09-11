@@ -1,4 +1,4 @@
-import { usePosStore } from "@/lib/store";
+import { useRestaurantSettings } from "@/lib/hooks/useBilling";
 import type { TicketOrder } from "@/lib/types";
 import { flattenOrderItems, lineRawTotal, formatKES } from "@/lib/utils";
 
@@ -13,7 +13,7 @@ export function BillSummary({
   vat: number;
   total: number;
 }) {
-  const vatRate = usePosStore((s) => s.restaurantSettings.vatRate);
+  const { vatRate } = useRestaurantSettings();
   const lines = flattenOrderItems(order);
 
   return (

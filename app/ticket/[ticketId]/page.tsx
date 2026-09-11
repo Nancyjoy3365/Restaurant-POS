@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { usePosStore } from "@/lib/store";
+import { useOrder, addItem as addItemMutation } from "@/lib/hooks/useOrders";
+import { useRestaurantSettings } from "@/lib/hooks/useBilling";
+import { useMenu } from "@/lib/hooks/useMenu";
 import { CategoryTabs } from "@/components/order/CategoryTabs";
 import { SearchBar } from "@/components/order/SearchBar";
 import { MenuCard } from "@/components/order/MenuCard";
@@ -19,10 +21,9 @@ export default function TicketPage() {
   const ticketId = params.ticketId;
   const router = useRouter();
 
-  const ticket = usePosStore((s) => s.tickets.find((t) => t.id === ticketId));
-  const order = usePosStore((s) => s.orders[ticketId]);
-  const menu = usePosStore((s) => s.menu);
-  const addItem = usePosStore((s) => s.addItem);
+  const { ticket, order } = useOrder(ticketId);
+  const { menu } = useMenu();
+  const { vatRate } = useRestaurantSettings();
 
   const [activeCategory, setActiveCategory] = useState<MenuCategory>("Main");
   const [query, setQuery] = useState("");
@@ -73,7 +74,7 @@ export default function TicketPage() {
   function handleAdd(menuItemId: string, opts: { spiceLevel?: string; addOns?: AddOn[] }) {
     const menuItem = menu.find((m) => m.id === menuItemId);
     if (!menuItem || !currentRoundId) return;
-    addItem(ticketId, currentRoundId, menuItem, opts);
+    addItemMutation(ticketId, currentRoundId, menuItem, opts, vatRate);
   }
 
   return (

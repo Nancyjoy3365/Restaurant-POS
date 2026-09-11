@@ -15,7 +15,14 @@ import {
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
-import { usePosStore } from "@/lib/store";
+import {
+  useIngredients,
+  useServiceExpenses,
+  useStockPurchases,
+  useVendorPayments,
+  useVendors,
+} from "@/lib/hooks/useInventory";
+import { deleteServiceExpense as deleteServiceExpenseApi, ApiError } from "@/lib/api/inventoryExtras";
 import { formatKES } from "@/lib/utils";
 import { AddIngredientModal } from "@/components/inventory/AddIngredientModal";
 import { RestockModal } from "@/components/inventory/RestockModal";
@@ -78,12 +85,30 @@ export default function InventoryPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [payoutVendor, setPayoutVendor] = useState<Vendor | null>(null);
   const [historyVendor, setHistoryVendor] = useState<Vendor | null>(null);
-  const ingredients = usePosStore((s) => s.ingredients);
-  const vendors = usePosStore((s) => s.vendors);
-  const stockPurchases = usePosStore((s) => s.stockPurchases);
-  const vendorPayments = usePosStore((s) => s.vendorPayments);
-  const serviceExpenses = usePosStore((s) => s.serviceExpenses);
-  const deleteServiceExpense = usePosStore((s) => s.deleteServiceExpense);
+  const { ingredients, mutate: mutateIngredients } = useIngredients();
+  const { vendors } = useVendors();
+  const { stockPurchases, mutate: mutateStockPurchases } = useStockPurchases();
+  const { vendorPayments, mutate: mutateVendorPayments } = useVendorPayments();
+  const { serviceExpenses, mutate: mutateServiceExpenses } = useServiceExpenses();
+
+  async function handleDeleteServiceExpense(expenseId: string) {
+    try {
+      await deleteServiceExpenseApi(expenseId);
+      mutateServiceExpenses();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Failed to delete expense.");
+    }
+  }
+
+  function refreshAfterStockChange() {
+    mutateIngredients();
+    mutateStockPurchases();
+  }
+
+  function refreshAfterPayout() {
+    mutateStockPurchases();
+    mutateVendorPayments();
+  }
 
   const historyQuery = historySearch.trim().toLowerCase();
   const paymentHistory = vendorPayments
@@ -374,7 +399,7 @@ export default function InventoryPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => deleteServiceExpense(expense.id)}
+                            onClick={() => handleDeleteServiceExpense(expense.id)}
                             aria-label={`Delete ${expense.description}`}
                             title={`Delete ${expense.description}`}
                             className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-warm-200 text-slate-500 hover:border-rose-300 hover:text-rose-600"
@@ -642,27 +667,36 @@ export default function InventoryPage() {
       </main>
 
       {showAddModal && (
-        <AddIngredientModal onClose={() => setShowAddModal(false)} />
+        <AddIngredientModal
+          onClose={() => setShowAddModal(false)}
+          onSaved={refreshAfterStockChange}
+        />
       )}
       {editingIngredient && (
         <AddIngredientModal
           item={editingIngredient}
           onClose={() => setEditingIngredient(null)}
+          onSaved={refreshAfterStockChange}
         />
       )}
       {restockingItem && (
         <RestockModal
           item={restockingItem}
           onClose={() => setRestockingItem(null)}
+          onSaved={refreshAfterStockChange}
         />
       )}
       {showAddServiceModal && (
-        <AddServiceExpenseModal onClose={() => setShowAddServiceModal(false)} />
+        <AddServiceExpenseModal
+          onClose={() => setShowAddServiceModal(false)}
+          onSaved={() => mutateServiceExpenses()}
+        />
       )}
       {editingService && (
         <AddServiceExpenseModal
           expense={editingService}
           onClose={() => setEditingService(null)}
+          onSaved={() => mutateServiceExpenses()}
         />
       )}
       {payoutVendor && (
@@ -670,6 +704,7 @@ export default function InventoryPage() {
           vendor={payoutVendor}
           balanceOwed={currentBalanceOwed(payoutVendor.id)}
           onClose={() => setPayoutVendor(null)}
+          onSaved={refreshAfterPayout}
         />
       )}
       {historyVendor && (

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import clsx from "clsx";
 import { Pencil, Plus, Search, X } from "lucide-react";
-import { usePosStore } from "@/lib/store";
+import { useMenu } from "@/lib/hooks/useMenu";
+import { setMenuItemAvailable, setMenuItemPriority, ApiError } from "@/lib/api/menu";
 import { Toggle } from "@/components/shared/Toggle";
 import { FoodImage } from "@/components/shared/FoodImage";
 import { AddMenuItemModal } from "@/components/menu-management/AddMenuItemModal";
@@ -23,13 +24,30 @@ type CategoryFilter = "All" | MenuCategory;
 type AvailabilityFilter = "All" | "Active" | "Disabled";
 
 export default function MenuManagementPage() {
-  const rawMenu = usePosStore((s) => s.menu);
+  const { menu: rawMenu, mutate: mutateMenu } = useMenu();
   const sortedMenu = [...rawMenu].sort(
     (a, b) =>
       CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category)
   );
-  const toggleMenuAvailability = usePosStore((s) => s.toggleMenuAvailability);
-  const toggleMenuPriority = usePosStore((s) => s.toggleMenuPriority);
+
+  async function handleToggleAvailability(item: MenuItem) {
+    try {
+      await setMenuItemAvailable(item.id, !item.available);
+      mutateMenu();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Failed to update availability.");
+    }
+  }
+
+  async function handleTogglePriority(item: MenuItem) {
+    try {
+      await setMenuItemPriority(item.id, !(item.isPriority ?? false));
+      mutateMenu();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Failed to update priority.");
+    }
+  }
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [search, setSearch] = useState("");
@@ -178,7 +196,7 @@ export default function MenuManagementPage() {
                       <div className="flex justify-center">
                         <Toggle
                           checked={item.isPriority ?? false}
-                          onChange={() => toggleMenuPriority(item.id)}
+                          onChange={() => handleTogglePriority(item)}
                           label={`Toggle priority product for ${item.name}`}
                         />
                       </div>
@@ -187,7 +205,7 @@ export default function MenuManagementPage() {
                       <div className="flex justify-center">
                         <Toggle
                           checked={item.available}
-                          onChange={() => toggleMenuAvailability(item.id)}
+                          onChange={() => handleToggleAvailability(item)}
                           label={`Toggle availability for ${item.name}`}
                         />
                       </div>
@@ -215,12 +233,13 @@ export default function MenuManagementPage() {
       </main>
 
       {showAddModal && (
-        <AddMenuItemModal onClose={() => setShowAddModal(false)} />
+        <AddMenuItemModal onClose={() => setShowAddModal(false)} onSaved={mutateMenu} />
       )}
       {editingItem && (
         <AddMenuItemModal
           item={editingItem}
           onClose={() => setEditingItem(null)}
+          onSaved={mutateMenu}
         />
       )}
     </div>

@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { X, Plus } from "lucide-react";
 import { usePosStore } from "@/lib/store";
+import { useIncentiveRecords } from "@/lib/hooks/useStaff";
+import { createIncentiveRecord, ApiError } from "@/lib/api/staff";
 import { formatKES, formatDateTime } from "@/lib/utils";
 import type { StaffMember } from "@/lib/types";
 
@@ -13,31 +15,41 @@ export function IncentiveModal({
   staff: StaffMember;
   onClose: () => void;
 }) {
-  const incentiveRecords = usePosStore((s) => s.incentiveRecords);
-  const addIncentiveRecord = usePosStore((s) => s.addIncentiveRecord);
+  const { incentiveRecords, mutate: mutateIncentiveRecords } = useIncentiveRecords();
   const currentStaffId = usePosStore((s) => s.currentStaffId);
 
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const staffIncentives = incentiveRecords
     .filter((r) => r.staffId === staff.id)
     .sort((a, b) => b.dateGiven - a.dateGiven);
 
   const amountNum = Number(amount) || 0;
-  const canSave = amountNum > 0 && reason.trim() !== "";
+  const canSave = amountNum > 0 && reason.trim() !== "" && !saving;
 
-  function handleSave() {
+  async function handleSave() {
     if (!canSave) return;
-    addIncentiveRecord({
-      staffId: staff.id,
-      amount: amountNum,
-      reason: reason.trim(),
-      dateGiven: Date.now(),
-      givenBy: currentStaffId ?? undefined,
-    });
-    setAmount("");
-    setReason("");
+    setSaving(true);
+    setError(null);
+    try {
+      await createIncentiveRecord({
+        staffId: staff.id,
+        amount: amountNum,
+        reason: reason.trim(),
+        dateGiven: Date.now(),
+        givenBy: currentStaffId ?? undefined,
+      });
+      mutateIncentiveRecords();
+      setAmount("");
+      setReason("");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to add incentive.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -90,13 +102,17 @@ export function IncentiveModal({
             />
           </div>
 
+          {error && (
+            <p className="text-xs font-semibold text-rose-600">{error}</p>
+          )}
+
           <button
             type="button"
             disabled={!canSave}
             onClick={handleSave}
             className="w-full flex items-center justify-center gap-2 rounded-lg bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-2.5 transition-colors"
           >
-            <Plus size={15} /> Add Incentive
+            <Plus size={15} /> {saving ? "Saving…" : "Add Incentive"}
           </button>
         </div>
 

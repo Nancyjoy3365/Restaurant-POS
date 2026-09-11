@@ -2,7 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { X, Plus, Pencil, Trash2, CheckCircle2 } from "lucide-react";
-import { usePosStore } from "@/lib/store";
+import { useLeaveRecords } from "@/lib/hooks/useStaff";
+import {
+  createLeaveRecord,
+  updateLeaveRecord,
+  deleteLeaveRecord,
+  ApiError,
+} from "@/lib/api/staff";
 import { toDateKey } from "@/lib/utils";
 import type { LeaveRecord, LeaveStatus, StaffMember } from "@/lib/types";
 
@@ -20,10 +26,7 @@ export function LeaveModal({
   staff: StaffMember;
   onClose: () => void;
 }) {
-  const leaveRecords = usePosStore((s) => s.leaveRecords);
-  const addLeaveRecord = usePosStore((s) => s.addLeaveRecord);
-  const updateLeaveRecord = usePosStore((s) => s.updateLeaveRecord);
-  const deleteLeaveRecord = usePosStore((s) => s.deleteLeaveRecord);
+  const { leaveRecords, mutate: mutateLeaveRecords } = useLeaveRecords();
 
   const todayKey = toDateKey(new Date());
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -33,6 +36,8 @@ export function LeaveModal({
   const [status, setStatus] = useState<LeaveStatus>("approved");
   const [isPaid, setIsPaid] = useState(false);
   const [requestedAt, setRequestedAt] = useState<number | undefined>(undefined);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -46,7 +51,7 @@ export function LeaveModal({
     .filter((l) => l.staffId === staff.id)
     .sort((a, b) => (a.startDate < b.startDate ? 1 : -1));
 
-  const canSave = startDate !== "" && endDate !== "" && endDate >= startDate;
+  const canSave = startDate !== "" && endDate !== "" && endDate >= startDate && !saving;
   const isEditing = editingId !== null;
 
   function resetForm() {
@@ -65,7 +70,7 @@ export function LeaveModal({
     successTimer.current = setTimeout(() => setSuccessMessage(null), 2500);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!canSave) return;
     const fields = {
       staffId: staff.id,
@@ -76,14 +81,23 @@ export function LeaveModal({
       isPaid,
       requestedAt: requestedAt ?? Date.now(),
     };
-    if (editingId) {
-      updateLeaveRecord(editingId, fields);
-      showSuccess("Leave updated successfully.");
-    } else {
-      addLeaveRecord(fields);
-      showSuccess("Leave added successfully.");
+    setSaving(true);
+    setError(null);
+    try {
+      if (editingId) {
+        await updateLeaveRecord(editingId, fields);
+        showSuccess("Leave updated successfully.");
+      } else {
+        await createLeaveRecord(fields);
+        showSuccess("Leave added successfully.");
+      }
+      mutateLeaveRecords();
+      resetForm();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to save leave.");
+    } finally {
+      setSaving(false);
     }
-    resetForm();
   }
 
   function startEdit(l: LeaveRecord) {
@@ -97,9 +111,14 @@ export function LeaveModal({
     setSuccessMessage(null);
   }
 
-  function handleDelete(id: string) {
-    deleteLeaveRecord(id);
-    if (editingId === id) resetForm();
+  async function handleDelete(id: string) {
+    try {
+      await deleteLeaveRecord(id);
+      mutateLeaveRecords();
+      if (editingId === id) resetForm();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to delete leave.");
+    }
   }
 
   return (
@@ -127,6 +146,12 @@ export function LeaveModal({
           <div className="flex items-center gap-2 mt-3 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold px-3 py-2">
             <CheckCircle2 size={14} className="shrink-0" />
             {successMessage}
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-3 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold px-3 py-2">
+            {error}
           </div>
         )}
 
@@ -219,7 +244,9 @@ export function LeaveModal({
               onClick={handleSave}
               className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-2.5 transition-colors"
             >
-              {isEditing ? (
+              {saving ? (
+                "Saving…"
+              ) : isEditing ? (
                 "Save Changes"
               ) : (
                 <>

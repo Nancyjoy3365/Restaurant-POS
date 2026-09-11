@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { Plus, PauseCircle, Utensils, ShoppingBag, ArrowLeft, X } from "lucide-react";
-import { usePosStore, getOrderTotal } from "@/lib/store";
-import { formatKES, flattenOrderItems } from "@/lib/utils";
+import { usePosStore } from "@/lib/store";
+import { useOpenOrders, createTicket, cancelEmptyTickets } from "@/lib/hooks/useOrders";
+import { useRestaurantSettings } from "@/lib/hooks/useBilling";
+import { formatKES, flattenOrderItems, getOrderTotal } from "@/lib/utils";
 import {
   TICKET_STATUS_CONFIG,
   TICKET_VIEW_LEGEND,
@@ -22,11 +24,8 @@ interface MyTicketRow {
 export default function MyTicketsPage() {
   const router = useRouter();
   const currentStaffId = usePosStore((s) => s.currentStaffId);
-  const tickets = usePosStore((s) => s.tickets);
-  const orders = usePosStore((s) => s.orders);
-  const vatRate = usePosStore((s) => s.restaurantSettings.vatRate);
-  const createTicket = usePosStore((s) => s.createTicket);
-  const cancelEmptyTickets = usePosStore((s) => s.cancelEmptyTickets);
+  const { tickets, orders } = useOpenOrders();
+  const { vatRate } = useRestaurantSettings();
 
   const [newOrderStep, setNewOrderStep] = useState<"type" | "takeaway" | null>(null);
   const [takeawayName, setTakeawayName] = useState("");
@@ -37,7 +36,7 @@ export default function MyTicketsPage() {
   // them to clutter the board until the waiter next logs out.
   useEffect(() => {
     cancelEmptyTickets();
-  }, [cancelEmptyTickets]);
+  }, []);
 
   // Strictly scoped to tickets.waiter_id === current_staff.id — never
   // grouped or inferred from anything else. A colleague's ticket never
@@ -59,25 +58,27 @@ export default function MyTicketsPage() {
     setNewOrderStep(null);
   }
 
-  function chooseDineIn() {
-    const newId = createTicket({ orderType: "dine_in" });
+  async function chooseDineIn() {
+    if (!currentStaffId) return;
+    const { ticket } = await createTicket({ waiterId: currentStaffId, orderType: "dine_in" });
     closeNewOrder();
-    router.push(`/ticket/${newId}`);
+    router.push(`/ticket/${ticket.id}`);
   }
 
   function chooseTakeaway() {
     setNewOrderStep("takeaway");
   }
 
-  function confirmTakeaway() {
-    if (!takeawayName.trim()) return;
-    const newId = createTicket({
+  async function confirmTakeaway() {
+    if (!takeawayName.trim() || !currentStaffId) return;
+    const { ticket } = await createTicket({
+      waiterId: currentStaffId,
       orderType: "takeaway",
       customerName: takeawayName,
       customerPhone: takeawayPhone,
     });
     closeNewOrder();
-    router.push(`/ticket/${newId}`);
+    router.push(`/ticket/${ticket.id}`);
   }
 
   return (

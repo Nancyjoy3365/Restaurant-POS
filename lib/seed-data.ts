@@ -1,8 +1,5 @@
 import type {
   MenuItem,
-  Ingredient,
-  Vendor,
-  Recipe,
   StaffMember,
   ShiftEntry,
   TicketOrder,
@@ -79,34 +76,6 @@ export const seedMenu: MenuItem[] = [
   { id: "mn36", name: "Khaki (Small)", aliases: ["khaki", "packaging"], category: "Packaging", price: 20, veg: true, available: true, variantGroup: "Khaki", variantLabel: "S" },
   { id: "mn38", name: "Khaki (Large)", aliases: ["khaki", "packaging"], category: "Packaging", price: 50, veg: true, available: true, variantGroup: "Khaki", variantLabel: "L" },
 ];
-
-// "mn37" (an earlier Khaki Large) was merged into the single "mn36" Khaki
-// item for a time, then Khaki was later re-split into S/L variants under
-// mn36/mn38 instead of reusing mn37 — kept here only so migrate() in
-// store.ts can drop it from a browser that still has it persisted, rather
-// than it lingering forever as a "custom" item once it's no longer a
-// recognized seed id.
-export const RETIRED_SEED_MENU_IDS = new Set(["mn37"]);
-
-// Demo stock/vendor rows were only ever placeholders — the real inventory
-// gets entered through the Inventory page's own Add Item / Add Vendor forms.
-export const seedIngredients: Ingredient[] = [];
-
-export const seedVendors: Vendor[] = [];
-
-// Ids the old demo seed used to use, kept only so migrate() in store.ts can
-// recognize and drop them from a browser that persisted them before this
-// data was cleared — a manually added ingredient/vendor never gets one of
-// these ids, so this can't accidentally delete real data.
-export const RETIRED_SEED_INGREDIENT_IDS = new Set([
-  "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9", "i10",
-]);
-export const RETIRED_SEED_VENDOR_IDS = new Set(["v1", "v2", "v3", "v4", "v5"]);
-
-// No recipe-costing data was supplied for the new menu, and the old recipes
-// pointed at dishes that no longer exist — starting empty avoids showing
-// "Unknown dish" rows in Inventory's Recipe Costing tab.
-export const seedRecipes: Recipe[] = [];
 
 // Pay Type / Rate: the four Admin/Cashier staff are paid monthly with no
 // rate supplied yet (still a placeholder 0); everyone else is paid a daily

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Printer } from "lucide-react";
-import { usePosStore } from "@/lib/store";
+import { useRestaurantSettings } from "@/lib/hooks/useBilling";
 import type { TicketOrder } from "@/lib/types";
 import { flattenOrderItems, lineRawTotal, formatKES } from "@/lib/utils";
 
@@ -17,8 +17,18 @@ export function BillPreview({
   checkNo?: number;
   waiterName?: string;
 }) {
-  const settings = usePosStore((s) => s.restaurantSettings);
+  const { settings } = useRestaurantSettings();
   const lines = flattenOrderItems(order);
+  // Settings is briefly undefined until the first fetch resolves (unlike
+  // the old store's always-present seeded default).
+  const restaurant = settings ?? {
+    name: "",
+    address: "",
+    kraPin: "",
+    phone: "",
+    tillNumber: "",
+    receiptWidth: "80mm" as const,
+  };
   const [previewedAt] = useState(() => Date.now());
   const itemCount = lines.reduce((sum, { item }) => sum + item.qty, 0);
   const billDate = new Date(previewedAt).toLocaleDateString("en-KE", {
@@ -43,11 +53,11 @@ export function BillPreview({
       >
         <div className="text-center">
           <div className="font-black text-base tracking-wide">
-            {settings.name.toUpperCase()}
+            {restaurant.name.toUpperCase()}
           </div>
-          <div className="text-[10px] text-slate-500">{settings.address}</div>
-          <div className="text-[10px] text-slate-500">PIN: {settings.kraPin}</div>
-          <div className="text-[10px] text-slate-500">Tel: {settings.phone}</div>
+          <div className="text-[10px] text-slate-500">{restaurant.address}</div>
+          <div className="text-[10px] text-slate-500">PIN: {restaurant.kraPin}</div>
+          <div className="text-[10px] text-slate-500">Tel: {restaurant.phone}</div>
           <div className="text-[10px] font-extrabold mt-0.5">NON FISCAL BILL</div>
         </div>
 
@@ -119,7 +129,7 @@ export function BillPreview({
           <div className="text-[10px] font-bold">LIPA NA MPESA</div>
           <div className="text-[10px] font-bold">BUY GOODS</div>
           <div className="text-xl font-black tracking-wider mt-0.5">
-            {settings.tillNumber}
+            {restaurant.tillNumber}
           </div>
         </div>
       </div>
@@ -127,7 +137,7 @@ export function BillPreview({
       {/* Thermal receipt printers are almost always 58mm or 80mm rolls —
           this is the setting-driven part of the print page size (see
           Settings); the fixed margin lives in globals.css. */}
-      <style>{`@media print { @page { size: ${settings.receiptWidth} auto; } }`}</style>
+      <style>{`@media print { @page { size: ${restaurant.receiptWidth} auto; } }`}</style>
 
       <button
         type="button"

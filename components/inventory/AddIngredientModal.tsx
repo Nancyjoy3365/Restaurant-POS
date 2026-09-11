@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
-import { usePosStore } from "@/lib/store";
+import { useVendors } from "@/lib/hooks/useInventory";
+import { createIngredient, updateIngredient, ApiError } from "@/lib/api/inventory";
 import { formatKES } from "@/lib/utils";
 import type { Ingredient } from "@/lib/types";
 
@@ -22,6 +23,7 @@ const UNIT_OPTIONS = ["kg", "litre", "pc", "g", "ml"];
 export function AddIngredientModal({
   item,
   onClose,
+  onSaved,
 }: {
   // When provided, the modal edits this existing ingredient's own fields
   // (a name/packaging/threshold correction) instead of creating a new one.
@@ -30,11 +32,9 @@ export function AddIngredientModal({
   // here never should.
   item?: Ingredient;
   onClose: () => void;
+  onSaved?: () => void;
 }) {
-  const addIngredient = usePosStore((s) => s.addIngredient);
-  const updateIngredient = usePosStore((s) => s.updateIngredient);
-  const recordStockPurchase = usePosStore((s) => s.recordStockPurchase);
-  const vendors = usePosStore((s) => s.vendors);
+  const { vendors } = useVendors();
   const isEditing = Boolean(item);
 
   const [name, setName] = useState(item?.name ?? "");
@@ -46,6 +46,8 @@ export function AddIngredientModal({
     item ? String(item.unitAmount ?? 1) : "1"
   );
   const [vendorId, setVendorId] = useState(vendors[0]?.id ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // A single package is bought/created here — quantity (packages on hand)
   // is fixed at 1; restocking more packages later is RestockModal's job.
@@ -63,10 +65,13 @@ export function AddIngredientModal({
     pieceNum > 0 &&
     unitAmountNum >= 1 &&
     unitAmountNum <= 100 &&
-    (isEditing || Boolean(vendorId));
+    (isEditing || Boolean(vendorId)) &&
+    !saving;
 
-  function handleSave() {
+  async function handleSave() {
     if (!canSave) return;
+    setSaving(true);
+    setError(null);
     const fields = {
       name: name.trim(),
       packaging,
@@ -85,19 +90,18 @@ export function AddIngredientModal({
       // stamp this the first time the item is created.
       purchasedAt: item?.purchasedAt ?? Date.now(),
     };
-    if (item) {
-      updateIngredient(item.id, fields);
-    } else {
-      const newId = addIngredient(fields);
-      recordStockPurchase({
-        vendorId,
-        ingredientId: newId,
-        quantity: quantityNum,
-        unitCost,
-        totalCost: amountNum,
-      });
+    try {
+      if (item) {
+        await updateIngredient(item.id, fields);
+      } else {
+        await createIngredient(fields, { vendorId });
+      }
+      onSaved?.();
+      onClose();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to save ingredient.");
+      setSaving(false);
     }
-    onClose();
   }
 
   return (
@@ -245,13 +249,17 @@ export function AddIngredientModal({
           </div>
         </div>
 
+        {error && (
+          <p className="mt-4 text-xs font-semibold text-rose-600">{error}</p>
+        )}
+
         <button
           type="button"
           disabled={!canSave}
           onClick={handleSave}
           className="w-full mt-6 rounded-xl bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-3 transition-colors"
         >
-          {isEditing ? "Save Changes" : "Add to Inventory"}
+          {saving ? "Saving…" : isEditing ? "Save Changes" : "Add to Inventory"}
         </button>
       </div>
     </div>

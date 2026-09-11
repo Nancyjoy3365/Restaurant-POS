@@ -4,22 +4,35 @@ import { useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { ArrowLeft, Plus, Pencil, Ban, RotateCcw } from "lucide-react";
-import { usePosStore } from "@/lib/store";
+import { useStockPurchases, useVendors } from "@/lib/hooks/useInventory";
+import { setVendorActive as setVendorActiveApi, ApiError } from "@/lib/api/inventory";
 import { AddVendorModal } from "@/components/inventory/AddVendorModal";
 import type { Vendor } from "@/lib/types";
 
 export default function VendorsSettingsPage() {
-  const vendors = usePosStore((s) => s.vendors);
-  const stockPurchases = usePosStore((s) => s.stockPurchases);
-  const setVendorActive = usePosStore((s) => s.setVendorActive);
+  const { vendors, mutate: mutateVendors } = useVendors();
+  const { stockPurchases } = useStockPurchases();
 
   const [showAddVendorModal, setShowAddVendorModal] = useState(false);
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
+  const [pendingVendorId, setPendingVendorId] = useState<string | null>(null);
 
   function balanceOwed(vendorId: string): number {
     return stockPurchases
       .filter((p) => p.vendorId === vendorId && !p.paid)
       .reduce((sum, p) => sum + p.totalCost, 0);
+  }
+
+  async function handleSetActive(vendorId: string, active: boolean) {
+    setPendingVendorId(vendorId);
+    try {
+      await setVendorActiveApi(vendorId, active);
+      await mutateVendors();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Failed to update vendor.");
+    } finally {
+      setPendingVendorId(null);
+    }
   }
 
   return (
@@ -119,8 +132,8 @@ export default function VendorsSettingsPage() {
                               {isActive ? (
                                 <button
                                   type="button"
-                                  onClick={() => setVendorActive(v.id, false)}
-                                  disabled={owed > 0}
+                                  onClick={() => handleSetActive(v.id, false)}
+                                  disabled={owed > 0 || pendingVendorId === v.id}
                                   aria-label={`Deactivate ${v.name}`}
                                   title={
                                     owed > 0
@@ -134,10 +147,11 @@ export default function VendorsSettingsPage() {
                               ) : (
                                 <button
                                   type="button"
-                                  onClick={() => setVendorActive(v.id, true)}
+                                  onClick={() => handleSetActive(v.id, true)}
+                                  disabled={pendingVendorId === v.id}
                                   aria-label={`Reactivate ${v.name}`}
                                   title={`Reactivate ${v.name}`}
-                                  className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-warm-200 text-slate-500 hover:border-emerald-300 hover:text-emerald-600"
+                                  className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-warm-200 text-slate-500 hover:border-emerald-300 hover:text-emerald-600 disabled:opacity-40"
                                 >
                                   <RotateCcw size={14} />
                                 </button>
@@ -155,12 +169,16 @@ export default function VendorsSettingsPage() {
       </main>
 
       {showAddVendorModal && (
-        <AddVendorModal onClose={() => setShowAddVendorModal(false)} />
+        <AddVendorModal
+          onClose={() => setShowAddVendorModal(false)}
+          onSaved={() => mutateVendors()}
+        />
       )}
       {editingVendor && (
         <AddVendorModal
           vendor={editingVendor}
           onClose={() => setEditingVendor(null)}
+          onSaved={() => mutateVendors()}
         />
       )}
     </div>

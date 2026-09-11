@@ -16,6 +16,8 @@ import {
   X,
 } from "lucide-react";
 import { usePosStore } from "@/lib/store";
+import { useLeaveRecords, useStaff, useStaffPin } from "@/lib/hooks/useStaff";
+import { clockIn as clockInApi } from "@/lib/api/staff";
 import { ROLE_LOGIN_ORDER, getDefaultRouteForRole } from "@/lib/roles";
 import { isOnApprovedLeave } from "@/lib/payroll";
 import { ChangePinModal } from "@/components/shared/ChangePinModal";
@@ -42,11 +44,10 @@ type Step = "role" | "staff" | "pin";
 
 export default function LoginPage() {
   const router = useRouter();
-  const staff = usePosStore((s) => s.staff);
-  const staffPin = usePosStore((s) => s.staffPin);
-  const leaveRecords = usePosStore((s) => s.leaveRecords);
+  const { staff } = useStaff();
+  const { staffPin } = useStaffPin();
+  const { leaveRecords } = useLeaveRecords();
   const login = usePosStore((s) => s.login);
-  const clockIn = usePosStore((s) => s.clockIn);
 
   const [step, setStep] = useState<Step>("role");
   const [role, setRole] = useState<StaffRole | null>(null);
@@ -79,7 +80,8 @@ export default function LoginPage() {
     // Picking yourself off the staff grid is how staff start their shift —
     // clockIn is already a no-op if they're still clocked in from earlier
     // today, so this is safe to call every time without double-counting.
-    clockIn(staffId);
+    // Fired without waiting — login shouldn't stall on the network.
+    clockInApi(staffId).catch((err) => console.error("Clock-in failed:", err));
     router.push(role ? getDefaultRouteForRole(role) : "/");
   }
 

@@ -1,8 +1,8 @@
-import type { TicketOrder } from "./types";
+import type { Payment, TicketOrder } from "./types";
 
-// Fallback only — the real, editable rate lives in the store's
-// restaurantSettings.vatRate (Settings page). This is used solely as a
-// default when a caller doesn't have the store's rate on hand.
+// Fallback only — the real, editable rate lives in RestaurantSettings
+// (Settings page, fetched via lib/hooks/useRestaurantSettings.ts). This is
+// used solely as a default when a caller doesn't have that rate on hand.
 export const VAT_RATE = 0.16;
 
 export function flattenOrderItems(order: TicketOrder | undefined) {
@@ -19,6 +19,60 @@ export function lineRawTotal(item: {
 }): number {
   const addOnTotal = item.addOns.reduce((s, a) => s + a.price, 0);
   return (item.price + addOnTotal) * item.qty;
+}
+
+export function getOrderTotal(order: TicketOrder | undefined, vatRate: number = VAT_RATE) {
+  const lines = flattenOrderItems(order);
+  const raw = lines.reduce((sum, { item }) => sum + lineRawTotal(item), 0);
+  return calcBill(raw, vatRate);
+}
+
+// Rounds already covered by a finalized receipt are a closed, fiscally
+// signed cycle — they must never be re-billed or have their total change.
+// Anything ordered afterward (a new round, or more items) belongs to the
+// next cycle and gets its own bill/receipt/invoice number.
+export function currentCycleNumber(order: TicketOrder | undefined): number {
+  return (order?.billedThroughRoundIndex ?? 0) + 1;
+}
+
+export function unbilledOrderTotal(order: TicketOrder, vatRate: number = VAT_RATE) {
+  const billedThrough = order.billedThroughRoundIndex ?? 0;
+  const unbilledRounds = order.rounds.filter((r) => r.index > billedThrough);
+  return getOrderTotal({ ...order, rounds: unbilledRounds }, vatRate);
+}
+
+export function cyclePaidAmount(payments: Payment[], order: TicketOrder | undefined): number {
+  if (!order) return 0;
+  const cycleNumber = currentCycleNumber(order);
+  return payments
+    .filter((p) => p.orderId === order.id && (p.billingCycle ?? 1) === cycleNumber)
+    .reduce((sum, p) => sum + p.amount, 0);
+}
+
+// Same as cyclePaidAmount, but an M-Pesa payment with no confirmation code
+// doesn't count — it hasn't actually been verified yet, so it must never be
+// enough on its own to mark an order "paid" (that would skip the cashier's
+// verification step and silently drop it out of the Awaiting Payment
+// queue). Cash is always physically in hand, so it never needs a code.
+export function verifiedCyclePaidAmount(payments: Payment[], order: TicketOrder | undefined): number {
+  if (!order) return 0;
+  const cycleNumber = currentCycleNumber(order);
+  return payments
+    .filter(
+      (p) =>
+        p.orderId === order.id &&
+        (p.billingCycle ?? 1) === cycleNumber &&
+        (p.method !== "mpesa" || Boolean(p.reference && p.reference.trim()))
+    )
+    .reduce((sum, p) => sum + p.amount, 0);
+}
+
+export function paymentsForCurrentCycle(payments: Payment[], order: TicketOrder | undefined): Payment[] {
+  if (!order) return [];
+  const cycleNumber = currentCycleNumber(order);
+  return payments.filter(
+    (p) => p.orderId === order.id && (p.billingCycle ?? 1) === cycleNumber
+  );
 }
 
 export function formatKES(amount: number): string {

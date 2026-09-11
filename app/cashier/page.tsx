@@ -14,8 +14,13 @@ import {
   X,
   Plus,
 } from "lucide-react";
-import { usePosStore, paymentsForCurrentCycle, unbilledOrderTotal } from "@/lib/store";
-import { formatKES } from "@/lib/utils";
+import { usePosStore } from "@/lib/store";
+import { useOpenOrders, useAllTickets } from "@/lib/hooks/useOrders";
+import { fetchOrder } from "@/lib/api/orders";
+import { usePayments, useCashDrops, useReceipts, useRestaurantSettings } from "@/lib/hooks/useBilling";
+import * as billingApi from "@/lib/api/billing";
+import { useStaff } from "@/lib/hooks/useStaff";
+import { formatKES, paymentsForCurrentCycle, unbilledOrderTotal } from "@/lib/utils";
 import { PaymentSuccessModal } from "@/components/billing/PaymentSuccessModal";
 import { ticketSubtitle } from "@/components/tickets/ticketStatus";
 import type { CashDrop, Payment, PaymentMethod, Receipt, Ticket, TicketOrder } from "@/lib/types";
@@ -50,19 +55,18 @@ function startOfDay(d: Date): number {
 }
 
 export default function CashierPage() {
-  const tickets = usePosStore((s) => s.tickets);
-  const orders = usePosStore((s) => s.orders);
-  const staff = usePosStore((s) => s.staff);
-  const vatRate = usePosStore((s) => s.restaurantSettings.vatRate);
-  const payments = usePosStore((s) => s.payments);
-  const cashDrops = usePosStore((s) => s.cashDrops);
-  const recordPayment = usePosStore((s) => s.recordPayment);
-  const finalizeReceipt = usePosStore((s) => s.finalizeReceipt);
-  const confirmOrderComplete = usePosStore((s) => s.confirmOrderComplete);
-  const reverseLastPayment = usePosStore((s) => s.reverseLastPayment);
-  const reverseCompletedPayment = usePosStore((s) => s.reverseCompletedPayment);
-  const recordCashDrop = usePosStore((s) => s.recordCashDrop);
-  const deleteCashDrop = usePosStore((s) => s.deleteCashDrop);
+  const currentStaffId = usePosStore((s) => s.currentStaffId);
+  const { tickets, orders, mutate: mutateOpenOrders } = useOpenOrders();
+  const { tickets: allTickets } = useAllTickets();
+  const { staff } = useStaff();
+  const { vatRate } = useRestaurantSettings();
+  const { payments, mutate: mutatePayments } = usePayments();
+  const { cashDrops, mutate: mutateCashDrops } = useCashDrops();
+  const { mutate: mutateReceipts } = useReceipts();
+
+  async function refreshAfterPaymentChange() {
+    await Promise.all([mutateOpenOrders(), mutatePayments()]);
+  }
 
   const [tab, setTab] = useState<"live" | "reconciliation">("live");
   const [search, setSearch] = useState("");
@@ -140,16 +144,15 @@ export default function CashierPage() {
   // this is the only way back to it, and only while actively searching.
   // Matched by the same M-Pesa code / customer name search already used for
   // live tickets, just extended to closed ones too.
-  const completedMatches: { payment: Payment; ticket: Ticket; order: TicketOrder }[] = [];
+  const completedMatches: { payment: Payment; ticket: Ticket }[] = [];
   if (query) {
     for (const payment of payments) {
-      const ticket = tickets.find((t) => t.id === payment.ticketId);
-      const order = orders[payment.ticketId];
-      if (!ticket || ticket.status !== "paid" || !order) continue;
+      const ticket = allTickets.find((t) => t.id === payment.ticketId);
+      if (!ticket || ticket.status !== "paid") continue;
       const matches =
         payment.reference.toLowerCase().includes(query) ||
         (payment.customerName ?? "").toLowerCase().includes(query);
-      if (matches) completedMatches.push({ payment, ticket, order });
+      if (matches) completedMatches.push({ payment, ticket });
     }
     completedMatches.sort((a, b) => b.payment.paidAt - a.payment.paidAt);
   }
@@ -188,12 +191,21 @@ export default function CashierPage() {
     const draftAmount = draft !== undefined ? Math.max(0, Number(draft) || 0) : recordedCash;
     const delta = draftAmount - recordedCash;
     if (delta > 0) {
-      recordPayment(ticketId, { method: "cash", amount: delta, reference: "Cash drop" });
+      await billingApi.recordPayment(ticketId, {
+        method: "cash",
+        amount: delta,
+        reference: "Cash drop",
+        collectedByStaffId: currentStaffId ?? undefined,
+      });
       // The cashier is entering and taking custody of this cash in the same
       // motion — record it as already dropped/reconciled immediately,
       // rather than making them enter the same figure again in the
       // separate per-waiter Drop reconciliation below.
-      if (waiterId) recordCashDrop(waiterId, delta, delta, "cash");
+      if (waiterId) {
+        await billingApi.recordCashDrop(waiterId, delta, delta, "cash");
+        mutateCashDrops();
+      }
+      await refreshAfterPaymentChange();
     }
     setCashDrafts((d) => {
       const next = { ...d };
@@ -206,26 +218,34 @@ export default function CashierPage() {
     // never got a confirmation code, so recordPayment deliberately left the
     // order short of "paid" (it can't tell a real transfer from an empty
     // code left blank by mistake).
-    let updatedOrder = usePosStore.getState().orders[ticketId];
+    let updatedOrder = (await fetchOrder(ticketId)).order;
     if (updatedOrder?.paymentStatus !== "paid") {
-      confirmOrderComplete(ticketId);
-      updatedOrder = usePosStore.getState().orders[ticketId];
+      const result = await billingApi.confirmOrderComplete(ticketId);
+      updatedOrder = result.order;
+      await refreshAfterPaymentChange();
     }
     if (updatedOrder?.paymentStatus === "paid") {
       setFinalizing(true);
-      const r = await finalizeReceipt(ticketId);
+      const { receipt: r } = await billingApi.finalizeReceipt(ticketId);
       setFinalizing(false);
       setReceipt(r);
+      await Promise.all([refreshAfterPaymentChange(), mutateReceipts()]);
     }
   }
 
-  function handleReverse(ticketId: string) {
-    reverseLastPayment(ticketId);
+  async function handleReverse(ticketId: string) {
+    await billingApi.reverseLastPayment(ticketId);
+    await refreshAfterPaymentChange();
     setCashDrafts((d) => {
       const next = { ...d };
       delete next[ticketId];
       return next;
     });
+  }
+
+  async function handleReverseCompleted(paymentId: string) {
+    await billingApi.reverseCompletedPayment(paymentId);
+    await refreshAfterPaymentChange();
   }
 
   const [confirmReverseTicketId, setConfirmReverseTicketId] = useState<string | null>(null);
@@ -357,14 +377,13 @@ export default function CashierPage() {
   // whether it's been swept into a cash-drop collection yet. Order-level
   // (unlike Cash Drop History, which is money-in-hand, not order-level),
   // so each row carries a specific payment to reverse.
-  const completedRange: { payment: Payment; ticket: Ticket; order: TicketOrder }[] = [];
+  const completedRange: { payment: Payment; ticket: Ticket }[] = [];
   for (const payment of payments) {
     if (!inRange(payment.paidAt)) continue;
-    const ticket = tickets.find((t) => t.id === payment.ticketId);
-    const order = orders[payment.ticketId];
-    if (!ticket || ticket.status !== "paid" || !order) continue;
-    if (waiterFilter && order.waiterId !== waiterFilter) continue;
-    completedRange.push({ payment, ticket, order });
+    const ticket = allTickets.find((t) => t.id === payment.ticketId);
+    if (!ticket || ticket.status !== "paid") continue;
+    if (waiterFilter && payment.waiterId !== waiterFilter) continue;
+    completedRange.push({ payment, ticket });
   }
   completedRange.sort((a, b) => b.payment.paidAt - a.payment.paidAt);
 
@@ -405,7 +424,7 @@ export default function CashierPage() {
     setToDate(today);
   }
 
-  function submitCashDrop() {
+  async function submitCashDrop() {
     const amount = Math.max(0, Number(cashDropAmount) || 0);
     if (amount <= 0) return;
     if (cashDropMethod === "mpesa" && !cashDropReference.trim()) return;
@@ -418,7 +437,7 @@ export default function CashierPage() {
       // belongs on that specific waiter's own row instead.
       if (expectedTotal <= 0 || amount !== expectedTotal) return;
       for (const { waiter, pending } of pendingRows) {
-        recordCashDrop(
+        await billingApi.recordCashDrop(
           waiter.id,
           pending,
           pending,
@@ -427,6 +446,7 @@ export default function CashierPage() {
           undefined
         );
       }
+      mutateCashDrops();
       setCashDropOpen(false);
       jumpReconciliationViewToToday();
       return;
@@ -439,7 +459,7 @@ export default function CashierPage() {
     // MORE than expected is the genuinely unusual case worth a note.
     const isOverage = amount > expectedNow;
     if (isOverage && !cashDropNote.trim()) return;
-    recordCashDrop(
+    await billingApi.recordCashDrop(
       cashDropWaiterId,
       amount,
       expectedNow,
@@ -447,6 +467,7 @@ export default function CashierPage() {
       cashDropMethod === "mpesa" ? cashDropReference : undefined,
       isOverage ? cashDropNote : undefined
     );
+    mutateCashDrops();
     setCashDropOpen(false);
     jumpReconciliationViewToToday();
   }
@@ -762,9 +783,9 @@ export default function CashierPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {completedMatches.map(({ payment, ticket, order }) => {
+                  {completedMatches.map(({ payment, ticket }) => {
                     const waiterName =
-                      staff.find((m) => m.id === order.waiterId)?.name ??
+                      staff.find((m) => m.id === payment.waiterId)?.name ??
                       "Unassigned";
                     return (
                       <tr key={payment.id} className="border-t border-warm-100">
@@ -793,7 +814,7 @@ export default function CashierPage() {
                           <div className="flex justify-center">
                             <button
                               type="button"
-                              onClick={() => reverseCompletedPayment(payment.id)}
+                              onClick={() => handleReverseCompleted(payment.id)}
                               aria-label="Reverse this payment and reopen the order"
                               title="Reverse this payment and reopen the order"
                               className="inline-flex items-center gap-1.5 rounded-full border-2 border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-extrabold px-3 py-1.5"
@@ -1053,7 +1074,7 @@ export default function CashierPage() {
                       <td className="px-5 py-3 text-center">
                         <button
                           type="button"
-                          onClick={() => deleteCashDrop(drop.id)}
+                          onClick={() => billingApi.deleteCashDrop(drop.id).then(() => mutateCashDrops())}
                           aria-label="Delete cash drop"
                           title="Delete cash drop"
                           className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-rose-200 text-rose-600 hover:bg-rose-50"
@@ -1095,9 +1116,9 @@ export default function CashierPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {completedRange.map(({ payment, ticket, order }) => {
+                  {completedRange.map(({ payment, ticket }) => {
                     const waiterName =
-                      staff.find((m) => m.id === order.waiterId)?.name ??
+                      staff.find((m) => m.id === payment.waiterId)?.name ??
                       "Unassigned";
                     return (
                       <tr key={payment.id} className="border-t border-warm-100">
@@ -1126,7 +1147,7 @@ export default function CashierPage() {
                           <div className="flex justify-center">
                             <button
                               type="button"
-                              onClick={() => reverseCompletedPayment(payment.id)}
+                              onClick={() => handleReverseCompleted(payment.id)}
                               aria-label="Reverse this payment and reopen the order"
                               title="Reverse this payment and reopen the order"
                               className="inline-flex items-center gap-1.5 rounded-full border-2 border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-extrabold px-3 py-1.5"
