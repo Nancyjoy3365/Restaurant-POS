@@ -77,7 +77,6 @@ export default function CashierPage() {
   const [waiterFilter, setWaiterFilter] = useState("");
   const [fromDate, setFromDate] = useState(() => toISODate(new Date()));
   const [toDate, setToDate] = useState(() => toISODate(new Date()));
-  const [reconTab, setReconTab] = useState<"owed" | "history">("owed");
 
   const [cashDropOpen, setCashDropOpen] = useState(false);
   const [cashDropIsLumpsum, setCashDropIsLumpsum] = useState(false);
@@ -468,6 +467,39 @@ export default function CashierPage() {
     setToDate(today);
   }
 
+  // Recording a cash drop for a waiter is the cashier's confirmation that
+  // real cash was collected — so any of that waiter's still-"awaiting
+  // payment" tickets already fully covered by cash (on its own, or topping
+  // up a partial M-Pesa amount) get completed right along with it, instead
+  // of sitting there needing a separate manual click. A ticket resting
+  // entirely on M-Pesa is left alone here — that one only clears once its
+  // own confirmation code lands (see mpesaCleared above), never via an
+  // unrelated cash drop.
+  async function autoCompleteCashClearedOrders(waiterIds: string[]) {
+    const ids = new Set(waiterIds);
+    function cashAndMpesaFor(order: TicketOrder) {
+      const cyclePayments = paymentsForCurrentCycle(payments, order);
+      const cash = cyclePayments
+        .filter((p) => p.method === "cash")
+        .reduce((sum, p) => sum + p.amount, 0);
+      const mpesa = cyclePayments
+        .filter((p) => p.method === "mpesa")
+        .reduce((sum, p) => sum + p.amount, 0);
+      return { cash, mpesa };
+    }
+    const candidates = queue.filter(({ ticket, order }) => {
+      if (!ticket.waiterId || !ids.has(ticket.waiterId)) return false;
+      const total = order.billTotals?.total ?? 0;
+      if (total <= 0) return false;
+      const { cash, mpesa } = cashAndMpesaFor(order);
+      return cash > 0 && cash + mpesa >= total;
+    });
+    for (const { ticket, order } of candidates) {
+      const { cash, mpesa } = cashAndMpesaFor(order);
+      await handleComplete(ticket.id, ticket.waiterId, cash, mpesa, order.billTotals!.total);
+    }
+  }
+
   async function submitCashDrop() {
     const amount = Math.max(0, Number(cashDropAmount) || 0);
     if (amount <= 0) return;
@@ -490,6 +522,7 @@ export default function CashierPage() {
           undefined
         );
       }
+      await autoCompleteCashClearedOrders(pendingRows.map((r) => r.waiter.id));
       mutateCashDrops();
       setCashDropOpen(false);
       jumpReconciliationViewToToday();
@@ -511,6 +544,7 @@ export default function CashierPage() {
       cashDropMethod === "mpesa" ? cashDropReference : undefined,
       isOverage ? cashDropNote : undefined
     );
+    await autoCompleteCashClearedOrders([cashDropWaiterId]);
     mutateCashDrops();
     setCashDropOpen(false);
     jumpReconciliationViewToToday();
@@ -524,33 +558,6 @@ export default function CashierPage() {
         <div className="flex flex-wrap items-center gap-3">
           {tab === "reconciliation" && (
             <>
-              <div className="inline-flex items-center rounded-full border border-warm-200 bg-warm-50 p-1">
-                <button
-                  type="button"
-                  onClick={() => setReconTab("owed")}
-                  className={clsx(
-                    "rounded-full px-3.5 py-1.5 text-xs font-extrabold transition-colors",
-                    reconTab === "owed"
-                      ? "bg-accent-600 text-white"
-                      : "text-slate-500 hover:text-slate-700"
-                  )}
-                >
-                  Owed Now
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setReconTab("history")}
-                  className={clsx(
-                    "rounded-full px-3.5 py-1.5 text-xs font-extrabold transition-colors",
-                    reconTab === "history"
-                      ? "bg-accent-600 text-white"
-                      : "text-slate-500 hover:text-slate-700"
-                  )}
-                >
-                  History
-                </button>
-              </div>
-
               <div className="relative">
                 <Calendar
                   size={14}
@@ -964,7 +971,6 @@ export default function CashierPage() {
 
         {tab === "reconciliation" && (
         <>
-        {reconTab === "owed" ? (
         <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-warm-200">
             <div>
@@ -1093,8 +1099,6 @@ export default function CashierPage() {
             </div>
           )}
         </div>
-        ) : (
-        <>
         <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
           <div className="px-5 py-4 border-b border-warm-200">
             <h2 className="font-extrabold text-slate-900">
@@ -1229,8 +1233,6 @@ export default function CashierPage() {
             </div>
           )}
         </div>
-        </>
-        )}
         </>
         )}
 
