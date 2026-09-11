@@ -135,148 +135,154 @@ export default function SettingsPage() {
         <h1 className="text-xl font-black text-slate-900">Settings</h1>
       </header>
 
-      <main className="flex-1 lg:min-h-0 overflow-y-auto p-6 space-y-6 max-w-2xl">
-        <SettingsCard
-          icon={Building2}
-          title="Restaurant Details"
-          description="Shown on every printed bill — name, address, KRA PIN, and phone number."
-        >
-          <SuccessBanner show={detailsFlash.saved} />
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-                Restaurant name
-              </label>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-bold outline-none focus:border-accent-400"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-                Address
-              </label>
-              <input
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-semibold outline-none focus:border-accent-400"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-                  KRA PIN
-                </label>
-                <input
-                  value={kraPin}
-                  onChange={(e) => setKraPin(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-semibold outline-none focus:border-accent-400"
-                />
+      <main className="flex-1 lg:min-h-0 overflow-y-auto p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-6xl">
+          <div className="lg:col-span-3">
+            <SettingsCard
+              icon={Building2}
+              title="Restaurant Details"
+              description="Shown on every printed bill — name, address, KRA PIN, and phone number."
+            >
+              <SuccessBanner show={detailsFlash.saved} />
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
+                      Restaurant name
+                    </label>
+                    <input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-bold outline-none focus:border-accent-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
+                      Address
+                    </label>
+                    <input
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-semibold outline-none focus:border-accent-400"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
+                      KRA PIN
+                    </label>
+                    <input
+                      value={kraPin}
+                      onChange={(e) => setKraPin(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-semibold outline-none focus:border-accent-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
+                      Phone
+                    </label>
+                    <input
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-semibold outline-none focus:border-accent-400"
+                    />
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-                  Phone
-                </label>
-                <input
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-semibold outline-none focus:border-accent-400"
-                />
-              </div>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={handleSaveDetails}
-            disabled={!canSaveDetails}
-            className="w-full mt-4 rounded-lg bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-2.5 transition-colors"
-          >
-            Save Details
-          </button>
-        </SettingsCard>
-
-        <SettingsCard
-          icon={Smartphone}
-          title="M-Pesa Till Number"
-          description="Printed in the LIPA NA MPESA / BUY GOODS section of every bill."
-        >
-          <SuccessBanner show={tillFlash.saved} />
-          <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-            Till number
-          </label>
-          <input
-            value={tillNumber}
-            onChange={(e) => setTillNumber(e.target.value)}
-            placeholder="e.g. 974366"
-            className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-bold outline-none focus:border-accent-400"
-          />
-          <button
-            type="button"
-            onClick={handleSaveTill}
-            disabled={!tillNumber.trim()}
-            className="w-full mt-4 rounded-lg bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-2.5 transition-colors"
-          >
-            Save Till Number
-          </button>
-        </SettingsCard>
-
-        <SettingsCard
-          icon={Percent}
-          title="VAT Rate"
-          description="Applied to every order total, from the order screen through to the final bill."
-        >
-          <SuccessBanner show={vatFlash.saved} />
-          <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-            VAT percentage
-          </label>
-          <div className="relative mt-1 w-full sm:w-40">
-            <input
-              type="number"
-              min={0}
-              max={100}
-              value={vatPercent}
-              onChange={(e) => setVatPercent(e.target.value)}
-              className="w-full rounded-lg border border-warm-200 pl-3 pr-8 py-2 text-sm font-bold outline-none focus:border-accent-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
-              %
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={handleSaveVat}
-            disabled={!canSaveVat}
-            className="w-full mt-4 rounded-lg bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-2.5 transition-colors"
-          >
-            Save VAT Rate
-          </button>
-        </SettingsCard>
-
-        <SettingsCard
-          icon={Printer}
-          title="Receipt Paper Width"
-          description="Matches the physical paper loaded in your receipt printer, so bills print at the right size instead of being cut off or leaving blank space."
-        >
-          <SuccessBanner show={receiptFlash.saved} />
-          <div className="grid grid-cols-2 gap-2">
-            {(["58mm", "80mm"] as ReceiptWidth[]).map((width) => (
               <button
-                key={width}
                 type="button"
-                onClick={() => handleSetReceiptWidth(width)}
-                className={clsx(
-                  "rounded-xl border-2 py-3 font-extrabold text-sm transition-colors",
-                  settings.receiptWidth === width
-                    ? "border-accent-600 bg-accent-50 text-accent-700"
-                    : "border-warm-200 text-slate-500 hover:border-accent-300"
-                )}
+                onClick={handleSaveDetails}
+                disabled={!canSaveDetails}
+                className="w-full sm:w-auto sm:px-8 mt-4 rounded-lg bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-2.5 transition-colors"
               >
-                {width}
+                Save Details
               </button>
-            ))}
+            </SettingsCard>
           </div>
-        </SettingsCard>
+
+          <SettingsCard
+            icon={Smartphone}
+            title="M-Pesa Till Number"
+            description="Printed in the LIPA NA MPESA / BUY GOODS section of every bill."
+          >
+            <SuccessBanner show={tillFlash.saved} />
+            <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
+              Till number
+            </label>
+            <input
+              value={tillNumber}
+              onChange={(e) => setTillNumber(e.target.value)}
+              placeholder="e.g. 974366"
+              className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 text-sm font-bold outline-none focus:border-accent-400"
+            />
+            <button
+              type="button"
+              onClick={handleSaveTill}
+              disabled={!tillNumber.trim()}
+              className="w-full mt-4 rounded-lg bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-2.5 transition-colors"
+            >
+              Save Till Number
+            </button>
+          </SettingsCard>
+
+          <SettingsCard
+            icon={Percent}
+            title="VAT Rate"
+            description="Applied to every order total, from the order screen through to the final bill."
+          >
+            <SuccessBanner show={vatFlash.saved} />
+            <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
+              VAT percentage
+            </label>
+            <div className="relative mt-1 w-full sm:w-40">
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={vatPercent}
+                onChange={(e) => setVatPercent(e.target.value)}
+                className="w-full rounded-lg border border-warm-200 pl-3 pr-8 py-2 text-sm font-bold outline-none focus:border-accent-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
+                %
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleSaveVat}
+              disabled={!canSaveVat}
+              className="w-full mt-4 rounded-lg bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-2.5 transition-colors"
+            >
+              Save VAT Rate
+            </button>
+          </SettingsCard>
+
+          <SettingsCard
+            icon={Printer}
+            title="Receipt Paper Width"
+            description="Matches the physical paper loaded in your receipt printer, so bills print at the right size instead of being cut off or leaving blank space."
+          >
+            <SuccessBanner show={receiptFlash.saved} />
+            <div className="grid grid-cols-2 gap-2">
+              {(["58mm", "80mm"] as ReceiptWidth[]).map((width) => (
+                <button
+                  key={width}
+                  type="button"
+                  onClick={() => handleSetReceiptWidth(width)}
+                  className={clsx(
+                    "rounded-xl border-2 py-3 font-extrabold text-sm transition-colors",
+                    settings.receiptWidth === width
+                      ? "border-accent-600 bg-accent-50 text-accent-700"
+                      : "border-warm-200 text-slate-500 hover:border-accent-300"
+                  )}
+                >
+                  {width}
+                </button>
+              ))}
+            </div>
+          </SettingsCard>
+        </div>
       </main>
     </div>
   );
