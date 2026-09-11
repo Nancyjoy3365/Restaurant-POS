@@ -145,6 +145,15 @@ export interface Ingredient {
   purchasedAt?: number;
 }
 
+// The selectable options for Ingredient.unit — a plain lookup, seeded with
+// the original hardcoded defaults (kg/litre/pc/g/ml) and growing whenever
+// someone adds a custom unit from the Add Item form. Shared across every
+// device/session, never scoped to one ingredient.
+export interface UnitOfMeasure {
+  id: string;
+  label: string;
+}
+
 export type VendorPaymentMethod = "cash" | "mpesa";
 
 export type VendorPaymentTerms = "due-on-receipt" | "net-15" | "net-30" | "net-60";

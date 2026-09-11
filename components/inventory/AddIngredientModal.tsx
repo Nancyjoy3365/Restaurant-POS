@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { X } from "lucide-react";
-import { useVendors } from "@/lib/hooks/useInventory";
-import { createIngredient, updateIngredient, ApiError } from "@/lib/api/inventory";
+import { Check, X } from "lucide-react";
+import { useUnitsOfMeasure, useVendors } from "@/lib/hooks/useInventory";
+import { addUnitOfMeasure, createIngredient, updateIngredient, ApiError } from "@/lib/api/inventory";
 import { capitalizeFirst, formatKES } from "@/lib/utils";
 import type { Ingredient } from "@/lib/types";
 
@@ -18,7 +18,9 @@ const PACKAGING_OPTIONS = [
   "Pieces",
 ];
 
-const UNIT_OPTIONS = ["kg", "litre", "pc", "g", "ml"];
+// Sentinel <option> value — never a real stored unit label — that opens the
+// custom-unit text input in place of the dropdown.
+const ADD_CUSTOM_UNIT = "__add_custom_unit__";
 
 export function AddIngredientModal({
   item,
@@ -35,19 +37,63 @@ export function AddIngredientModal({
   onSaved?: () => void;
 }) {
   const { vendors } = useVendors();
+  const { unitsOfMeasure, mutate: mutateUnits } = useUnitsOfMeasure();
   const isEditing = Boolean(item);
 
   const [name, setName] = useState(item?.name ?? "");
   const [packaging, setPackaging] = useState(item?.packaging ?? PACKAGING_OPTIONS[0]);
   const [amount, setAmount] = useState(item ? String(item.totalCost) : "");
   const [piece, setPiece] = useState(item ? String(item.piecesPerPackage) : "");
-  const [unit, setUnit] = useState(item?.unit ?? UNIT_OPTIONS[0]);
+  // Left blank for a brand-new item until units of measure finish their
+  // first load (see `selectedUnit` below) — there's no synchronous default
+  // to fall back on the way a hardcoded options array used to provide.
+  const [unit, setUnit] = useState(item?.unit ?? "");
+  const [addingCustomUnit, setAddingCustomUnit] = useState(false);
+  const [customUnitValue, setCustomUnitValue] = useState("");
+  const [customUnitSaving, setCustomUnitSaving] = useState(false);
+  const [customUnitError, setCustomUnitError] = useState<string | null>(null);
   const [unitAmount, setUnitAmount] = useState(
     item ? String(item.unitAmount ?? 1) : "1"
   );
   const [vendorId, setVendorId] = useState(vendors[0]?.id ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const selectedUnit = unit || unitsOfMeasure[0]?.label || "";
+  // A unit already on this item (or just picked) that isn't in the fetched
+  // list yet — e.g. the list is still loading, or this is a rare legacy
+  // value — still needs to appear as its own selectable option so the
+  // dropdown never silently jumps away from it.
+  const unitOptions = unitsOfMeasure.some((u) => u.label === selectedUnit) || !selectedUnit
+    ? unitsOfMeasure
+    : [...unitsOfMeasure, { id: "current", label: selectedUnit }];
+
+  async function confirmCustomUnit() {
+    const label = customUnitValue.trim();
+    if (!label) return;
+    // Retyping something already in the list just selects it — no need to
+    // round-trip the API for a plain duplicate.
+    const existing = unitsOfMeasure.find(
+      (u) => u.label.toLowerCase() === label.toLowerCase()
+    );
+    if (existing) {
+      setUnit(existing.label);
+      setAddingCustomUnit(false);
+      return;
+    }
+    setCustomUnitSaving(true);
+    setCustomUnitError(null);
+    try {
+      const created = await addUnitOfMeasure(label);
+      await mutateUnits();
+      setUnit(created.label);
+      setAddingCustomUnit(false);
+    } catch (err) {
+      setCustomUnitError(err instanceof ApiError ? err.message : "Failed to add unit.");
+    } finally {
+      setCustomUnitSaving(false);
+    }
+  }
 
   // A single package is bought/created here — quantity (packages on hand)
   // is fixed at 1; restocking more packages later is RestockModal's job.
@@ -65,6 +111,7 @@ export function AddIngredientModal({
     pieceNum > 0 &&
     unitAmountNum >= 1 &&
     unitAmountNum <= 100 &&
+    Boolean(selectedUnit) &&
     (isEditing || Boolean(vendorId)) &&
     !saving;
 
@@ -78,7 +125,7 @@ export function AddIngredientModal({
       totalCost: amountNum,
       quantity: quantityNum,
       piecesPerPackage: pieceNum,
-      unit,
+      unit: selectedUnit,
       unitAmount: unitAmountNum,
       unitCost,
       // No stock level has been observed yet for a brand-new item, so flag
@@ -182,17 +229,70 @@ export function AddIngredientModal({
               <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
                 Unit of measure
               </label>
-              <select
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400 bg-white"
-              >
-                {UNIT_OPTIONS.map((u) => (
-                  <option key={u} value={u}>
-                    {u}
-                  </option>
-                ))}
-              </select>
+              {addingCustomUnit ? (
+                <div className="mt-1 space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      autoFocus
+                      value={customUnitValue}
+                      onChange={(e) => setCustomUnitValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          confirmCustomUnit();
+                        }
+                      }}
+                      maxLength={20}
+                      placeholder="e.g. sachet"
+                      className="min-w-0 flex-1 rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400"
+                    />
+                    <button
+                      type="button"
+                      disabled={!customUnitValue.trim() || customUnitSaving}
+                      onClick={confirmCustomUnit}
+                      aria-label="Add unit"
+                      className="shrink-0 rounded-xl bg-accent-600 hover:bg-accent-700 disabled:bg-slate-300 text-white p-2.5"
+                    >
+                      <Check size={16} strokeWidth={3} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddingCustomUnit(false);
+                        setCustomUnitError(null);
+                      }}
+                      aria-label="Cancel"
+                      className="shrink-0 rounded-xl border border-warm-200 text-slate-400 hover:text-slate-600 p-2.5"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                  {customUnitError && (
+                    <p className="text-xs font-semibold text-rose-600">{customUnitError}</p>
+                  )}
+                </div>
+              ) : (
+                <select
+                  value={selectedUnit}
+                  onChange={(e) => {
+                    if (e.target.value === ADD_CUSTOM_UNIT) {
+                      setAddingCustomUnit(true);
+                      setCustomUnitValue("");
+                      setCustomUnitError(null);
+                    } else {
+                      setUnit(e.target.value);
+                    }
+                  }}
+                  className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400 bg-white"
+                >
+                  {unitOptions.map((u) => (
+                    <option key={u.id} value={u.label}>
+                      {u.label}
+                    </option>
+                  ))}
+                  <option value={ADD_CUSTOM_UNIT}>+ Add Custom Unit</option>
+                </select>
+              )}
             </div>
             <div>
               <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">

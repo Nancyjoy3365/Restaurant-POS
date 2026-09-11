@@ -1,4 +1,4 @@
-import type { Ingredient, StockPurchase, Vendor, VendorPayment, VendorPaymentMethod } from "@/lib/types";
+import type { Ingredient, StockPurchase, UnitOfMeasure, Vendor, VendorPayment, VendorPaymentMethod } from "@/lib/types";
 import { request, ApiError } from "./client";
 
 export { ApiError };
@@ -33,6 +33,11 @@ export const updateIngredient = (ingredientId: string, fields: Omit<Ingredient, 
     method: "PATCH",
     body: JSON.stringify(fields),
   });
+
+export const fetchUnitsOfMeasure = () => request<UnitOfMeasure[]>("/api/units-of-measure");
+
+export const addUnitOfMeasure = (label: string) =>
+  request<UnitOfMeasure>("/api/units-of-measure", { method: "POST", body: JSON.stringify({ label }) });
 
 export const fetchStockPurchases = () => request<StockPurchase[]>("/api/stock-purchases");
 

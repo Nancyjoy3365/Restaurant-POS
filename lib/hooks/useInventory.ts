@@ -2,6 +2,7 @@ import useSWR from "swr";
 import {
   fetchIngredients,
   fetchStockPurchases,
+  fetchUnitsOfMeasure,
   fetchVendorPayments,
   fetchVendors,
 } from "@/lib/api/inventory";
@@ -16,6 +17,15 @@ export function useVendors() {
 export function useIngredients() {
   const { data, error, isLoading, mutate } = useSWR("/api/ingredients", fetchIngredients, SHARED_CONFIG);
   return { ingredients: data ?? [], error, isLoading, mutate };
+}
+
+export function useUnitsOfMeasure() {
+  const { data, error, isLoading, mutate } = useSWR(
+    "/api/units-of-measure",
+    fetchUnitsOfMeasure,
+    SHARED_CONFIG
+  );
+  return { unitsOfMeasure: data ?? [], error, isLoading, mutate };
 }
 
 export function useStockPurchases() {
