@@ -44,7 +44,7 @@ type Step = "role" | "staff" | "pin";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { staff } = useStaff();
+  const { staff, isLoading: staffLoading, error: staffError } = useStaff();
   const { staffPin } = useStaffPin();
   const { leaveRecords } = useLeaveRecords();
   const login = usePosStore((s) => s.login);
@@ -199,7 +199,17 @@ export default function LoginPage() {
                   </button>
                 );
               })}
-              {roleStaff.length === 0 && (
+              {roleStaff.length === 0 && staffLoading && (
+                <p className="col-span-3 text-sm text-slate-400 font-semibold text-center py-6">
+                  Loading staff…
+                </p>
+              )}
+              {roleStaff.length === 0 && !staffLoading && staffError && (
+                <p className="col-span-3 text-sm text-rose-500 font-semibold text-center py-6">
+                  Couldn&rsquo;t load staff — check your connection and try again.
+                </p>
+              )}
+              {roleStaff.length === 0 && !staffLoading && !staffError && (
                 <p className="col-span-3 text-sm text-slate-400 font-semibold text-center py-6">
                   No staff on file for this role yet.
                 </p>
