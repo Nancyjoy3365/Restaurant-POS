@@ -13,6 +13,7 @@ import {
   PauseCircle,
   ChefHat,
   LayoutGrid,
+  LogOut,
   AlertCircle,
   X,
   Layers,
@@ -33,9 +34,10 @@ import { useRestaurantSettings } from "@/lib/hooks/useBilling";
 import { useMenu } from "@/lib/hooks/useMenu";
 import { useStaff } from "@/lib/hooks/useStaff";
 import { getOrderTotal, formatKES } from "@/lib/utils";
+import { FoodImage } from "@/components/shared/FoodImage";
+import { ClockOutButton } from "@/components/shared/ClockOutButton";
 
 const MAX_HELD_ORDERS_PER_WAITER = 3;
-import { FoodImage } from "@/components/shared/FoodImage";
 import { CategoryTabs } from "@/components/order/CategoryTabs";
 import { SearchBar } from "@/components/order/SearchBar";
 import { MenuCard } from "@/components/order/MenuCard";
@@ -203,7 +205,7 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
 
   if (!ticket) {
     return (
-      <div className="fixed inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background lg:hidden">
+      <div className="fixed inset-0 z-[45] flex flex-col items-center justify-center gap-3 bg-background lg:hidden">
         <p className="text-slate-500 font-bold">Order not found.</p>
         <button
           onClick={() => router.push("/my-tickets")}
@@ -216,7 +218,7 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
   }
 
   return (
-    <div className="fixed inset-0 z-10 flex flex-col bg-background lg:hidden">
+    <div className="fixed inset-0 z-[45] flex flex-col bg-background lg:hidden">
       {/* Top bar */}
       <header className="shrink-0 border-b border-warm-200 bg-white">
         <div className="flex items-center gap-2 px-3 h-14">
@@ -483,6 +485,13 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
           >
             <LayoutGrid size={14} /> My Orders
           </button>
+          <ClockOutButton
+            className="flex items-center gap-1 text-xs font-extrabold text-slate-400 hover:text-rose-600"
+            aria-label="Sign out"
+            title="Sign out"
+          >
+            <LogOut size={14} /> Sign Out
+          </ClockOutButton>
         </div>
       </div>
 

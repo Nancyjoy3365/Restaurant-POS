@@ -48,10 +48,10 @@ export function VariantPickerSheet({
       onClick={onClose}
     >
       <div
-        className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl bg-white p-5 pb-8 sm:pb-5"
+        className="w-full sm:max-w-sm max-h-[85vh] flex flex-col rounded-t-3xl sm:rounded-2xl bg-white p-5 pb-8 sm:pb-5"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center justify-between mb-1 shrink-0">
           <h3 className="font-extrabold text-slate-900">
             {pendingVariant
               ? `${groupName} (${pendingVariant.variantLabel ?? pendingVariant.name})`
@@ -69,10 +69,10 @@ export function VariantPickerSheet({
 
         {!pendingVariant ? (
           <>
-            <p className="text-xs text-slate-500 font-semibold mb-4">
+            <p className="text-xs text-slate-500 font-semibold mb-4 shrink-0">
               Choose a variant to add.
             </p>
-            <div className="space-y-2">
+            <div className="space-y-2 overflow-y-auto">
               {variants.length === 0 ? (
                 <p className="text-sm text-slate-400 font-semibold text-center py-4">
                   No variants currently available.
@@ -98,28 +98,30 @@ export function VariantPickerSheet({
           </>
         ) : (
           <>
-            <p className="text-xs text-slate-500 font-semibold mb-3">
-              Choose a spice level.
-            </p>
-            <div className="flex items-center gap-1.5 flex-wrap mb-5">
-              <Flame size={14} className="text-orange-500 shrink-0" />
-              {pendingVariant.spiceLevels!.map((level) => (
-                <button
-                  key={level}
-                  type="button"
-                  onClick={() => setSpiceLevel(level)}
-                  className={clsx(
-                    "rounded-full px-3 py-1.5 text-xs font-bold border transition-colors",
-                    spiceLevel === level
-                      ? "bg-orange-500 border-orange-500 text-white"
-                      : "border-warm-200 text-slate-600 hover:border-orange-300"
-                  )}
-                >
-                  {level}
-                </button>
-              ))}
+            <div className="overflow-y-auto">
+              <p className="text-xs text-slate-500 font-semibold mb-3">
+                Choose a spice level.
+              </p>
+              <div className="flex items-center gap-1.5 flex-wrap mb-5">
+                <Flame size={14} className="text-orange-500 shrink-0" />
+                {pendingVariant.spiceLevels!.map((level) => (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => setSpiceLevel(level)}
+                    className={clsx(
+                      "rounded-full px-3 py-1.5 text-xs font-bold border transition-colors",
+                      spiceLevel === level
+                        ? "bg-orange-500 border-orange-500 text-white"
+                        : "border-warm-200 text-slate-600 hover:border-orange-300"
+                    )}
+                  >
+                    {level}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => setPendingVariant(null)}

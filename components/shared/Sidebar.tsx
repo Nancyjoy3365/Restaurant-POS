@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   LayoutGrid,
   Ticket as TicketIcon,
@@ -23,10 +23,10 @@ import {
 import clsx from "clsx";
 import { usePosStore } from "@/lib/store";
 import { useStaff } from "@/lib/hooks/useStaff";
-import { clockOut as clockOutApi } from "@/lib/api/staff";
-import { useOpenOrders, cancelEmptyTickets } from "@/lib/hooks/useOrders";
+import { useOpenOrders } from "@/lib/hooks/useOrders";
 import { ROLE_ALLOWED_PATHS } from "@/lib/roles";
 import { ticketSubtitle } from "@/components/tickets/ticketStatus";
+import { ClockOutButton } from "./ClockOutButton";
 
 const MAX_HELD_ORDERS_PER_WAITER = 3;
 
@@ -43,7 +43,7 @@ interface NavItem {
 // mobile "More" sheet, where there's room for it.
 const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "All Orders", mobileLabel: "Orders", icon: LayoutGrid },
-  { href: "/my-tickets", label: "My Orders", mobileLabel: "Orders", icon: TicketIcon },
+  { href: "/my-tickets", label: "My Orders", mobileLabel: "My Orders", icon: TicketIcon },
   { href: "/kitchen", label: "Kitchen", mobileLabel: "Kitchen", icon: ChefHat },
   { href: "/cashier", label: "Cashier", mobileLabel: "Cashier", icon: Wallet },
   { href: "/menu-management", label: "Menu Management", mobileLabel: "Menu", icon: UtensilsCrossed },
@@ -67,14 +67,16 @@ const MAX_MOBILE_PRIMARY_ITEMS = 4;
 
 export function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const currentStaffId = usePosStore((s) => s.currentStaffId);
   const { staff } = useStaff();
   const { tickets, orders } = useOpenOrders();
-  const logout = usePosStore((s) => s.logout);
-  const [showClockOutPrompt, setShowClockOutPrompt] = useState(false);
   const [moreSheetOpen, setMoreSheetOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
+    if (pathname.startsWith("/settings")) setSettingsOpen(true);
+  }
   const currentStaff = staff.find((s) => s.id === currentStaffId);
   const allowedPaths = currentStaff
     ? ROLE_ALLOWED_PATHS[currentStaff.role]
@@ -91,10 +93,6 @@ export function Sidebar() {
         : item
     );
   const showHeldOrders = allowedPaths.includes("/my-tickets");
-
-  useEffect(() => {
-    if (pathname.startsWith("/settings")) setSettingsOpen(true);
-  }, [pathname]);
 
   // Nested Settings sub-links (e.g. Vendors) don't get their own row in the
   // desktop sidebar — they're rendered indented underneath it instead — but
@@ -114,16 +112,11 @@ export function Sidebar() {
       : [item]
   );
 
-  // Only split into primary + "More" once there's actually more than fits —
-  // most roles (Waiter, Chef, Cashier) already have few enough items that
-  // this never triggers; it's mainly Admin's broader set that overflows.
-  const needsMobileOverflow = mobileNavItems.length > MAX_MOBILE_PRIMARY_ITEMS + 1;
-  const mobilePrimaryItems = needsMobileOverflow
-    ? mobileNavItems.slice(0, MAX_MOBILE_PRIMARY_ITEMS)
-    : mobileNavItems;
-  const mobileOverflowItems = needsMobileOverflow
-    ? mobileNavItems.slice(MAX_MOBILE_PRIMARY_ITEMS)
-    : [];
+  // "More" is always present (not just once nav items overflow) since it's
+  // also the only place Sign Out lives on mobile — everything past the
+  // first few nav items collapses into it alongside that.
+  const mobilePrimaryItems = mobileNavItems.slice(0, MAX_MOBILE_PRIMARY_ITEMS);
+  const mobileOverflowItems = mobileNavItems.slice(MAX_MOBILE_PRIMARY_ITEMS);
   const isNavPathActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
   const overflowHasActive = mobileOverflowItems.some((item) =>
@@ -138,18 +131,6 @@ export function Sidebar() {
       orders[t.id]?.rounds.some((round) => round.items.length > 0)
   );
 
-  function confirmClockOut(shouldClockOut: boolean) {
-    // Fired without waiting — logout shouldn't stall on the network, and
-    // neither the shift record nor the empty-ticket sweep are needed for
-    // the navigation that follows (mirrors the old logout()'s purgeEmptyTickets).
-    if (shouldClockOut && currentStaffId) {
-      clockOutApi(currentStaffId).catch((err) => console.error("Clock-out failed:", err));
-    }
-    cancelEmptyTickets().catch((err) => console.error("Empty-ticket cleanup failed:", err));
-    setShowClockOutPrompt(false);
-    logout();
-    router.push("/login");
-  }
 
   return (
     <>
@@ -276,15 +257,13 @@ export function Sidebar() {
                   {currentStaff.role}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowClockOutPrompt(true)}
+              <ClockOutButton
                 className="shrink-0 rounded-full p-2.5 text-slate-400 hover:bg-rose-100 hover:text-rose-600"
                 aria-label="Switch user"
                 title="Switch user"
               >
                 <LogOut size={18} />
-              </button>
+              </ClockOutButton>
             </div>
           </div>
         )}
@@ -307,19 +286,17 @@ export function Sidebar() {
             </Link>
           );
         })}
-        {mobileOverflowItems.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setMoreSheetOpen(true)}
-            className={clsx(
-              "flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] py-1.5 rounded-xl text-[10px] font-bold transition-colors",
-              overflowHasActive ? "bg-accent-100 text-accent-700" : "text-slate-500"
-            )}
-          >
-            <MoreHorizontal size={20} strokeWidth={2.5} />
-            <span>More</span>
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => setMoreSheetOpen(true)}
+          className={clsx(
+            "flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] py-1.5 rounded-xl text-[10px] font-bold transition-colors",
+            overflowHasActive ? "bg-accent-100 text-accent-700" : "text-slate-500"
+          )}
+        >
+          <MoreHorizontal size={20} strokeWidth={2.5} />
+          <span>More</span>
+        </button>
       </nav>
 
       {moreSheetOpen && (
@@ -362,46 +339,17 @@ export function Sidebar() {
                   </Link>
                 );
               })}
+              {currentStaff && (
+                <ClockOutButton className="flex flex-col items-center justify-center gap-1.5 min-h-[64px] rounded-2xl px-2 py-3 text-xs font-bold text-center transition-colors bg-rose-50 text-rose-600">
+                  <LogOut size={22} strokeWidth={2.5} />
+                  <span className="leading-tight">Sign Out</span>
+                </ClockOutButton>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {showClockOutPrompt && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
-          onClick={() => setShowClockOutPrompt(false)}
-        >
-          <div
-            className="w-full max-w-sm rounded-2xl bg-white p-5"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="font-extrabold text-slate-900 mb-1">
-              Clock out for the day?
-            </h3>
-            <p className="text-xs text-slate-500 font-semibold mb-4">
-              Choose &ldquo;No&rdquo; if you&rsquo;re just switching users
-              briefly and still on shift.
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => confirmClockOut(false)}
-                className="rounded-xl border-2 border-warm-200 text-slate-600 hover:border-slate-300 hover:bg-warm-50 font-extrabold py-3 transition-colors"
-              >
-                No
-              </button>
-              <button
-                type="button"
-                onClick={() => confirmClockOut(true)}
-                className="rounded-xl bg-accent-600 hover:bg-accent-700 text-white font-extrabold py-3 transition-colors"
-              >
-                Yes, clock out
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
