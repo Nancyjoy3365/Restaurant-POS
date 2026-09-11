@@ -286,17 +286,24 @@ export function Sidebar() {
             </Link>
           );
         })}
-        <button
-          type="button"
-          onClick={() => setMoreSheetOpen(true)}
-          className={clsx(
-            "flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] py-1.5 rounded-xl text-[10px] font-bold transition-colors",
-            overflowHasActive ? "bg-accent-100 text-accent-700" : "text-slate-500"
-          )}
-        >
-          <MoreHorizontal size={20} strokeWidth={2.5} />
-          <span>More</span>
-        </button>
+        {currentStaff?.role === "Waiter" ? (
+          <ClockOutButton className="flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] py-1.5 rounded-xl text-[10px] font-bold transition-colors text-slate-500">
+            <LogOut size={20} strokeWidth={2.5} />
+            <span>Sign Out</span>
+          </ClockOutButton>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setMoreSheetOpen(true)}
+            className={clsx(
+              "flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] py-1.5 rounded-xl text-[10px] font-bold transition-colors",
+              overflowHasActive ? "bg-accent-100 text-accent-700" : "text-slate-500"
+            )}
+          >
+            <MoreHorizontal size={20} strokeWidth={2.5} />
+            <span>More</span>
+          </button>
+        )}
       </nav>
 
       {moreSheetOpen && (

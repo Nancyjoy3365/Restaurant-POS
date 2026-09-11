@@ -161,9 +161,9 @@ export default function ReportsPage() {
 
   return (
     <div className="flex-1 flex flex-col lg:h-full lg:overflow-hidden">
-      <header className="shrink-0 h-16 flex items-center justify-between px-6 border-b border-warm-200 bg-white">
+      <header className="sticky top-0 z-10 shrink-0 min-h-16 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-3 border-b border-warm-200 bg-white">
         <h1 className="text-xl font-black text-slate-900">Financial Summary</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <label className="flex items-center gap-2 rounded-full border border-warm-200 bg-white px-3 py-2">
             <Calendar size={14} className="text-accent-600 shrink-0" />
             <input

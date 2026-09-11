@@ -707,7 +707,16 @@ export default function CashierPage() {
                           // actually been matched against this ticket yet —
                           // not whether the ticket is fully settled overall
                           // (a cash-only ticket has no M-Pesa leg to clear).
-                          const mpesaCleared = mpesaAmount > 0;
+                          // The confirmation code is what proves the transfer
+                          // really happened (see PaymentMethodPicker — a
+                          // waiter can submit an amount with the code left
+                          // blank), so an amount alone isn't enough to read
+                          // as "Paid" here.
+                          const mpesaCleared =
+                            mpesaAmount > 0 &&
+                            cyclePayments.some(
+                              (p) => p.method === "mpesa" && p.reference.trim() !== ""
+                            );
                           return (
                             <tr
                               key={ticket.id}

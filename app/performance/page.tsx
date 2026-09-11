@@ -112,34 +112,36 @@ export default function PerformanceTrackerPage() {
 
   return (
     <div className="flex-1 flex flex-col lg:h-full lg:overflow-hidden">
-      <header className="shrink-0 min-h-16 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-3 border-b border-warm-200 bg-white">
+      <header className="sticky top-0 z-10 shrink-0 min-h-16 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-3 border-b border-warm-200 bg-white">
         <h1 className="text-xl font-black text-slate-900">
           {currentStaff?.role === "Waiter"
             ? "My Performance"
             : "Performance Tracker"}
         </h1>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-2 rounded-full border border-warm-200 bg-white px-3 py-2">
-              <Calendar size={14} className="text-accent-600 shrink-0" />
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className="text-xs font-extrabold text-accent-700 outline-none bg-transparent"
-              />
-            </label>
-            <span className="text-xs font-extrabold text-slate-400">to</span>
-            <label className="flex items-center gap-2 rounded-full border border-warm-200 bg-white px-3 py-2">
-              <Calendar size={14} className="text-accent-600 shrink-0" />
-              <input
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className="text-xs font-extrabold text-accent-700 outline-none bg-transparent"
-              />
-            </label>
-          </div>
+          {currentStaff?.role !== "Waiter" && (
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 rounded-full border border-warm-200 bg-white px-3 py-2">
+                <Calendar size={14} className="text-accent-600 shrink-0" />
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="text-xs font-extrabold text-accent-700 outline-none bg-transparent"
+                />
+              </label>
+              <span className="text-xs font-extrabold text-slate-400">to</span>
+              <label className="flex items-center gap-2 rounded-full border border-warm-200 bg-white px-3 py-2">
+                <Calendar size={14} className="text-accent-600 shrink-0" />
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="text-xs font-extrabold text-accent-700 outline-none bg-transparent"
+                />
+              </label>
+            </div>
+          )}
           {waiters.length > 1 && (
             <div className="flex items-center gap-1 rounded-full bg-warm-50 border border-warm-200 p-1">
               <button
