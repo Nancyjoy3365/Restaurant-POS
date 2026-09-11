@@ -53,11 +53,20 @@ export default function KitchenDisplayPage() {
     .filter((t) => t.status === "open")
     .map((ticket) => {
       const order = orders[ticket.id];
-      if (!order?.onHold) return null;
+      if (!order) return null;
+      // Visibility here is purely about kitchen prep state — never the
+      // ticket's own onHold flag. onHold is the waiter's "not actively
+      // working this right now" flag (see Held Orders): it's set the
+      // moment a round is sent to kitchen, but it's also cleared the
+      // moment the waiter proceeds to bill, regardless of whether the
+      // kitchen has actually finished. A ticket must stay on this board
+      // for as long as it has sent items the kitchen hasn't marked ready,
+      // billing or not.
       const items = order.rounds
         .flatMap((r) => r.items)
         .filter((i) => i.sentToKitchen);
       if (items.length === 0) return null;
+      if (items.every((i) => i.kitchenReady)) return null;
       const foodItems = items.filter(
         (i) => !isDrink(menu.find((m) => m.id === i.menuItemId)?.category)
       );

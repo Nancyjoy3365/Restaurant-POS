@@ -7,6 +7,7 @@ import { useHydrated } from "@/lib/useHydrated";
 import { useStaff } from "@/lib/hooks/useStaff";
 import { canAccessPath, getDefaultRouteForRole } from "@/lib/roles";
 import { Sidebar } from "./Sidebar";
+import { OrderReadyNotifier } from "./OrderReadyNotifier";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -52,6 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Sidebar />
+      <OrderReadyNotifier />
       <div className="flex-1 min-w-0 flex flex-col pb-16 lg:pb-0 lg:h-screen lg:overflow-hidden">
         {children}
       </div>
