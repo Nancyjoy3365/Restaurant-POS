@@ -34,7 +34,7 @@ export function FoodImage({
         className
       )}
     >
-      <span className={clsx("drop-shadow-sm", emojiClassName ?? "text-4xl")}>
+      <span className={clsx("hidden lg:inline drop-shadow-sm", emojiClassName ?? "text-4xl")}>
         {CATEGORY_EMOJI[category]}
       </span>
     </div>

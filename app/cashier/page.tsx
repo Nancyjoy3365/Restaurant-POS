@@ -68,8 +68,9 @@ export default function CashierPage() {
     await Promise.all([mutateOpenOrders(), mutatePayments()]);
   }
 
-  const [tab, setTab] = useState<"live" | "reconciliation">("live");
+  const [tab, setTab] = useState<"live" | "reconciliation" | "takeaway">("live");
   const [search, setSearch] = useState("");
+  const [takeawaySearch, setTakeawaySearch] = useState("");
   const [cashDrafts, setCashDrafts] = useState<Record<string, string>>({});
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [finalizing, setFinalizing] = useState(false);
@@ -111,6 +112,49 @@ export default function CashierPage() {
     activeOrders.push({ ticket, order });
   }
   activeOrders.sort((a, b) => a.ticket.openedAt - b.ticket.openedAt);
+
+  // One row per distinct takeaway customer, deduped by phone (falling back
+  // to name when no phone was collected) so a repeat customer accumulates an
+  // order count instead of listing separately every time they come back.
+  type TakeawayCustomerRow = {
+    key: string;
+    name: string;
+    phone?: string;
+    orderCount: number;
+    lastOrderAt: number;
+  };
+  const takeawayCustomerMap = new Map<string, TakeawayCustomerRow>();
+  for (const t of allTickets) {
+    if (t.orderType !== "takeaway") continue;
+    const key = (t.customerPhone || t.customerName || "").trim().toLowerCase();
+    if (!key) continue;
+    const existing = takeawayCustomerMap.get(key);
+    if (existing) {
+      existing.orderCount += 1;
+      if (t.openedAt > existing.lastOrderAt) {
+        existing.lastOrderAt = t.openedAt;
+        existing.name = t.customerName || existing.name;
+        existing.phone = t.customerPhone || existing.phone;
+      }
+    } else {
+      takeawayCustomerMap.set(key, {
+        key,
+        name: t.customerName || "Takeaway",
+        phone: t.customerPhone,
+        orderCount: 1,
+        lastOrderAt: t.openedAt,
+      });
+    }
+  }
+  const takeawayQuery = takeawaySearch.trim().toLowerCase();
+  const takeawayCustomers = Array.from(takeawayCustomerMap.values())
+    .filter(
+      (c) =>
+        !takeawayQuery ||
+        c.name.toLowerCase().includes(takeawayQuery) ||
+        (c.phone ?? "").toLowerCase().includes(takeawayQuery)
+    )
+    .sort((a, b) => b.lastOrderAt - a.lastOrderAt);
 
   function activeOrderStatus(order: TicketOrder): string {
     if (order.onHold) return "On Hold";
@@ -561,6 +605,18 @@ export default function CashierPage() {
               )}
             >
               Reconciliation
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("takeaway")}
+              className={clsx(
+                "rounded-full px-4 py-1.5 text-xs font-extrabold transition-colors",
+                tab === "takeaway"
+                  ? "bg-accent-600 text-white"
+                  : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              Takeaway Customers
             </button>
           </div>
         </div>
@@ -1167,6 +1223,76 @@ export default function CashierPage() {
         </>
         )}
         </>
+        )}
+
+        {tab === "takeaway" && (
+        <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-warm-200">
+            <h2 className="font-extrabold text-slate-900">
+              Takeaway Customers ({takeawayCustomers.length})
+            </h2>
+            <div className="relative w-full sm:w-72">
+              <Search
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <input
+                value={takeawaySearch}
+                onChange={(e) => setTakeawaySearch(e.target.value)}
+                placeholder="Search by name or phone"
+                className="w-full rounded-full border border-warm-200 bg-white pl-8 pr-8 py-2 text-sm font-semibold outline-none focus:border-accent-400"
+              />
+              {takeawaySearch && (
+                <button
+                  type="button"
+                  onClick={() => setTakeawaySearch("")}
+                  aria-label="Clear search"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          </div>
+          {takeawayCustomers.length === 0 ? (
+            <p className="text-slate-400 font-semibold text-center py-12">
+              {takeawaySearch
+                ? "No takeaway customers match your search."
+                : "No takeaway customer details recorded yet."}
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[560px]">
+                <thead className="bg-warm-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
+                  <tr>
+                    <th className="text-left px-5 py-3">Customer</th>
+                    <th className="text-left px-2 py-3">Phone</th>
+                    <th className="text-right px-2 py-3">Orders</th>
+                    <th className="text-right px-5 py-3">Last Order</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {takeawayCustomers.map((c) => (
+                    <tr key={c.key} className="border-t border-warm-100">
+                      <td className="px-5 py-3 font-extrabold text-slate-900">
+                        {c.name}
+                      </td>
+                      <td className="px-2 py-3 text-slate-600 font-semibold">
+                        {c.phone || "—"}
+                      </td>
+                      <td className="px-2 py-3 text-right font-black text-slate-900">
+                        {c.orderCount}
+                      </td>
+                      <td className="px-5 py-3 text-right text-slate-600 font-semibold whitespace-nowrap">
+                        {formatTime(c.lastOrderAt, true)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
         )}
       </main>
 

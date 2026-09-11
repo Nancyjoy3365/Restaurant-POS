@@ -5,6 +5,12 @@ import type { Payment, TicketOrder } from "./types";
 // used solely as a default when a caller doesn't have that rate on hand.
 export const VAT_RATE = 0.16;
 
+// Forces a leading capital regardless of how the user typed it — the rest of
+// the string is left untouched (no full title-casing).
+export function capitalizeFirst(s: string): string {
+  return s.length === 0 ? s : s[0].toUpperCase() + s.slice(1);
+}
+
 export function flattenOrderItems(order: TicketOrder | undefined) {
   if (!order) return [];
   return order.rounds.flatMap((round) =>

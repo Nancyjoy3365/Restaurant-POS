@@ -4,7 +4,7 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { useVendors } from "@/lib/hooks/useInventory";
 import { createIngredient, updateIngredient, ApiError } from "@/lib/api/inventory";
-import { formatKES } from "@/lib/utils";
+import { capitalizeFirst, formatKES } from "@/lib/utils";
 import type { Ingredient } from "@/lib/types";
 
 const PACKAGING_OPTIONS = [
@@ -73,7 +73,7 @@ export function AddIngredientModal({
     setSaving(true);
     setError(null);
     const fields = {
-      name: name.trim(),
+      name: capitalizeFirst(name.trim()),
       packaging,
       totalCost: amountNum,
       quantity: quantityNum,
