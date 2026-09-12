@@ -60,9 +60,14 @@ body {
 @media print {
   /* Paper width (58mm/80mm) is set from Settings via a `@page { size }`
      rule injected by BillPreview itself — this margin is the only part
-     that's always the same regardless of that width. */
+     that's always the same regardless of that width. The wider 3mm on the
+     sides (vs. 2mm top/bottom) is a safety buffer against thermal printers
+     whose real non-printable edge is wider than what their Windows driver
+     actually reports — without it, the rightmost digit of the Amt column
+     gets cut clean off on some printers even though the browser itself
+     laid it out correctly inside the declared margin. */
   @page {
-    margin: 2mm;
+    margin: 2mm 3mm;
   }
   body * {
     visibility: hidden;
