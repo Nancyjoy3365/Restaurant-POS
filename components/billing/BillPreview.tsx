@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Printer } from "lucide-react";
 import { useRestaurantSettings } from "@/lib/hooks/useBilling";
 import type { TicketOrder } from "@/lib/types";
@@ -30,6 +30,32 @@ export function BillPreview({
     receiptWidth: "80mm" as const,
   };
   const [previewedAt] = useState(() => Date.now());
+  const receiptRef = useRef<HTMLDivElement>(null);
+  const pageStyleRef = useRef<HTMLStyleElement>(null);
+  // "auto" in the @page rule below is honored inconsistently — reliably for
+  // "Save as PDF" in Chrome, but many thermal-printer drivers fall back to
+  // whatever fixed roll length they default to instead, which is exactly
+  // the leftover blank paper this works around. `beforeprint` fires
+  // synchronously right as the browser switches the DOM to print-media
+  // styles (the tightened padding/font-size in globals.css) and right
+  // before it paginates — measuring and writing the style tag directly
+  // here (not via setState, whose re-render could commit too late for
+  // this same print pass) captures the real printed height and hands the
+  // driver a concrete page length to honor instead of "auto".
+  useEffect(() => {
+    function measure() {
+      const el = receiptRef.current;
+      const styleEl = pageStyleRef.current;
+      if (!el || !styleEl) return;
+      const contentMm = (el.offsetHeight / 96) * 25.4;
+      // +4mm covers the top/bottom @page margin (globals.css) that sits
+      // outside this element's own box but still needs to fit on the page.
+      const pageHeightMm = Math.ceil(contentMm) + 4;
+      styleEl.textContent = `@media print { @page { size: ${restaurant.receiptWidth} ${pageHeightMm}mm; } }`;
+    }
+    window.addEventListener("beforeprint", measure);
+    return () => window.removeEventListener("beforeprint", measure);
+  }, [restaurant.receiptWidth]);
   const itemCount = lines.reduce((sum, { item }) => sum + item.qty, 0);
   const billDate = new Date(previewedAt).toLocaleDateString("en-KE", {
     day: "2-digit",
@@ -49,6 +75,7 @@ export function BillPreview({
 
       <div
         id="receipt-print"
+        ref={receiptRef}
         className="rounded-xl border border-dashed border-slate-300 p-4 font-sans text-[12px] text-slate-800"
       >
         <div className="text-center">
@@ -136,8 +163,11 @@ export function BillPreview({
 
       {/* Thermal receipt printers are almost always 58mm or 80mm rolls —
           this is the setting-driven part of the print page size (see
-          Settings); the fixed margin lives in globals.css. */}
-      <style>{`@media print { @page { size: ${restaurant.receiptWidth} auto; } }`}</style>
+          Settings); the fixed margin lives in globals.css. The effect
+          above overwrites this with the real measured content height on
+          every print pass — this starting content is only ever seen if
+          that measurement somehow doesn't run. */}
+      <style ref={pageStyleRef}>{`@media print { @page { size: ${restaurant.receiptWidth} auto; } }`}</style>
 
       <button
         type="button"
