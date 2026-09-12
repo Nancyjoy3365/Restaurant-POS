@@ -56,7 +56,6 @@ export function BillPreview({
     window.addEventListener("beforeprint", measure);
     return () => window.removeEventListener("beforeprint", measure);
   }, [restaurant.receiptWidth]);
-  const itemCount = lines.reduce((sum, { item }) => sum + item.qty, 0);
   const billDate = new Date(previewedAt).toLocaleDateString("en-KE", {
     day: "2-digit",
     month: "short",
@@ -140,10 +139,6 @@ export function BillPreview({
         </div>
 
         <div className="border-t border-dashed border-slate-300 mt-1.5 pt-1.5 space-y-0.5">
-          <div className="flex justify-between text-[10px]">
-            <span>Bill Item(s):</span>
-            <span className="font-bold">{itemCount.toFixed(1)}</span>
-          </div>
           <div className="flex justify-between font-black text-sm">
             <span>BILL TOTAL</span>
             <span>{formatKES(total)}</span>
