@@ -37,7 +37,7 @@ import { getOrderTotal, formatKES } from "@/lib/utils";
 import { FoodImage } from "@/components/shared/FoodImage";
 import { ClockOutButton } from "@/components/shared/ClockOutButton";
 
-const MAX_HELD_ORDERS_PER_WAITER = 3;
+const MAX_HELD_ORDERS_PER_WAITER = 5;
 import { CategoryTabs } from "@/components/order/CategoryTabs";
 import { SearchBar } from "@/components/order/SearchBar";
 import { MenuCard } from "@/components/order/MenuCard";

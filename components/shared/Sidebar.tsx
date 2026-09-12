@@ -28,7 +28,7 @@ import { ROLE_ALLOWED_PATHS } from "@/lib/roles";
 import { ticketSubtitle } from "@/components/tickets/ticketStatus";
 import { ClockOutButton } from "./ClockOutButton";
 
-const MAX_HELD_ORDERS_PER_WAITER = 3;
+const MAX_HELD_ORDERS_PER_WAITER = 5;
 
 interface NavItem {
   href: string;

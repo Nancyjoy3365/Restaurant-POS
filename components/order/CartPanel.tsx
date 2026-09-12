@@ -26,7 +26,7 @@ import { useMenu } from "@/lib/hooks/useMenu";
 import { getOrderTotal, formatKES } from "@/lib/utils";
 import { FoodImage } from "@/components/shared/FoodImage";
 
-const MAX_HELD_ORDERS_PER_WAITER = 3;
+const MAX_HELD_ORDERS_PER_WAITER = 5;
 
 export function CartPanel({ ticketId }: { ticketId: string }) {
   const router = useRouter();
