@@ -85,8 +85,14 @@ body {
     /* The bill grew a lot of extra detail (order info, itemized columns,
        VAT breakdown) — shrinking padding/font/line-height here keeps the
        whole thing on one printed page without touching how it looks in the
-       on-screen preview. */
-    padding: 6px !important;
+       on-screen preview. Right padding is deliberately much wider than the
+       other three sides: almost every row in this receipt (Chk. No., Bill
+       Date/Time, Served By, the item table's Amt column, Bill Total) is a
+       flex row with the value pinned to its end via justify-between — that
+       pins it to THIS box's own right edge, so this box's right edge has to
+       sit well clear of the page's true right edge, not flush against it,
+       or that value is exactly what gets cut off on print. */
+    padding: 6px 16px 6px 6px !important;
     font-size: 11px !important;
     line-height: 1.25 !important;
   }

@@ -111,16 +111,17 @@ export function BillPreview({
           )}
         </div>
 
-        <div className="border-t border-dashed border-slate-300 pt-1.5 pr-1">
+        <div className="border-t border-dashed border-slate-300 pt-1.5">
           {/* Percentage widths (not fixed px) so the columns reflow to
               whatever the physical paper actually is — a 58mm/80mm thermal
               roll or a full page — instead of assuming one fixed width.
-              These deliberately add up to less than 100% (94%, not 100%)
-              so the rightmost Amt figure always keeps a little breathing
-              room before the page's own right margin, rather than sitting
-              flush against it — the outer pr-1 above adds a further fixed
-              cushion on top of that. */}
-          <div className="flex justify-between text-[9px] font-extrabold uppercase tracking-wide text-slate-500 pb-0.5">
+              These deliberately add up to less than 100% (94%, not 100%),
+              AND the row is plain flex (not justify-between) so that unused
+              6% actually trails after the last column instead of being
+              distributed as gaps between all four — justify-between would
+              still pin Amt to this row's own right edge regardless of the
+              columns' widths, right back where it started. */}
+          <div className="flex text-[9px] font-extrabold uppercase tracking-wide text-slate-500 pb-0.5">
             <span className="w-[40%]">Item</span>
             <span className="w-[10%] text-right">Qty</span>
             <span className="w-[22%] text-right">Price</span>
@@ -128,7 +129,7 @@ export function BillPreview({
           </div>
           <div className="space-y-0.5">
             {lines.map(({ item }) => (
-              <div key={item.id} className="flex justify-between items-start">
+              <div key={item.id} className="flex items-start">
                 <span className="w-[40%] pr-1 break-words">{item.name}</span>
                 <span className="w-[10%] text-right">{item.qty.toFixed(1)}</span>
                 <span className="w-[22%] text-right">{item.price}</span>
