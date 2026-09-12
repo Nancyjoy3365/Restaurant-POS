@@ -88,10 +88,14 @@ export function formatKES(amount: number): string {
   })}`;
 }
 
-export function calcBill(subtotalBeforeTax: number, vatRate: number = VAT_RATE) {
-  const subtotal = Math.round(subtotalBeforeTax);
-  const vat = Math.round(subtotal * vatRate);
-  const total = subtotal + vat;
+// Menu prices are VAT-inclusive — `rawTotal` (the sum of listed prices) is
+// what the customer actually pays; VAT is backed out of it for the printed
+// breakdown/reporting, never added on top. Mirrors usp_StartBilling /
+// usp_RefreshOrderDetailTotals (database/08_vat_inclusive_pricing.sql).
+export function calcBill(rawTotal: number, vatRate: number = VAT_RATE) {
+  const total = Math.round(rawTotal);
+  const subtotal = Math.round(total / (1 + vatRate));
+  const vat = total - subtotal;
   return { subtotal, vat, total };
 }
 
