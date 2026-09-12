@@ -6,7 +6,6 @@ import {
   Calendar,
   TrendingUp,
   TrendingDown,
-  Package,
   PiggyBank,
   Users2,
   Scale,
@@ -255,13 +254,6 @@ export default function ReportsPage() {
               </div>
             )}
           </StatCard>
-          <StatCard
-            icon={Package}
-            label="COGS"
-            value={formatKES(breakdown.cogs)}
-            sub="Recipe-tracked dishes only"
-            tone="warm"
-          />
           <StatCard
             icon={Scale}
             label="Gross Margin"

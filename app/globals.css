@@ -95,6 +95,20 @@ body {
     padding: 6px 16px 6px 6px !important;
     font-size: 11px !important;
     line-height: 1.25 !important;
+    /* On screen, the lighter slate tones and default (non-bold) weight
+       read fine — but thermal printers don't do true grayscale, so any
+       gray text (the address/PIN/phone block, the VAT/ETR disclaimer
+       lines) comes out as sparse, barely-visible dots, and regular-weight
+       text overall prints thinner than it looks on screen. Force every
+       line to solid black and a heavier baseline weight for print only;
+       elements with their own bolder class (BILL TOTAL, item prices, etc.)
+       keep their own heavier weight since a directly-set value always
+       wins over one merely inherited from this container. */
+    font-weight: 600 !important;
+  }
+  #receipt-print,
+  #receipt-print * {
+    color: #000 !important;
   }
   /* visibility:hidden keeps hidden elements in the layout, and any
      scrollable panel behind the receipt (e.g. the billing page's
