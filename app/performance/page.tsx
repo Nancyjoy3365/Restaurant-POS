@@ -20,7 +20,11 @@ import { useMenu } from "@/lib/hooks/useMenu";
 import { useStaff } from "@/lib/hooks/useStaff";
 import { formatKES } from "@/lib/utils";
 import { salesInRange } from "@/lib/payroll";
-import { ordersCompletedInRange, priorityUnitsSoldInRange } from "@/lib/performance";
+import {
+  ordersCompletedInRange,
+  priorityUnitsSoldInRange,
+  priorityUnitsSoldByCategoryInRange,
+} from "@/lib/performance";
 import { avatarColorFor, initials } from "@/components/tickets/ticketStatus";
 
 type ViewMode = "cards" | "list";
@@ -98,8 +102,15 @@ export default function PerformanceTrackerPage() {
       priorityTallies: priorityUnitsSoldInRange(
         receipts, tickets, menu, waiter.id, rangeStart, rangeEnd
       ),
+      priorityCategoryTallies: priorityUnitsSoldByCategoryInRange(
+        receipts, tickets, menu, waiter.id, rangeStart, rangeEnd
+      ),
     }))
     .sort((a, b) => b.sales - a.sales);
+  // A waiter's own Cards view hides sales figures and per-item detail (see
+  // the Cards view below) — everything stays exactly as it was for Admin,
+  // the only other role that ever lands here.
+  const isWaiterView = currentStaff?.role === "Waiter";
   const avgSales =
     listRows.length > 0
       ? listRows.reduce((sum, r) => sum + r.sales, 0) / listRows.length
@@ -343,7 +354,7 @@ export default function PerformanceTrackerPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {listRows.map(({ waiter, orders, sales, priorityTallies }) => {
+            {listRows.map(({ waiter, orders, sales, priorityTallies, priorityCategoryTallies }) => {
               // Cards are ordered by the same standing the rank badge shows
               // (listRows is already sorted by sales, highest first) — the
               // leader's card always appears first, and the order shifts
@@ -380,7 +391,7 @@ export default function PerformanceTrackerPage() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 px-4 py-3">
+                  <div className={clsx("grid gap-3 px-4 py-3", isWaiterView ? "grid-cols-1" : "grid-cols-2")}>
                     <div>
                       <div className="flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-400">
                         <ClipboardCheck size={12} /> Orders Completed
@@ -389,17 +400,38 @@ export default function PerformanceTrackerPage() {
                         {orders}
                       </div>
                     </div>
-                    <div>
-                      <div className="flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-400">
-                        <Wallet size={12} /> Total Sales
+                    {!isWaiterView && (
+                      <div>
+                        <div className="flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-400">
+                          <Wallet size={12} /> Total Sales
+                        </div>
+                        <div className="text-xl font-black text-slate-900">
+                          {formatKES(sales)}
+                        </div>
                       </div>
-                      <div className="text-xl font-black text-slate-900">
-                        {formatKES(sales)}
-                      </div>
-                    </div>
+                    )}
                   </div>
 
-                  {priorityTallies.length > 0 && (
+                  {isWaiterView ? (
+                    priorityCategoryTallies.length > 0 && (
+                      <div className="px-4 py-3 border-t border-warm-200 bg-warm-50">
+                        <div className="flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-400 mb-1.5">
+                          <Star size={12} className="text-amber-500" /> Priority
+                          Products Sold
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {priorityCategoryTallies.map((t) => (
+                            <span
+                              key={t.category}
+                              className="rounded-full bg-white border border-warm-200 text-xs font-bold text-slate-700 px-2.5 py-1"
+                            >
+                              {t.category} ×{t.qty}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  ) : priorityTallies.length > 0 && (
                     <div className="px-4 py-3 border-t border-warm-200 bg-warm-50">
                       <div className="flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-400 mb-1.5">
                         <Star size={12} className="text-amber-500" /> Priority

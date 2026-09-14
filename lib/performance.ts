@@ -100,3 +100,44 @@ export function priorityUnitsSoldInRange(
 
   return Array.from(tallyByName, ([name, qty]) => ({ name, qty }));
 }
+
+export interface PriorityCategoryTally {
+  category: string;
+  qty: number;
+}
+
+// Same underlying data as priorityUnitsSoldInRange, but summed up by
+// MenuItem.category (e.g. "Juice", "Water") instead of by exact item name —
+// what a waiter's own Performance card shows, so they see a shape of what
+// sold without the specific per-item breakdown that the admin-only
+// per-item view (priorityUnitsSoldInRange) carries.
+export function priorityUnitsSoldByCategoryInRange(
+  receipts: Receipt[],
+  tickets: Ticket[],
+  menu: MenuItem[],
+  waiterId: string,
+  start: Date,
+  end: Date
+): PriorityCategoryTally[] {
+  const priorityCategoryByMenuItemId = new Map(
+    menu.filter((m) => m.isPriority).map((m) => [m.id, m.category])
+  );
+  if (priorityCategoryByMenuItemId.size === 0) return [];
+
+  const ticketById = new Map(tickets.map((t) => [t.id, t]));
+  const tallyByCategory = new Map<string, number>();
+
+  for (const receipt of receipts) {
+    if (receipt.issuedAt < start.getTime() || receipt.issuedAt > end.getTime())
+      continue;
+    const ticket = ticketById.get(receipt.ticketId);
+    if (!ticket || ticket.waiterId !== waiterId) continue;
+    for (const line of receipt.items) {
+      const category = priorityCategoryByMenuItemId.get(line.menuItemId);
+      if (!category) continue;
+      tallyByCategory.set(category, (tallyByCategory.get(category) ?? 0) + line.qty);
+    }
+  }
+
+  return Array.from(tallyByCategory, ([category, qty]) => ({ category, qty }));
+}

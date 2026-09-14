@@ -22,3 +22,8 @@ export const setMenuItemPriority = (menuItemId: string, isPriority: boolean) =>
     method: "POST",
     body: JSON.stringify({ isPriority }),
   });
+
+// Only ever succeeds for an already-deactivated item with no order/receipt
+// history — see usp_DeleteMenuItem for the enforced guards.
+export const deleteMenuItem = (menuItemId: string) =>
+  request<{ ok: true }>(`/api/menu/${menuItemId}`, { method: "DELETE" });

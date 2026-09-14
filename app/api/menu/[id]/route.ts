@@ -57,3 +57,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Failed to update menu item", detail: message }, { status: 500 });
   }
 }
+
+// Only ever succeeds for an already-deactivated item with no order/receipt
+// history — see usp_DeleteMenuItem for the enforced guards.
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  try {
+    const pool = await getPool();
+    await pool.request().input("MenuItemId", sql.Int, Number(id)).execute("usp_DeleteMenuItem");
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error(`DELETE /api/menu/${id} failed:`, err);
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}

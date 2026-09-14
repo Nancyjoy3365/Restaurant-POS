@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import clsx from "clsx";
-import { Pencil, Plus, Search, X } from "lucide-react";
+import { Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { useMenu } from "@/lib/hooks/useMenu";
-import { setMenuItemAvailable, setMenuItemPriority, ApiError } from "@/lib/api/menu";
+import { useStaff } from "@/lib/hooks/useStaff";
+import { usePosStore } from "@/lib/store";
+import { setMenuItemAvailable, setMenuItemPriority, deleteMenuItem, ApiError } from "@/lib/api/menu";
 import { Toggle } from "@/components/shared/Toggle";
 import { FoodImage } from "@/components/shared/FoodImage";
 import { AddMenuItemModal } from "@/components/menu-management/AddMenuItemModal";
@@ -25,10 +27,32 @@ type AvailabilityFilter = "All" | "Active" | "Disabled";
 
 export default function MenuManagementPage() {
   const { menu: rawMenu, mutate: mutateMenu } = useMenu();
+  const { staff } = useStaff();
+  const currentStaffId = usePosStore((s) => s.currentStaffId);
+  const isAdmin = staff.find((m) => m.id === currentStaffId)?.role === "Admin";
   const sortedMenu = [...rawMenu].sort(
     (a, b) =>
       CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category)
   );
+
+  const [deleteTarget, setDeleteTarget] = useState<MenuItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteMenuItem(deleteTarget.id);
+      setDeleteTarget(null);
+      mutateMenu();
+    } catch (err) {
+      setDeleteError(err instanceof ApiError ? err.message : "Failed to delete item.");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   async function handleToggleAvailability(item: MenuItem) {
     try {
@@ -211,7 +235,7 @@ export default function MenuManagementPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex justify-center">
+                      <div className="flex justify-center gap-2">
                         <button
                           type="button"
                           onClick={() => setEditingItem(item)}
@@ -221,6 +245,20 @@ export default function MenuManagementPage() {
                         >
                           <Pencil size={14} />
                         </button>
+                        {isAdmin && !item.available && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDeleteTarget(item);
+                              setDeleteError(null);
+                            }}
+                            aria-label={`Delete ${item.name}`}
+                            title={`Delete ${item.name}`}
+                            className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-rose-200 text-rose-600 hover:bg-rose-50"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -241,6 +279,48 @@ export default function MenuManagementPage() {
           onClose={() => setEditingItem(null)}
           onSaved={mutateMenu}
         />
+      )}
+
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          onClick={() => !deleting && setDeleteTarget(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-extrabold text-slate-900 mb-1">
+              Delete {deleteTarget.name}?
+            </h3>
+            <p className="text-xs text-slate-500 font-semibold mb-4">
+              This permanently removes the item — it only works because it&rsquo;s
+              already deactivated and has never been ordered. This
+              can&rsquo;t be undone.
+            </p>
+            {deleteError && (
+              <p className="text-xs font-semibold text-rose-600 mb-3">{deleteError}</p>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="rounded-xl border-2 border-warm-200 text-slate-600 hover:border-slate-300 hover:bg-warm-50 font-extrabold py-3 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={deleting}
+                className="rounded-xl bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 text-white font-extrabold py-3 transition-colors"
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
