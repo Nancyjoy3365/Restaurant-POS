@@ -354,7 +354,7 @@ export default function PerformanceTrackerPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {listRows.map(({ waiter, orders, sales, priorityTallies, priorityCategoryTallies }) => {
+            {listRows.map(({ waiter, orders, sales, priorityCategoryTallies }) => {
               // Cards are ordered by the same standing the rank badge shows
               // (listRows is already sorted by sales, highest first) — the
               // leader's card always appears first, and the order shifts
@@ -412,38 +412,23 @@ export default function PerformanceTrackerPage() {
                     )}
                   </div>
 
-                  {isWaiterView ? (
-                    priorityCategoryTallies.length > 0 && (
-                      <div className="px-4 py-3 border-t border-warm-200 bg-warm-50">
-                        <div className="flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-400 mb-1.5">
-                          <Star size={12} className="text-amber-500" /> Priority
-                          Products Sold
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {priorityCategoryTallies.map((t) => (
-                            <span
-                              key={t.category}
-                              className="rounded-full bg-white border border-warm-200 text-xs font-bold text-slate-700 px-2.5 py-1"
-                            >
-                              {t.category} ×{t.qty}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )
-                  ) : priorityTallies.length > 0 && (
+                  {/* Category totals, not a per-item breakdown, for every
+                      viewer here — the List view/table below still keeps
+                      the full per-item detail for Admin's deeper drill-down
+                      (priorityTallies, untouched). */}
+                  {priorityCategoryTallies.length > 0 && (
                     <div className="px-4 py-3 border-t border-warm-200 bg-warm-50">
                       <div className="flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-400 mb-1.5">
                         <Star size={12} className="text-amber-500" /> Priority
                         Products Sold
                       </div>
                       <div className="flex flex-wrap gap-1.5">
-                        {priorityTallies.map((t) => (
+                        {priorityCategoryTallies.map((t) => (
                           <span
-                            key={t.name}
+                            key={t.category}
                             className="rounded-full bg-white border border-warm-200 text-xs font-bold text-slate-700 px-2.5 py-1"
                           >
-                            {t.name} ×{t.qty}
+                            {t.category} ×{t.qty}
                           </span>
                         ))}
                       </div>

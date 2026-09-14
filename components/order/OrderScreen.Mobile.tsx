@@ -28,6 +28,7 @@ import {
   updateItemNote as updateItemNoteMutation,
   addRound as addRoundMutation,
   sendRoundToKitchen as sendRoundToKitchenMutation,
+  cancelEmptyTickets,
 } from "@/lib/hooks/useOrders";
 import { startBilling as startBillingMutation } from "@/lib/api/billing";
 import { useRestaurantSettings } from "@/lib/hooks/useBilling";
@@ -178,6 +179,11 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
   }
 
   function handleBackToTickets() {
+    // Fired without waiting — a ticket opened and left with nothing added
+    // (still zero items in every round) shouldn't linger in the cashier's
+    // Active Orders list just because someone glanced at the menu and
+    // backed out; this sweeps it away same as clocking out already does.
+    cancelEmptyTickets().catch((err) => console.error("Empty-ticket cleanup failed:", err));
     router.push("/my-tickets");
   }
 

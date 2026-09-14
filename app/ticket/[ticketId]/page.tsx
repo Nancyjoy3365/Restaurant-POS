@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { useOrder, addItem as addItemMutation } from "@/lib/hooks/useOrders";
+import { useOrder, addItem as addItemMutation, cancelEmptyTickets } from "@/lib/hooks/useOrders";
 import { useRestaurantSettings } from "@/lib/hooks/useBilling";
 import { useMenu } from "@/lib/hooks/useMenu";
 import { CategoryTabs } from "@/components/order/CategoryTabs";
@@ -77,6 +77,15 @@ export default function TicketPage() {
     addItemMutation(ticketId, currentRoundId, menuItem, opts, vatRate);
   }
 
+  // Fired without waiting — a ticket opened and left with nothing added
+  // (still zero items in every round) shouldn't linger in the cashier's
+  // Active Orders list just because someone glanced at the menu and backed
+  // out; this sweeps it away same as clocking out already does.
+  function handleBack() {
+    cancelEmptyTickets().catch((err) => console.error("Empty-ticket cleanup failed:", err));
+    router.back();
+  }
+
   return (
     <>
       <OrderScreenMobile ticketId={ticketId} />
@@ -84,7 +93,7 @@ export default function TicketPage() {
       <div className="flex flex-col min-w-0 lg:flex-1 lg:min-h-0">
         <header className="flex items-center gap-3 px-6 h-16 border-b border-warm-200 bg-white">
           <button
-            onClick={() => router.back()}
+            onClick={handleBack}
             className="rounded-full p-2 hover:bg-slate-100 text-slate-600"
             aria-label="Back"
           >
