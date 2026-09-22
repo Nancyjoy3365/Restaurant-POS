@@ -52,6 +52,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      <div className="fixed top-0 inset-x-0 z-50 h-1 bg-gradient-to-r from-accent-600 to-amber-400" />
       <Sidebar />
       <OrderReadyNotifier />
       <div className="flex-1 min-w-0 flex flex-col pb-16 lg:pb-0 lg:h-screen lg:overflow-hidden">

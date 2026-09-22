@@ -161,8 +161,8 @@ export default function MenuManagementPage() {
         </div>
       </div>
 
-      <main className="flex-1 lg:min-h-0 overflow-y-auto p-6">
-        <div className="rounded-2xl border border-warm-200 bg-white overflow-hidden">
+      <main className="flex-1 lg:min-h-0 flex flex-col p-6">
+        <div className="rounded-2xl border border-warm-200 bg-white flex-1 lg:min-h-0 overflow-y-auto">
           {menu.length === 0 ? (
             <p className="text-slate-400 font-semibold text-center py-12">
               No menu items match your filters.
@@ -171,13 +171,13 @@ export default function MenuManagementPage() {
           <table className="w-full text-sm">
             <thead className="bg-warm-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
               <tr>
-                <th className="text-left px-2 py-3"></th>
-                <th className="text-left px-2 py-3">Item</th>
-                <th className="text-left px-2 py-3">Category</th>
-                <th className="text-right px-2 py-3">Price</th>
-                <th className="text-center px-2 py-3">Priority</th>
-                <th className="text-center px-4 py-3">Available</th>
-                <th className="text-center px-4 py-3">Action</th>
+                <th className="sticky top-0 z-10 bg-warm-50 text-left px-2 py-3"></th>
+                <th className="sticky top-0 z-10 bg-warm-50 text-left px-2 py-3">Item</th>
+                <th className="sticky top-0 z-10 bg-warm-50 text-left px-2 py-3">Category</th>
+                <th className="sticky top-0 z-10 bg-warm-50 text-right px-2 py-3">Price</th>
+                <th className="sticky top-0 z-10 bg-warm-50 text-center px-2 py-3">Priority</th>
+                <th className="sticky top-0 z-10 bg-warm-50 text-center px-4 py-3">Available</th>
+                <th className="sticky top-0 z-10 bg-warm-50 text-center px-4 py-3">Action</th>
               </tr>
             </thead>
             <tbody>

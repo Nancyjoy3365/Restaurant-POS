@@ -139,12 +139,14 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
     if (!q) return null;
     return menu.filter(
       (m) =>
-        m.name.toLowerCase().includes(q) ||
-        m.aliases.some((a) => a.toLowerCase().includes(q))
+        m.available &&
+        (m.name.toLowerCase().includes(q) ||
+          m.aliases.some((a) => a.toLowerCase().includes(q)))
     );
   }, [pickerQuery, menu]);
   const pickerItems =
-    pickerMatches ?? menu.filter((m) => m.category === pickerCategory);
+    pickerMatches ??
+    menu.filter((m) => m.available && m.category === pickerCategory);
   // As on the desktop grid, grouping only applies to the default browsing
   // view — an active search still jumps straight to the specific variant.
   const pickerGridEntries = pickerMatches

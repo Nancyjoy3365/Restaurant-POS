@@ -33,8 +33,9 @@ export default function TicketPage() {
     if (!q) return null;
     return menu.filter(
       (m) =>
-        m.name.toLowerCase().includes(q) ||
-        m.aliases.some((a) => a.toLowerCase().includes(q))
+        m.available &&
+        (m.name.toLowerCase().includes(q) ||
+          m.aliases.some((a) => a.toLowerCase().includes(q)))
     );
   }, [query, menu]);
 
@@ -62,7 +63,8 @@ export default function TicketPage() {
   }
 
   const visibleItems =
-    searchMatches ?? menu.filter((m) => m.category === activeCategory);
+    searchMatches ??
+    menu.filter((m) => m.available && m.category === activeCategory);
   // Grouping into one "Fish"-style card only applies to the default
   // browsing grid — an active search still jumps straight to the specific
   // matching variant, unaffected by grouping.

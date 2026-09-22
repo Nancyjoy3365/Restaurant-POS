@@ -118,13 +118,28 @@ export default function LoginPage() {
   const roleStaff = role ? staff.filter((m) => m.role === role) : [];
 
   return (
-    <div className="flex-1 flex items-center justify-center bg-background min-h-screen p-4">
-      <div className="w-full max-w-md rounded-2xl border border-warm-200 bg-white shadow-sm p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-black text-accent-700 tracking-tight">
-            Samaki Mjini Restaurant
-          </h1>
-          <p className="text-sm font-bold text-slate-500 mt-1">
+    <div className="relative flex-1 flex items-center justify-center min-h-screen p-4 overflow-hidden">
+      {/* eslint-disable-next-line @next/next/no-img-element -- static background asset, animated via CSS transform on the element itself */}
+      <img
+        src="/login-bg.png"
+        alt=""
+        aria-hidden="true"
+        className="login-bg-image absolute inset-0 h-full w-full object-cover"
+      />
+      <div
+        className="relative z-10 w-full max-w-xs sm:max-w-md rounded-2xl p-5 sm:p-8 shadow-lg"
+        style={{
+          background: "rgba(255, 251, 242, 0.6)",
+          backdropFilter: "blur(16px) saturate(160%)",
+          WebkitBackdropFilter: "blur(16px) saturate(160%)",
+          border: "1px solid rgba(244, 214, 184, 0.5)",
+        }}
+      >
+        <div className="text-center mb-5 sm:mb-8">
+          <p
+            className="text-sm font-bold text-white"
+            style={{ textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}
+          >
             {step === "role" && "Select your role"}
             {step === "staff" && `${role} · Who’s clocking in?`}
             {step === "pin" && `${selectedStaff?.name} · Enter PIN`}
@@ -132,7 +147,7 @@ export default function LoginPage() {
         </div>
 
         {step === "role" && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
             {ROLE_LOGIN_ORDER.map((r) => {
               const Icon = ROLE_ICON[r];
               return (
@@ -140,12 +155,12 @@ export default function LoginPage() {
                   key={r}
                   type="button"
                   onClick={() => selectRole(r)}
-                  className="flex flex-col items-center gap-2 rounded-xl border border-warm-200 p-4 hover:border-accent-400 hover:bg-accent-50 transition-colors"
+                  className="flex flex-col items-center gap-1.5 sm:gap-2 rounded-xl border border-warm-200 p-3 sm:p-4 hover:border-accent-400 hover:bg-accent-50 transition-colors"
                 >
-                  <span className="h-12 w-12 flex items-center justify-center rounded-full bg-accent-600 text-white">
-                    <Icon size={22} />
+                  <span className="h-10 w-10 sm:h-12 sm:w-12 flex items-center justify-center rounded-full bg-accent-600 text-white">
+                    <Icon size={20} />
                   </span>
-                  <span className="text-sm font-extrabold text-slate-800">
+                  <span className="text-xs sm:text-sm font-extrabold text-slate-800">
                     {r}
                   </span>
                 </button>
@@ -169,7 +184,7 @@ export default function LoginPage() {
                     type="button"
                     onClick={() => selectStaff(member.id, member.name)}
                     className={clsx(
-                      "relative flex flex-col items-center gap-2 rounded-xl border p-3 transition-colors",
+                      "group relative flex flex-col items-center gap-2 rounded-xl border p-3 transition-colors",
                       onLeave
                         ? "border-warm-200 opacity-60 grayscale hover:opacity-80"
                         : "border-warm-200 hover:border-accent-400 hover:bg-accent-50"
@@ -182,17 +197,29 @@ export default function LoginPage() {
                     )}
                     <span
                       className={clsx(
-                        "h-12 w-12 flex items-center justify-center rounded-full text-white font-black text-sm",
+                        "h-10 w-10 sm:h-12 sm:w-12 flex items-center justify-center rounded-full text-white font-black text-xs sm:text-sm",
                         onLeave ? "bg-slate-400" : "bg-accent-600"
                       )}
                     >
                       {initials(member.name)}
                     </span>
                     <span className="text-center leading-tight">
-                      <span className="block text-xs font-extrabold text-slate-800">
+                      <span
+                        className={clsx(
+                          "block text-xs font-extrabold text-white",
+                          !onLeave && "group-hover:text-slate-900"
+                        )}
+                        style={{ textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}
+                      >
                         {member.name.split(" ")[0]}
                       </span>
-                      <span className="block text-[10px] font-bold text-slate-400 mt-0.5">
+                      <span
+                        className={clsx(
+                          "block text-[10px] font-bold text-white/90 mt-0.5",
+                          !onLeave && "group-hover:text-slate-600"
+                        )}
+                        style={{ textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}
+                      >
                         {member.title ?? member.role}
                       </span>
                     </span>
@@ -218,7 +245,8 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setStep("role")}
-              className="flex items-center gap-1 text-xs font-extrabold text-slate-400 hover:text-slate-600 mx-auto"
+              className="flex items-center gap-1 text-xs font-extrabold text-white hover:text-accent-300 mx-auto transition-colors"
+              style={{ textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}
             >
               <ArrowLeft size={13} /> Switch role
             </button>
@@ -270,7 +298,8 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setStep("staff")}
-              className="flex items-center gap-1 text-xs font-extrabold text-slate-400 hover:text-slate-600 mt-4"
+              className="flex items-center gap-1 text-xs font-extrabold text-white hover:text-accent-300 mt-4 transition-colors"
+              style={{ textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}
             >
               <ArrowLeft size={13} /> Not you? Choose someone else
             </button>

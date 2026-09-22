@@ -17,7 +17,7 @@ import {
   PauseCircle,
   Settings,
   MoreHorizontal,
-  ChevronDown,
+  ChevronRight,
   X,
 } from "lucide-react";
 import clsx from "clsx";
@@ -58,6 +58,18 @@ const NAV_ITEMS: NavItem[] = [
     icon: Settings,
     children: [{ href: "/settings/vendors", label: "Vendors" }],
   },
+];
+
+// Desktop-only grouping for visual hierarchy — mobile keeps its own flat
+// (unlabeled) nav, so this doesn't touch mobileNavItems below. Kitchen isn't
+// called out by name in any group spec, but it's a Floor-level, in-service
+// screen like the rest of that group, so it lives there rather than being
+// dropped from the sidebar.
+const NAV_GROUPS: { label: string; hrefs: string[] }[] = [
+  { label: "Floor", hrefs: ["/", "/my-tickets", "/kitchen", "/cashier"] },
+  { label: "Back of house", hrefs: ["/menu-management", "/inventory", "/staff"] },
+  { label: "Reports", hrefs: ["/reports", "/performance"] },
+  { label: "System", hrefs: ["/settings"] },
 ];
 
 // However many role-relevant items exist, the bottom row never shows more
@@ -131,120 +143,164 @@ export function Sidebar() {
       orders[t.id]?.rounds.some((round) => round.items.length > 0)
   );
 
+  const navItemsByHref = new Map(navItems.map((item) => [item.href, item]));
+  const navGroups = NAV_GROUPS.map((group) => ({
+    label: group.label,
+    items: group.hrefs
+      .map((href) => navItemsByHref.get(href))
+      .filter((item): item is NavItem => Boolean(item)),
+  })).filter((group) => group.items.length > 0);
 
   return (
     <>
       <nav className="hidden lg:flex flex-col w-64 shrink-0 h-screen border-r border-warm-200 bg-white">
-        <div className="h-16 shrink-0 flex items-center px-6 border-b border-warm-200">
-          <span className="text-lg font-black tracking-tight text-accent-600 leading-tight">
-            Samaki Mjini Restaurant
-          </span>
+        <div className="relative h-32 shrink-0 overflow-hidden border-b border-warm-200">
+          {/* eslint-disable-next-line @next/next/no-img-element -- static background asset, same photo used on the login screen; positioned so the storefront's neon sign stays in frame instead of the photo's vertical center */}
+          <img
+            src="/login-bg.png"
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full object-cover object-top"
+          />
+          <div className="absolute inset-0 bg-slate-900/20" />
+          <div className="absolute inset-x-0 bottom-0 flex items-center gap-2.5 bg-slate-900/80 px-6 py-3">
+            <span className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg bg-accent-600 text-white">
+              <UtensilsCrossed size={16} strokeWidth={2.5} />
+            </span>
+            <span className="text-base font-black tracking-tight text-white leading-tight">
+              Samaki Mjini Restaurant
+            </span>
+          </div>
         </div>
-        <div className="flex-1 min-h-0 overflow-y-auto py-4 px-3 space-y-2">
-          {navItems.flatMap(({ href, label, icon: Icon, children }) => {
-            if (children && children.length > 0) {
-              const active = pathname.startsWith(href);
-              return [
-                <div key={href}>
-                  <div
-                    className={clsx(
-                      "flex items-center rounded-2xl transition-colors",
-                      active
-                        ? "bg-accent-600 text-white shadow-sm"
-                        : "bg-warm-50 text-slate-600 hover:bg-accent-100 hover:text-accent-700"
-                    )}
-                  >
+        <div className="no-scrollbar flex-1 min-h-0 overflow-y-auto py-4 px-3">
+          {navGroups.map((group, groupIdx) => (
+            <div key={group.label}>
+              <div
+                className={clsx(
+                  "text-[9.5px] font-extrabold uppercase tracking-[0.06em] text-[#A69C8C] px-[11px] pb-[5px]",
+                  groupIdx === 0 ? "pt-0" : "pt-3"
+                )}
+              >
+                {group.label}
+              </div>
+              <div className="space-y-1">
+                {group.items.flatMap(({ href, label, icon: Icon, children }) => {
+                  if (children && children.length > 0) {
+                    const active = pathname.startsWith(href);
+                    return [
+                      <div key={href}>
+                        <div
+                          className={clsx(
+                            "relative flex items-center rounded-lg transition-colors",
+                            active
+                              ? "bg-[#FBE9E1] text-[#E3642E]"
+                              : "text-slate-600 hover:bg-[#F7F2EA]"
+                          )}
+                        >
+                          {active && (
+                            <span className="absolute left-[-9px] top-[7px] bottom-[7px] w-[3px] rounded-r-[3px] bg-[#E3642E]" />
+                          )}
+                          <Link
+                            href={href}
+                            className="flex-1 flex items-center gap-3 px-4 py-3.5 text-base font-extrabold"
+                          >
+                            <Icon size={22} strokeWidth={2.5} />
+                            {label}
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => setSettingsOpen((o) => !o)}
+                            aria-label={settingsOpen ? `Collapse ${label}` : `Expand ${label}`}
+                            className="pr-4 py-3.5"
+                          >
+                            <ChevronRight
+                              size={16}
+                              className={clsx("transition-transform", settingsOpen && "rotate-90")}
+                            />
+                          </button>
+                        </div>
+                        {settingsOpen && (
+                          <div
+                            className="mt-2 space-y-1 border-l pl-[14px]"
+                            style={{ borderColor: "#FAE6DD", marginLeft: "20px" }}
+                          >
+                            {children.map((child) => {
+                              const childActive = pathname === child.href;
+                              return (
+                                <Link
+                                  key={child.href}
+                                  href={child.href}
+                                  className={clsx(
+                                    "flex items-center gap-3 rounded-lg pr-4 py-2.5 text-sm font-bold transition-colors",
+                                    childActive
+                                      ? "bg-[#FBE9E1] text-[#E3642E]"
+                                      : "text-slate-500 hover:bg-[#F7F2EA]"
+                                  )}
+                                >
+                                  <span className="w-[22px] shrink-0" aria-hidden="true" />
+                                  {child.label}
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>,
+                    ];
+                  }
+                  const active = pathname === href || (href !== "/" && pathname.startsWith(href));
+                  const link = (
                     <Link
+                      key={href}
                       href={href}
-                      className="flex-1 flex items-center gap-3 px-4 py-3.5 text-base font-extrabold"
+                      className={clsx(
+                        "relative flex items-center gap-3 rounded-lg px-4 py-3.5 text-base font-extrabold transition-colors",
+                        active
+                          ? "bg-[#FBE9E1] text-[#E3642E]"
+                          : "text-slate-600 hover:bg-[#F7F2EA]"
+                      )}
                     >
+                      {active && (
+                        <span className="absolute left-[-9px] top-[7px] bottom-[7px] w-[3px] rounded-r-[3px] bg-[#E3642E]" />
+                      )}
                       <Icon size={22} strokeWidth={2.5} />
                       {label}
                     </Link>
-                    <button
-                      type="button"
-                      onClick={() => setSettingsOpen((o) => !o)}
-                      aria-label={settingsOpen ? `Collapse ${label}` : `Expand ${label}`}
-                      className="pr-4 py-3.5"
+                  );
+                  if (href !== "/my-tickets" || !showHeldOrders) return [link];
+                  return [
+                    link,
+                    <div
+                      key="held-orders"
+                      className="rounded-2xl bg-warm-50 px-4 py-3.5"
                     >
-                      <ChevronDown
-                        size={18}
-                        className={clsx("transition-transform", settingsOpen && "rotate-180")}
-                      />
-                    </button>
-                  </div>
-                  {settingsOpen && (
-                    <div className="pl-4 pt-2 space-y-1">
-                      {children.map((child) => {
-                        const childActive = pathname === child.href;
-                        return (
-                          <Link
-                            key={child.href}
-                            href={child.href}
-                            className={clsx(
-                              "block rounded-xl px-4 py-2.5 text-sm font-bold transition-colors",
-                              childActive
-                                ? "bg-accent-100 text-accent-700"
-                                : "text-slate-500 hover:bg-warm-50 hover:text-accent-700"
-                            )}
-                          >
-                            {child.label}
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>,
-              ];
-            }
-            const active = pathname === href || (href !== "/" && pathname.startsWith(href));
-            const link = (
-              <Link
-                key={href}
-                href={href}
-                className={clsx(
-                  "flex items-center gap-3 rounded-2xl px-4 py-3.5 text-base font-extrabold transition-colors",
-                  active
-                    ? "bg-accent-600 text-white shadow-sm"
-                    : "bg-warm-50 text-slate-600 hover:bg-accent-100 hover:text-accent-700"
-                )}
-              >
-                <Icon size={22} strokeWidth={2.5} />
-                {label}
-              </Link>
-            );
-            if (href !== "/my-tickets" || !showHeldOrders) return [link];
-            return [
-              link,
-              <div
-                key="held-orders"
-                className="rounded-2xl bg-warm-50 px-4 py-3.5"
-              >
-                <div className="flex items-center gap-2 text-slate-600 font-extrabold text-xs uppercase tracking-wide">
-                  <PauseCircle size={16} strokeWidth={2.5} className="text-accent-600" />
-                  Held Orders ({heldTickets.length}/{MAX_HELD_ORDERS_PER_WAITER})
-                </div>
-                {heldTickets.length === 0 ? (
-                  <p className="text-[11px] font-semibold text-slate-400 mt-2">
-                    Nothing on hold right now.
-                  </p>
-                ) : (
-                  <div className="space-y-1.5 mt-2.5">
-                    {heldTickets.map((ticket) => (
-                      <Link
-                        key={ticket.id}
-                        href={`/ticket/${ticket.id}`}
-                        className="block rounded-xl bg-white text-slate-600 hover:bg-accent-100 hover:text-accent-700 font-extrabold text-xs px-3 py-2.5 transition-colors"
-                      >
-                        Order No. {ticket.displayNumber}
-                        {ticketSubtitle(ticket) && ` · ${ticketSubtitle(ticket)}`}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>,
-            ];
-          })}
+                      <div className="flex items-center gap-2 text-slate-600 font-extrabold text-xs uppercase tracking-wide">
+                        <PauseCircle size={16} strokeWidth={2.5} className="text-accent-600" />
+                        Held Orders ({heldTickets.length}/{MAX_HELD_ORDERS_PER_WAITER})
+                      </div>
+                      {heldTickets.length === 0 ? (
+                        <p className="text-[11px] font-semibold text-slate-400 mt-2">
+                          Nothing on hold right now.
+                        </p>
+                      ) : (
+                        <div className="space-y-1.5 mt-2.5">
+                          {heldTickets.map((ticket) => (
+                            <Link
+                              key={ticket.id}
+                              href={`/ticket/${ticket.id}`}
+                              className="block rounded-xl bg-white text-slate-600 hover:bg-accent-100 hover:text-accent-700 font-extrabold text-xs px-3 py-2.5 transition-colors"
+                            >
+                              Order No. {ticket.displayNumber}
+                              {ticketSubtitle(ticket) && ` · ${ticketSubtitle(ticket)}`}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </div>,
+                  ];
+                })}
+              </div>
+            </div>
+          ))}
         </div>
         {currentStaff && (
           <div className="border-t border-warm-200 p-4">

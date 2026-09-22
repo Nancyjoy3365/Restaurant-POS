@@ -57,6 +57,28 @@ body {
   font-family: var(--font-sans), Arial, sans-serif;
 }
 
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes login-ken-burns {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.08);
+  }
+}
+
+.login-bg-image {
+  animation: login-ken-burns 25s ease-in-out infinite alternate;
+}
+
 @media print {
   /* Paper width (58mm/80mm) is set from Settings via a `@page { size }`
      rule injected by BillPreview itself — this margin is the only part
