@@ -7,10 +7,10 @@ import type { AddOn, MenuItem } from "@/lib/types";
 
 // Order-taking is the highest-frequency interaction in the app (every tap
 // while building a ticket), so it polls faster than the other DB-backed
-// slices (Vendors/Menu/Staff use 5s) and the hottest mutations (addItem,
+// slices (Menu 10s, the rest 30s — see swrConfig.ts) and the hottest mutations (addItem,
 // updateItemQty, removeItem) update the local cache optimistically via
 // lib/orderOptimistic.ts instead of waiting on a round trip.
-const POLL_CONFIG = { refreshInterval: 3000, revalidateOnFocus: true };
+const POLL_CONFIG = { refreshInterval: 5000, revalidateOnFocus: true };
 
 const OPEN_ORDERS_KEY = "/api/orders";
 const orderKey = (ticketId: string) => `/api/orders/${ticketId}`;

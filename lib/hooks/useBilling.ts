@@ -1,20 +1,20 @@
 import useSWR from "swr";
 import { fetchCashDrops, fetchPayments, fetchReceipts, fetchRestaurantSettings } from "@/lib/api/billing";
 import { VAT_RATE } from "@/lib/utils";
-import { SHARED_SWR_CONFIG } from "./swrConfig";
+import { BILLING_SWR_CONFIG, SHARED_SWR_CONFIG } from "./swrConfig";
 
 export function usePayments() {
-  const { data, error, isLoading, mutate } = useSWR("/api/payments", fetchPayments, SHARED_SWR_CONFIG);
+  const { data, error, isLoading, mutate } = useSWR("/api/payments", fetchPayments, BILLING_SWR_CONFIG);
   return { payments: data ?? [], error, isLoading, mutate };
 }
 
 export function useReceipts() {
-  const { data, error, isLoading, mutate } = useSWR("/api/receipts", fetchReceipts, SHARED_SWR_CONFIG);
+  const { data, error, isLoading, mutate } = useSWR("/api/receipts", fetchReceipts, BILLING_SWR_CONFIG);
   return { receipts: data ?? [], error, isLoading, mutate };
 }
 
 export function useCashDrops() {
-  const { data, error, isLoading, mutate } = useSWR("/api/cash-drops", fetchCashDrops, SHARED_SWR_CONFIG);
+  const { data, error, isLoading, mutate } = useSWR("/api/cash-drops", fetchCashDrops, BILLING_SWR_CONFIG);
   return { cashDrops: data ?? [], error, isLoading, mutate };
 }
 
