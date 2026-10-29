@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPool, sql } from "@/lib/db";
 import type { StockPurchase } from "@/lib/types";
+import { jsonWithEtag } from "@/lib/server/etag";
 
 type StockPurchaseRow = {
   StockPurchaseId: number;
@@ -26,13 +27,13 @@ function toStockPurchase(row: StockPurchaseRow): StockPurchase {
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const pool = await getPool();
     const result = await pool
       .request()
       .query<StockPurchaseRow>("SELECT * FROM dbo.StockPurchase ORDER BY PurchasedAt DESC");
-    return NextResponse.json(result.recordset.map(toStockPurchase));
+    return jsonWithEtag(request, result.recordset.map(toStockPurchase));
   } catch (err) {
     console.error("GET /api/stock-purchases failed:", err);
     const message = err instanceof Error ? err.message : String(err);

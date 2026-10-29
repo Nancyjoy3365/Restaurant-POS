@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPool } from "@/lib/db";
 import type { ShiftEntry } from "@/lib/types";
+import { jsonWithEtag } from "@/lib/server/etag";
 
 type ShiftRow = {
   ShiftEntryId: number;
@@ -9,7 +10,7 @@ type ShiftRow = {
   ClockOut: Date | null;
 };
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const pool = await getPool();
     const result = await pool
@@ -21,7 +22,7 @@ export async function GET() {
       clockIn: row.ClockIn.getTime(),
       clockOut: row.ClockOut ? row.ClockOut.getTime() : undefined,
     }));
-    return NextResponse.json(shifts);
+    return jsonWithEtag(request, shifts);
   } catch (err) {
     console.error("GET /api/shifts failed:", err);
     const message = err instanceof Error ? err.message : String(err);

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPool } from "@/lib/db";
 import type { Payment } from "@/lib/types";
+import { jsonWithEtag } from "@/lib/server/etag";
 
 type PaymentRow = {
   PaymentId: number;
@@ -34,11 +35,11 @@ export function toPayment(row: PaymentRow): Payment {
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const pool = await getPool();
     const result = await pool.request().query<PaymentRow>("SELECT * FROM dbo.Payment ORDER BY PaidAt DESC");
-    return NextResponse.json(result.recordset.map(toPayment));
+    return jsonWithEtag(request, result.recordset.map(toPayment));
   } catch (err) {
     console.error("GET /api/payments failed:", err);
     const message = err instanceof Error ? err.message : String(err);

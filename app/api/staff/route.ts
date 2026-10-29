@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPool, sql } from "@/lib/db";
 import type { StaffMember } from "@/lib/types";
+import { jsonWithEtag } from "@/lib/server/etag";
 
 type StaffRow = {
   StaffId: number;
@@ -28,7 +29,7 @@ function toStaffMember(row: StaffRow): StaffMember {
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const pool = await getPool();
     const result = await pool
@@ -36,7 +37,7 @@ export async function GET() {
       .query<StaffRow>(
         "SELECT StaffId, Name, Role, Title, PayType, Rate, Phone, CommissionType, CommissionValue FROM dbo.Staff WHERE IsActive = 1 ORDER BY Name"
       );
-    return NextResponse.json(result.recordset.map(toStaffMember));
+    return jsonWithEtag(request, result.recordset.map(toStaffMember));
   } catch (err) {
     console.error("GET /api/staff failed:", err);
     const message = err instanceof Error ? err.message : String(err);

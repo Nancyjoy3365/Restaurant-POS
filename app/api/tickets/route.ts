@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPool } from "@/lib/db";
 import type { Ticket } from "@/lib/types";
+import { jsonWithEtag } from "@/lib/server/etag";
 
 type OrderRow = {
   OrderId: number;
@@ -19,7 +20,7 @@ type OrderRow = {
 // round/line-item data — for report-style pages (Performance) that need
 // historical paid tickets, not the live order-taking board (see
 // GET /api/orders for that, scoped to open tickets only).
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const pool = await getPool();
     const result = await pool.request().query<OrderRow>("SELECT * FROM dbo.[Order] ORDER BY OpenedAt DESC");
@@ -35,7 +36,7 @@ export async function GET() {
       openedAt: row.OpenedAt.getTime(),
       closedAt: row.ClosedAt ? row.ClosedAt.getTime() : undefined,
     }));
-    return NextResponse.json(tickets);
+    return jsonWithEtag(request, tickets);
   } catch (err) {
     console.error("GET /api/tickets failed:", err);
     const message = err instanceof Error ? err.message : String(err);

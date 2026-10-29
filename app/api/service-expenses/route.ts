@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPool, sql } from "@/lib/db";
 import type { ServiceExpense } from "@/lib/types";
+import { jsonWithEtag } from "@/lib/server/etag";
 
 type ServiceExpenseRow = {
   ServiceExpenseId: number;
@@ -20,13 +21,13 @@ function toServiceExpense(row: ServiceExpenseRow): ServiceExpense {
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const pool = await getPool();
     const result = await pool
       .request()
       .query<ServiceExpenseRow>("SELECT * FROM dbo.ServiceExpense ORDER BY IncurredAt DESC");
-    return NextResponse.json(result.recordset.map(toServiceExpense));
+    return jsonWithEtag(request, result.recordset.map(toServiceExpense));
   } catch (err) {
     console.error("GET /api/service-expenses failed:", err);
     const message = err instanceof Error ? err.message : String(err);

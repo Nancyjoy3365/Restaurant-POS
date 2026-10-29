@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPool, sql } from "@/lib/db";
 import type { Ingredient } from "@/lib/types";
+import { jsonWithEtag } from "@/lib/server/etag";
 
 type IngredientRow = {
   IngredientId: number;
@@ -32,11 +33,11 @@ function toIngredient(row: IngredientRow): Ingredient {
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const pool = await getPool();
     const result = await pool.request().query<IngredientRow>("SELECT * FROM dbo.Ingredient ORDER BY Name");
-    return NextResponse.json(result.recordset.map(toIngredient));
+    return jsonWithEtag(request, result.recordset.map(toIngredient));
   } catch (err) {
     console.error("GET /api/ingredients failed:", err);
     const message = err instanceof Error ? err.message : String(err);

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPool, sql } from "@/lib/db";
 import type { RestaurantSettings } from "@/lib/types";
+import { jsonWithEtag } from "@/lib/server/etag";
 
 type SettingsRow = {
   Name: string;
@@ -24,7 +25,7 @@ function toSettings(row: SettingsRow): RestaurantSettings {
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const pool = await getPool();
     const result = await pool
@@ -32,7 +33,7 @@ export async function GET() {
       .query<SettingsRow>("SELECT Name, Address, KraPin, Phone, TillNumber, VatRate, ReceiptWidth FROM dbo.RestaurantSettings WHERE SettingsId = 1");
     const row = result.recordset[0];
     if (!row) return NextResponse.json({ error: "Restaurant settings not configured" }, { status: 404 });
-    return NextResponse.json(toSettings(row));
+    return jsonWithEtag(request, toSettings(row));
   } catch (err) {
     console.error("GET /api/restaurant-settings failed:", err);
     const message = err instanceof Error ? err.message : String(err);

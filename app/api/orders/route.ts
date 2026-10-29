@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { getPool, sql } from "@/lib/db";
 import { fetchOpenTicketsAndOrders, fetchTicketAndOrder } from "@/lib/server/orders";
+import { jsonWithEtag } from "@/lib/server/etag";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const pool = await getPool();
-    return NextResponse.json(await fetchOpenTicketsAndOrders(pool));
+    return jsonWithEtag(request, await fetchOpenTicketsAndOrders(pool));
   } catch (err) {
     console.error("GET /api/orders failed:", err);
     const message = err instanceof Error ? err.message : String(err);

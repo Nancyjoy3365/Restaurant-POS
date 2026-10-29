@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPool, sql } from "@/lib/db";
 import type { IncentiveRecord } from "@/lib/types";
+import { jsonWithEtag } from "@/lib/server/etag";
 
 type IncentiveRecordRow = {
   IncentiveRecordId: number;
@@ -22,13 +23,13 @@ function toIncentiveRecord(row: IncentiveRecordRow): IncentiveRecord {
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const pool = await getPool();
     const result = await pool
       .request()
       .query<IncentiveRecordRow>("SELECT * FROM dbo.IncentiveRecord ORDER BY DateGiven DESC");
-    return NextResponse.json(result.recordset.map(toIncentiveRecord));
+    return jsonWithEtag(request, result.recordset.map(toIncentiveRecord));
   } catch (err) {
     console.error("GET /api/incentive-records failed:", err);
     const message = err instanceof Error ? err.message : String(err);

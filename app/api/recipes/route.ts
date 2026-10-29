@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPool } from "@/lib/db";
 import type { Recipe } from "@/lib/types";
+import { jsonWithEtag } from "@/lib/server/etag";
 
 type RecipeRow = { RecipeId: number; MenuItemId: number };
 type RecipeComponentRow = { RecipeId: number; IngredientId: number; Qty: number };
@@ -8,7 +9,7 @@ type RecipeComponentRow = { RecipeId: number; IngredientId: number; Qty: number 
 // Recipe/RecipeComponent have no write path anywhere in the app yet (see
 // database/01_schema.sql's comment) — this is read-only until a costing
 // feature actually populates them.
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const pool = await getPool();
     const [recipes, components] = await Promise.all([
@@ -29,7 +30,7 @@ export async function GET() {
       components: componentsByRecipe.get(row.RecipeId) ?? [],
     }));
 
-    return NextResponse.json(result);
+    return jsonWithEtag(request, result);
   } catch (err) {
     console.error("GET /api/recipes failed:", err);
     const message = err instanceof Error ? err.message : String(err);

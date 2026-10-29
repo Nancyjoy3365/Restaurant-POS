@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPool, sql } from "@/lib/db";
 import type { UnitOfMeasure } from "@/lib/types";
+import { jsonWithEtag } from "@/lib/server/etag";
 
 type UnitRow = {
   UnitId: number;
@@ -11,7 +12,7 @@ function toUnit(row: UnitRow): UnitOfMeasure {
   return { id: String(row.UnitId), label: row.Label };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const pool = await getPool();
     // UnitId order (not alphabetical) keeps the seeded defaults in their
@@ -20,7 +21,7 @@ export async function GET() {
     const result = await pool.request().query<UnitRow>(
       "SELECT * FROM dbo.UnitOfMeasure ORDER BY UnitId"
     );
-    return NextResponse.json(result.recordset.map(toUnit));
+    return jsonWithEtag(request, result.recordset.map(toUnit));
   } catch (err) {
     console.error("GET /api/units-of-measure failed:", err);
     const message = err instanceof Error ? err.message : String(err);

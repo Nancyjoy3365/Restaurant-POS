@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPool, sql } from "@/lib/db";
 import type { VendorPayment } from "@/lib/types";
+import { jsonWithEtag } from "@/lib/server/etag";
 
 type VendorPaymentRow = {
   VendorPaymentId: number;
@@ -22,13 +23,13 @@ function toVendorPayment(row: VendorPaymentRow): VendorPayment {
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const pool = await getPool();
     const result = await pool
       .request()
       .query<VendorPaymentRow>("SELECT * FROM dbo.VendorPayment ORDER BY PaidAt DESC");
-    return NextResponse.json(result.recordset.map(toVendorPayment));
+    return jsonWithEtag(request, result.recordset.map(toVendorPayment));
   } catch (err) {
     console.error("GET /api/vendor-payments failed:", err);
     const message = err instanceof Error ? err.message : String(err);

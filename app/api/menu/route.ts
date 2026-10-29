@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPool, sql } from "@/lib/db";
 import type { MenuItem } from "@/lib/types";
+import { jsonWithEtag } from "@/lib/server/etag";
 
 type MenuItemRow = {
   MenuItemId: number;
@@ -82,9 +83,9 @@ async function fetchMenu(): Promise<MenuItem[]> {
   }));
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    return NextResponse.json(await fetchMenu());
+    return jsonWithEtag(request, await fetchMenu());
   } catch (err) {
     console.error("GET /api/menu failed:", err);
     const message = err instanceof Error ? err.message : String(err);

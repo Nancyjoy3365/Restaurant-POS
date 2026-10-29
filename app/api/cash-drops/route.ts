@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPool, sql } from "@/lib/db";
 import type { CashDrop } from "@/lib/types";
+import { jsonWithEtag } from "@/lib/server/etag";
 
 type CashDropRow = {
   CashDropId: number;
@@ -26,11 +27,11 @@ function toCashDrop(row: CashDropRow): CashDrop {
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const pool = await getPool();
     const result = await pool.request().query<CashDropRow>("SELECT * FROM dbo.CashDrop ORDER BY DroppedAt DESC");
-    return NextResponse.json(result.recordset.map(toCashDrop));
+    return jsonWithEtag(request, result.recordset.map(toCashDrop));
   } catch (err) {
     console.error("GET /api/cash-drops failed:", err);
     const message = err instanceof Error ? err.message : String(err);

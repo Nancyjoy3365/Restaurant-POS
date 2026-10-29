@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPool } from "@/lib/db";
 import type { Receipt, ReceiptLineItem, ReceiptPaymentLine } from "@/lib/types";
+import { jsonWithEtag } from "@/lib/server/etag";
 
 type ReceiptRow = {
   ReceiptId: number;
@@ -31,7 +32,7 @@ type ReceiptPaymentLineRow = {
   CustomerName: string | null;
 };
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const pool = await getPool();
     const [receipts, lineItems, paymentLines] = await Promise.all([
@@ -81,7 +82,7 @@ export async function GET() {
       issuedAt: row.IssuedAt.getTime(),
     }));
 
-    return NextResponse.json(result);
+    return jsonWithEtag(request, result);
   } catch (err) {
     console.error("GET /api/receipts failed:", err);
     const message = err instanceof Error ? err.message : String(err);

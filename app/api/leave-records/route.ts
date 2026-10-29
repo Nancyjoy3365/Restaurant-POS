@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPool, sql } from "@/lib/db";
 import type { LeaveRecord } from "@/lib/types";
+import { jsonWithEtag } from "@/lib/server/etag";
 
 type LeaveRecordRow = {
   LeaveRecordId: number;
@@ -32,11 +33,11 @@ function toLeaveRecord(row: LeaveRecordRow): LeaveRecord {
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const pool = await getPool();
     const result = await pool.request().query<LeaveRecordRow>("SELECT * FROM dbo.LeaveRecord ORDER BY StartDate DESC");
-    return NextResponse.json(result.recordset.map(toLeaveRecord));
+    return jsonWithEtag(request, result.recordset.map(toLeaveRecord));
   } catch (err) {
     console.error("GET /api/leave-records failed:", err);
     const message = err instanceof Error ? err.message : String(err);
