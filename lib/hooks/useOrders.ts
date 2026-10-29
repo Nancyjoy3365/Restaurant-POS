@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import useSWR, { mutate } from "swr";
 import * as ordersApi from "@/lib/api/orders";
 import type { TicketAndOrder } from "@/lib/api/orders";
@@ -7,13 +8,35 @@ import type { AddOn, MenuItem } from "@/lib/types";
 
 // Order-taking is the highest-frequency interaction in the app (every tap
 // while building a ticket), so it polls faster than the other DB-backed
-// slices (Menu 10s, the rest 30s — see swrConfig.ts) and the hottest mutations (addItem,
+// slices (Menu 60s, the rest 30s — see swrConfig.ts) and the hottest mutations (addItem,
 // updateItemQty, removeItem) update the local cache optimistically via
 // lib/orderOptimistic.ts instead of waiting on a round trip.
-const POLL_CONFIG = { refreshInterval: 5000, revalidateOnFocus: true };
+const POLL_CONFIG = { refreshInterval: 15000, revalidateOnFocus: true };
+
+// A single ticket is never polled on its own: the open-orders poll above
+// (mounted app-wide by Sidebar/OrderReadyNotifier) already carries every
+// open ticket's full order, and useOrder copies it across. Its own fetch
+// only runs on mount/focus — e.g. for a just-paid ticket no longer "open".
+const SINGLE_ORDER_CONFIG = { refreshInterval: 0, revalidateOnFocus: true };
 
 const OPEN_ORDERS_KEY = "/api/orders";
 const orderKey = (ticketId: string) => `/api/orders/${ticketId}`;
+
+// Tickets with an optimistic write in flight — the open-orders copy is
+// skipped for them so a poll response fetched before the write landed
+// can't briefly overwrite the optimistic item.
+const pendingWrites = new Map<string, number>();
+
+async function withPendingWrite<T>(ticketId: string, write: () => Promise<T>) {
+  pendingWrites.set(ticketId, (pendingWrites.get(ticketId) ?? 0) + 1);
+  try {
+    return await write();
+  } finally {
+    const remaining = (pendingWrites.get(ticketId) ?? 1) - 1;
+    if (remaining > 0) pendingWrites.set(ticketId, remaining);
+    else pendingWrites.delete(ticketId);
+  }
+}
 
 export function useOpenOrders() {
   const { data, error, isLoading, mutate } = useSWR(OPEN_ORDERS_KEY, ordersApi.fetchOpenOrders, POLL_CONFIG);
@@ -24,8 +47,17 @@ export function useOrder(ticketId: string | undefined) {
   const { data, error, isLoading, mutate } = useSWR(
     ticketId ? orderKey(ticketId) : null,
     () => ordersApi.fetchOrder(ticketId as string),
-    POLL_CONFIG
+    SINGLE_ORDER_CONFIG
   );
+
+  const { data: openData } = useSWR(OPEN_ORDERS_KEY, ordersApi.fetchOpenOrders, POLL_CONFIG);
+  const openTicket = ticketId ? openData?.tickets.find((t) => t.id === ticketId) : undefined;
+  const openOrder = ticketId ? openData?.orders[ticketId] : undefined;
+  useEffect(() => {
+    if (!ticketId || !openTicket || !openOrder || pendingWrites.has(ticketId)) return;
+    mutate({ ticket: openTicket, order: openOrder }, { revalidate: false });
+  }, [ticketId, openTicket, openOrder, mutate]);
+
   return { ticket: data?.ticket, order: data?.order, isLoading, error, mutate };
 }
 
@@ -56,7 +88,7 @@ export async function addItem(
   opts: { spiceLevel?: string; addOns?: AddOn[] },
   vatRate: number
 ) {
-  const result = await mutate(orderKey(ticketId), ordersApi.addItem(ticketId, roundId, menuItem, opts), {
+  const result = await withPendingWrite(ticketId, () => mutate(orderKey(ticketId), ordersApi.addItem(ticketId, roundId, menuItem, opts), {
     optimisticData: ((current: TicketAndOrder | undefined) =>
       current
         ? { ticket: current.ticket, order: optimisticAddItem(current.order, roundId, menuItem, opts, vatRate) }
@@ -64,13 +96,13 @@ export async function addItem(
     rollbackOnError: true,
     populateCache: true,
     revalidate: false,
-  });
+  }));
   mutate(OPEN_ORDERS_KEY);
   return result;
 }
 
 export async function updateItemQty(ticketId: string, itemId: string, qty: number, vatRate: number) {
-  const result = await mutate(orderKey(ticketId), ordersApi.updateItemQty(itemId, qty), {
+  const result = await withPendingWrite(ticketId, () => mutate(orderKey(ticketId), ordersApi.updateItemQty(itemId, qty), {
     optimisticData: ((current: TicketAndOrder | undefined) =>
       current
         ? { ticket: current.ticket, order: optimisticUpdateItemQty(current.order, itemId, qty, vatRate) }
@@ -78,13 +110,13 @@ export async function updateItemQty(ticketId: string, itemId: string, qty: numbe
     rollbackOnError: true,
     populateCache: true,
     revalidate: false,
-  });
+  }));
   mutate(OPEN_ORDERS_KEY);
   return result;
 }
 
 export async function removeItem(ticketId: string, itemId: string, vatRate: number) {
-  const result = await mutate(orderKey(ticketId), ordersApi.removeItem(itemId), {
+  const result = await withPendingWrite(ticketId, () => mutate(orderKey(ticketId), ordersApi.removeItem(itemId), {
     optimisticData: ((current: TicketAndOrder | undefined) =>
       current
         ? { ticket: current.ticket, order: optimisticRemoveItem(current.order, itemId, vatRate) }
@@ -92,7 +124,7 @@ export async function removeItem(ticketId: string, itemId: string, vatRate: numb
     rollbackOnError: true,
     populateCache: true,
     revalidate: false,
-  });
+  }));
   mutate(OPEN_ORDERS_KEY);
   return result;
 }

@@ -7,15 +7,15 @@ import {
   fetchVendors,
 } from "@/lib/api/inventory";
 import { fetchRecipes, fetchServiceExpenses } from "@/lib/api/inventoryExtras";
-import { SHARED_SWR_CONFIG as SHARED_CONFIG } from "./swrConfig";
+import { SHARED_SWR_CONFIG as SHARED_CONFIG, STATIC_SWR_CONFIG as STATIC_CONFIG } from "./swrConfig";
 
 export function useVendors() {
-  const { data, error, isLoading, mutate } = useSWR("/api/vendors", fetchVendors, SHARED_CONFIG);
+  const { data, error, isLoading, mutate } = useSWR("/api/vendors", fetchVendors, STATIC_CONFIG);
   return { vendors: data ?? [], error, isLoading, mutate };
 }
 
 export function useIngredients() {
-  const { data, error, isLoading, mutate } = useSWR("/api/ingredients", fetchIngredients, SHARED_CONFIG);
+  const { data, error, isLoading, mutate } = useSWR("/api/ingredients", fetchIngredients, STATIC_CONFIG);
   return { ingredients: data ?? [], error, isLoading, mutate };
 }
 
@@ -23,7 +23,7 @@ export function useUnitsOfMeasure() {
   const { data, error, isLoading, mutate } = useSWR(
     "/api/units-of-measure",
     fetchUnitsOfMeasure,
-    SHARED_CONFIG
+    STATIC_CONFIG
   );
   return { unitsOfMeasure: data ?? [], error, isLoading, mutate };
 }
@@ -58,6 +58,6 @@ export function useServiceExpenses() {
 // Recipe has no write path yet (see lib/api/inventoryExtras.ts) — always
 // empty in practice today, kept for lib/reports.ts's COGS calculation.
 export function useRecipes() {
-  const { data, error, isLoading } = useSWR("/api/recipes", fetchRecipes, SHARED_CONFIG);
+  const { data, error, isLoading } = useSWR("/api/recipes", fetchRecipes, STATIC_CONFIG);
   return { recipes: data ?? [], error, isLoading };
 }

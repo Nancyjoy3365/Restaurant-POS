@@ -6,10 +6,10 @@ import {
   fetchStaff,
   fetchStaffPin,
 } from "@/lib/api/staff";
-import { SHARED_SWR_CONFIG } from "./swrConfig";
+import { SHARED_SWR_CONFIG, STATIC_SWR_CONFIG } from "./swrConfig";
 
 export function useStaff() {
-  const { data, error, isLoading, mutate } = useSWR("/api/staff", fetchStaff, SHARED_SWR_CONFIG);
+  const { data, error, isLoading, mutate } = useSWR("/api/staff", fetchStaff, STATIC_SWR_CONFIG);
   return { staff: data ?? [], error, isLoading, mutate };
 }
 
@@ -22,7 +22,7 @@ export function useLeaveRecords() {
   const { data, error, isLoading, mutate } = useSWR(
     "/api/leave-records",
     fetchLeaveRecords,
-    SHARED_SWR_CONFIG
+    STATIC_SWR_CONFIG
   );
   return { leaveRecords: data ?? [], error, isLoading, mutate };
 }
@@ -31,7 +31,7 @@ export function useIncentiveRecords() {
   const { data, error, isLoading, mutate } = useSWR(
     "/api/incentive-records",
     fetchIncentiveRecords,
-    SHARED_SWR_CONFIG
+    STATIC_SWR_CONFIG
   );
   return { incentiveRecords: data ?? [], error, isLoading, mutate };
 }
@@ -40,6 +40,6 @@ export function useIncentiveRecords() {
 // device is what every other device compares against — same shared-PIN
 // behavior the app already had, just no longer stale across browsers.
 export function useStaffPin() {
-  const { data, error, isLoading, mutate } = useSWR("/api/staff-pin", fetchStaffPin, SHARED_SWR_CONFIG);
+  const { data, error, isLoading, mutate } = useSWR("/api/staff-pin", fetchStaffPin, STATIC_SWR_CONFIG);
   return { staffPin: data?.pin ?? null, error, isLoading, mutate };
 }
