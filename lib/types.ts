@@ -1,7 +1,7 @@
 export type MenuCategory =
   | "Main"
   | "Extra"
-  | "Drinks"
+  | "Soda"
   | "Water"
   | "Juice"
   | "Packaging";

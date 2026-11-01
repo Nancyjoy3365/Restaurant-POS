@@ -147,7 +147,7 @@ CREATE TABLE dbo.MenuItem (
     MenuItemId      INT             IDENTITY(1,1) CONSTRAINT PK_MenuItem PRIMARY KEY,
     Name            NVARCHAR(150)   NOT NULL,
     Category        NVARCHAR(20)    NOT NULL
-                                     CONSTRAINT CK_MenuItem_Category CHECK (Category IN ('Main','Extra','Drinks','Water','Juice','Packaging')),
+                                     CONSTRAINT CK_MenuItem_Category CHECK (Category IN ('Main','Extra','Soda','Water','Juice','Packaging')),
     Price           DECIMAL(12,2)   NOT NULL,
     IsVeg           BIT             NOT NULL CONSTRAINT DF_MenuItem_IsVeg DEFAULT (0),
     IsAvailable     BIT             NOT NULL CONSTRAINT DF_MenuItem_IsAvailable DEFAULT (1),

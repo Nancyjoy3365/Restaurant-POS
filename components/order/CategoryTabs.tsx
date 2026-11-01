@@ -7,7 +7,7 @@ import type { MenuCategory } from "@/lib/types";
 const CATEGORIES: { name: MenuCategory; icon: typeof UtensilsCrossed }[] = [
   { name: "Main", icon: UtensilsCrossed },
   { name: "Extra", icon: Salad },
-  { name: "Drinks", icon: CupSoda },
+  { name: "Soda", icon: CupSoda },
   { name: "Water", icon: Droplet },
   { name: "Juice", icon: Citrus },
   { name: "Packaging", icon: Package },

@@ -16,7 +16,7 @@ import type { MenuCategory, MenuItem } from "@/lib/types";
 const CATEGORY_ORDER: MenuCategory[] = [
   "Main",
   "Extra",
-  "Drinks",
+  "Soda",
   "Water",
   "Juice",
   "Packaging",

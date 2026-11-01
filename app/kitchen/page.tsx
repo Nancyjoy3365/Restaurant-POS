@@ -18,11 +18,11 @@ import {
 } from "@/components/kitchen/kitchenUrgency";
 import type { MenuCategory, OrderLineItem, Ticket, TicketOrder } from "@/lib/types";
 
-// Only Main/Extra dishes actually come out of the kitchen — Drinks/Water/
+// Only Main/Extra dishes actually come out of the kitchen — Soda/Water/
 // Juice are poured, not cooked, so they're tracked in their own column
 // rather than mixed into the kitchen's prep checklist. Packaging rides
 // along with whichever food it's boxing up.
-const DRINK_CATEGORIES = new Set<MenuCategory>(["Drinks", "Water", "Juice"]);
+const DRINK_CATEGORIES = new Set<MenuCategory>(["Soda", "Water", "Juice"]);
 
 function isDrink(category: MenuCategory | undefined): boolean {
   return category ? DRINK_CATEGORIES.has(category) : false;

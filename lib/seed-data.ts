@@ -46,12 +46,12 @@ export const seedMenu: MenuItem[] = [
   { id: "mn14", name: "Kienyeji Greens (Full)", aliases: ["kienyeji", "greens", "sukuma"], category: "Extra", price: 100, veg: true, available: true, variantGroup: "Kienyeji Greens", variantLabel: "Full" },
   { id: "mn15", name: "Kachumbari", aliases: ["salad", "kachumbari"], category: "Extra", price: 50, veg: true, available: true },
 
-  // Drinks
-  { id: "mn16", name: "Soda (300 ml)", aliases: ["soda", "coke", "fanta", "sprite"], category: "Drinks", price: 80, veg: true, available: true, variantGroup: "Soda", variantLabel: "300 ml" },
-  { id: "mn17", name: "Soda (500 ml)", aliases: ["soda", "coke", "fanta", "sprite"], category: "Drinks", price: 100, veg: true, available: true, variantGroup: "Soda", variantLabel: "500 ml" },
-  { id: "mn18", name: "Soda (1.25l)", aliases: ["soda", "coke", "fanta", "sprite"], category: "Drinks", price: 200, veg: true, available: true, variantGroup: "Soda", variantLabel: "1.25l" },
-  { id: "mn19", name: "Minute Maid (400 ml)", aliases: ["minute maid"], category: "Drinks", price: 100, veg: true, available: true, variantGroup: "Minute Maid", variantLabel: "400 ml" },
-  { id: "mn20", name: "Minute Maid (1l)", aliases: ["minute maid"], category: "Drinks", price: 200, veg: true, available: true, variantGroup: "Minute Maid", variantLabel: "1l" },
+  // Soda
+  { id: "mn16", name: "Soda (300 ml)", aliases: ["soda", "coke", "fanta", "sprite"], category: "Soda", price: 80, veg: true, available: true, variantGroup: "Soda", variantLabel: "300 ml" },
+  { id: "mn17", name: "Soda (500 ml)", aliases: ["soda", "coke", "fanta", "sprite"], category: "Soda", price: 100, veg: true, available: true, variantGroup: "Soda", variantLabel: "500 ml" },
+  { id: "mn18", name: "Soda (1.25l)", aliases: ["soda", "coke", "fanta", "sprite"], category: "Soda", price: 200, veg: true, available: true, variantGroup: "Soda", variantLabel: "1.25l" },
+  { id: "mn19", name: "Minute Maid (400 ml)", aliases: ["minute maid"], category: "Soda", price: 100, veg: true, available: true, variantGroup: "Minute Maid", variantLabel: "400 ml" },
+  { id: "mn20", name: "Minute Maid (1l)", aliases: ["minute maid"], category: "Soda", price: 200, veg: true, available: true, variantGroup: "Minute Maid", variantLabel: "1l" },
 
   // Water
   { id: "mn21", name: "Keringet Water (1l)", aliases: ["keringet", "water"], category: "Water", price: 150, veg: true, available: true },

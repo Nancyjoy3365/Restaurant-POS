@@ -8,7 +8,7 @@ import type { MenuCategory, MenuItem } from "@/lib/types";
 const CATEGORY_OPTIONS: MenuCategory[] = [
   "Main",
   "Extra",
-  "Drinks",
+  "Soda",
   "Water",
   "Juice",
   "Packaging",
