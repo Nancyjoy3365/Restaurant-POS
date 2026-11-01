@@ -17,7 +17,8 @@ import {
 import { usePosStore } from "@/lib/store";
 import { useOpenOrders, useAllTickets } from "@/lib/hooks/useOrders";
 import { fetchOrder } from "@/lib/api/orders";
-import { usePayments, useCashDrops, useReceipts, useRestaurantSettings } from "@/lib/hooks/useBilling";
+import { useSWRConfig } from "swr";
+import { usePayments, useCashDrops, useRestaurantSettings } from "@/lib/hooks/useBilling";
 import * as billingApi from "@/lib/api/billing";
 import { useStaff } from "@/lib/hooks/useStaff";
 import { formatKES, paymentsForCurrentCycle, unbilledOrderTotal } from "@/lib/utils";
@@ -62,7 +63,11 @@ export default function CashierPage() {
   const { vatRate } = useRestaurantSettings();
   const { payments, mutate: mutatePayments } = usePayments();
   const { cashDrops, mutate: mutateCashDrops } = useCashDrops();
-  const { mutate: mutateReceipts } = useReceipts();
+  // Receipts are fetched per date range by the report pages; this screen never
+  // shows them, so just refresh whatever ranges are loaded after a new one.
+  const { mutate: globalMutate } = useSWRConfig();
+  const mutateReceipts = () =>
+    globalMutate((key) => typeof key === "string" && key.startsWith("/api/receipts"));
 
   async function refreshAfterPaymentChange() {
     await Promise.all([mutateOpenOrders(), mutatePayments()]);

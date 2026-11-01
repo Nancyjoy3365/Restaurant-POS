@@ -8,8 +8,11 @@ export function usePayments() {
   return { payments: data ?? [], error, isLoading, mutate };
 }
 
-export function useReceipts() {
-  const { data, error, isLoading, mutate } = useSWR("/api/receipts", fetchReceipts, BILLING_SWR_CONFIG);
+// Receipts are only ever needed for a date range on screen (reports), so
+// fetch just that range rather than the whole receipt history on every poll.
+export function useReceipts(range: { start: Date; end: Date }) {
+  const key = `/api/receipts?from=${range.start.getTime()}&to=${range.end.getTime()}`;
+  const { data, error, isLoading, mutate } = useSWR(key, fetchReceipts, BILLING_SWR_CONFIG);
   return { receipts: data ?? [], error, isLoading, mutate };
 }
 

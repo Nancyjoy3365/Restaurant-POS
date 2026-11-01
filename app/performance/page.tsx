@@ -5,7 +5,6 @@ import clsx from "clsx";
 import {
   Trophy,
   ClipboardCheck,
-  Wallet,
   Star,
   ArrowUp,
   ArrowDown,
@@ -15,16 +14,15 @@ import {
 } from "lucide-react";
 import { usePosStore } from "@/lib/store";
 import { useAllTickets } from "@/lib/hooks/useOrders";
-import { usePayments, useReceipts } from "@/lib/hooks/useBilling";
+import { useReceipts } from "@/lib/hooks/useBilling";
 import { useMenu } from "@/lib/hooks/useMenu";
 import { useStaff } from "@/lib/hooks/useStaff";
-import { formatKES } from "@/lib/utils";
-import { salesInRange } from "@/lib/payroll";
 import {
   ordersCompletedInRange,
   priorityUnitsSoldInRange,
   priorityUnitsSoldByCategoryInRange,
 } from "@/lib/performance";
+import { salesByWaiter } from "@/lib/reports";
 import { avatarColorFor, initials } from "@/components/tickets/ticketStatus";
 
 type ViewMode = "cards" | "list";
@@ -40,8 +38,6 @@ export default function PerformanceTrackerPage() {
   const { staff } = useStaff();
   const currentStaffId = usePosStore((s) => s.currentStaffId);
   const { tickets } = useAllTickets();
-  const { payments } = usePayments();
-  const { receipts } = useReceipts();
   const { menu } = useMenu();
 
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
@@ -63,6 +59,7 @@ export default function PerformanceTrackerPage() {
           23, 59, 59, 999
         )
       : rangeEndInput;
+  const { receipts } = useReceipts({ start: rangeStart, end: rangeEnd });
   const isSingleDay = fromDate === toDate;
   const rangeLabel = isSingleDay
     ? rangeStart.toLocaleDateString("en-KE", {
@@ -88,9 +85,16 @@ export default function PerformanceTrackerPage() {
       ? allWaiters.filter((m) => m.id === currentStaff.id)
       : allWaiters;
 
-  // Shared stats for the List view (sorted by sales) — the Cards view
-  // above keeps its own inline computation and staff-array order
-  // untouched, per the request to leave it exactly as it was.
+  // Ranked by sales, using the same completed-receipt figures as the
+  // Financial Summary's Sales by Waiter (so duplicate taps or unverified
+  // M-Pesa can't move anyone up). The amounts themselves deliberately live
+  // only on the Financial Summary — here they only decide the order.
+  const receiptsInRange = receipts.filter(
+    (r) => r.issuedAt >= rangeStart.getTime() && r.issuedAt <= rangeEnd.getTime()
+  );
+  const salesById = new Map(
+    salesByWaiter(receiptsInRange, tickets, staff).map((r) => [r.waiterId, r.total])
+  );
   const listRows = waiters
     .map((waiter) => ({
       waiter,
@@ -98,7 +102,7 @@ export default function PerformanceTrackerPage() {
       ordersPrevious: ordersCompletedInRange(
         tickets, waiter.id, previousRangeStart, previousRangeEnd
       ),
-      sales: salesInRange(payments, waiter.id, rangeStart, rangeEnd),
+      sales: salesById.get(waiter.id) ?? 0,
       priorityTallies: priorityUnitsSoldInRange(
         receipts, tickets, menu, waiter.id, rangeStart, rangeEnd
       ),
@@ -106,20 +110,14 @@ export default function PerformanceTrackerPage() {
         receipts, tickets, menu, waiter.id, rangeStart, rangeEnd
       ),
     }))
-    .sort((a, b) => b.sales - a.sales);
-  // A waiter's own Cards view hides sales figures and per-item detail (see
-  // the Cards view below) — everything stays exactly as it was for Admin,
-  // the only other role that ever lands here.
-  const isWaiterView = currentStaff?.role === "Waiter";
-  const avgSales =
-    listRows.length > 0
-      ? listRows.reduce((sum, r) => sum + r.sales, 0) / listRows.length
-      : 0;
-  // Reused by the Cards view below to badge #1/#2/#3 without touching that
-  // view's own untouched staff-array order.
-  const salesRankById = new Map(
+    .sort((a, b) => b.sales - a.sales || b.orders - a.orders);
+  // Reused by the Cards view below to badge #1/#2/#3.
+  const rankById = new Map(
     listRows.map((row, i) => [row.waiter.id, i + 1])
   );
+  // A waiter only ever sees their own card, so a rank would always read
+  // "#1" — meaningless, so it's hidden for them.
+  const isWaiterView = currentStaff?.role === "Waiter";
 
   return (
     <div className="flex-1 flex flex-col lg:h-full lg:overflow-hidden">
@@ -185,7 +183,12 @@ export default function PerformanceTrackerPage() {
       </header>
 
       <main className="flex-1 lg:min-h-0 overflow-y-auto p-6 space-y-6">
-        <p className="text-sm font-bold text-slate-500">{rangeLabel}</p>
+        <p className="text-sm font-bold text-slate-500">
+          {rangeLabel}
+          {!isWaiterView && waiters.length > 1 && (
+            <span className="text-slate-400"> · Ranked by sales</span>
+          )}
+        </p>
 
         {waiters.length === 0 ? (
           <p className="text-slate-400 font-semibold text-center py-16">
@@ -194,13 +197,12 @@ export default function PerformanceTrackerPage() {
         ) : viewMode === "list" ? (
           <div className="rounded-2xl border border-warm-200 bg-white overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[820px]">
+              <table className="w-full text-sm min-w-[680px]">
                 <thead className="bg-warm-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
                   <tr>
                     <th className="text-left px-4 py-3 w-10">#</th>
                     <th className="text-left px-2 py-3">Waiter</th>
                     <th className="text-left px-2 py-3">Orders</th>
-                    <th className="text-left px-2 py-3">Total Sales</th>
                     <th className="text-left px-2 py-3">Priority Products</th>
                     <th className="text-right px-4 py-3"></th>
                   </tr>
@@ -211,8 +213,6 @@ export default function PerformanceTrackerPage() {
                     const isTop = rank === 1 && row.sales > 0;
                     const hasActivity = row.orders > 0;
                     const orderDelta = row.orders - row.ordersPrevious;
-                    const salesDeltaPct =
-                      avgSales > 0 ? ((row.sales - avgSales) / avgSales) * 100 : 0;
 
                     return (
                       <tr
@@ -289,36 +289,6 @@ export default function PerformanceTrackerPage() {
                           )}
                         </td>
                         <td className="px-2 py-3">
-                          {hasActivity ? (
-                            <>
-                              <div className="font-extrabold text-slate-900">
-                                {formatKES(row.sales)}
-                              </div>
-                              {avgSales > 0 && (
-                                <div
-                                  className={clsx(
-                                    "flex items-center gap-0.5 text-[11px] font-bold",
-                                    salesDeltaPct > 0
-                                      ? "text-status-free"
-                                      : salesDeltaPct < 0
-                                      ? "text-rose-600"
-                                      : "text-slate-400"
-                                  )}
-                                >
-                                  {salesDeltaPct > 0 ? (
-                                    <ArrowUp size={11} />
-                                  ) : salesDeltaPct < 0 ? (
-                                    <ArrowDown size={11} />
-                                  ) : null}
-                                  {Math.abs(salesDeltaPct).toFixed(0)}% vs avg
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <span className="text-slate-300 font-bold">—</span>
-                          )}
-                        </td>
-                        <td className="px-2 py-3">
                           {row.priorityTallies.length > 0 ? (
                             <div className="flex flex-wrap gap-1.5">
                               {row.priorityTallies.map((t) => (
@@ -360,56 +330,46 @@ export default function PerformanceTrackerPage() {
               // leader's card always appears first, and the order shifts
               // live as performance changes instead of staying pinned to
               // the original staff-array order.
-              const rank = salesRankById.get(waiter.id);
-              const showRankBadge = rank !== undefined && rank <= 3 && sales > 0;
+              const rank = rankById.get(waiter.id);
+              const showRank = !isWaiterView && rank !== undefined && sales > 0;
 
               return (
                 <div
                   key={waiter.id}
-                  className="relative rounded-2xl border border-warm-200 bg-white shadow-sm overflow-hidden"
+                  className="rounded-2xl border border-warm-200 bg-white shadow-sm overflow-hidden"
                 >
-                  {showRankBadge && (
-                    <span
-                      className={clsx(
-                        "absolute top-3 right-3 h-6 w-6 flex items-center justify-center rounded-full text-xs font-black text-white",
-                        rank === 1
-                          ? "bg-amber-400"
-                          : rank === 2
-                          ? "bg-slate-400"
-                          : "bg-orange-400"
+                  <div className="px-4 py-3 border-b border-warm-200">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Trophy size={16} className="shrink-0 text-accent-600" />
+                          <span className="font-extrabold text-slate-900 truncate">
+                            {waiter.name}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 mt-0.5 text-xs font-semibold text-slate-500">
+                          <ClipboardCheck size={12} />
+                          {orders} {orders === 1 ? "order" : "orders"} completed
+                        </div>
+                      </div>
+                      {showRank && (
+                        <span
+                          className={clsx(
+                            "shrink-0 flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-black whitespace-nowrap shadow-sm",
+                            rank === 1
+                              ? "bg-amber-400 text-white ring-2 ring-amber-200"
+                              : rank === 2
+                              ? "bg-slate-500 text-white ring-2 ring-slate-200"
+                              : rank === 3
+                              ? "bg-orange-500 text-white ring-2 ring-orange-200"
+                              : "bg-warm-50 border border-warm-200 text-slate-600"
+                          )}
+                        >
+                          {rank === 1 && <Trophy size={15} />}
+                          #{rank} in sales
+                        </span>
                       )}
-                      aria-label={`Ranked #${rank} in sales for this period`}
-                      title={`#${rank} in sales for this period`}
-                    >
-                      {rank}
-                    </span>
-                  )}
-                  <div className="flex items-center gap-2 px-4 py-3 border-b border-warm-200">
-                    <Trophy size={16} className="text-accent-600" />
-                    <span className="font-extrabold text-slate-900">
-                      {waiter.name}
-                    </span>
-                  </div>
-
-                  <div className={clsx("grid gap-3 px-4 py-3", isWaiterView ? "grid-cols-1" : "grid-cols-2")}>
-                    <div>
-                      <div className="flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-400">
-                        <ClipboardCheck size={12} /> Orders Completed
-                      </div>
-                      <div className="text-xl font-black text-slate-900">
-                        {orders}
-                      </div>
                     </div>
-                    {!isWaiterView && (
-                      <div>
-                        <div className="flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-400">
-                          <Wallet size={12} /> Total Sales
-                        </div>
-                        <div className="text-xl font-black text-slate-900">
-                          {formatKES(sales)}
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   {/* Category totals, not a per-item breakdown, for every

@@ -11,6 +11,7 @@ import type {
   MenuCategory,
   PaymentMethod,
   MenuItem,
+  Ticket,
 } from "./types";
 import { payoutForRange } from "./payroll";
 
@@ -242,4 +243,52 @@ export function itemsSoldReport(receipts: Receipt[], menu: MenuItem[]): ItemsSol
     return { group, total: rows.reduce((sum, r) => sum + r.total, 0), rows };
   });
   return { groups, totalQty, distinctMenuItems: menuItemIds.size };
+}
+
+export interface WaiterSalesRow {
+  waiterId: string;
+  name: string;
+  orders: number;
+  mpesa: number;
+  cash: number;
+  // VAT-inclusive receipt totals, so the rows add up to the Revenue card.
+  total: number;
+}
+
+// Built from completed receipts (not raw payment records), so duplicate
+// taps and still-open, unverified M-Pesa payments never inflate a waiter's
+// figure. A receipt whose order or waiter can't be found is kept under
+// "Unassigned" rather than dropped, so the column still totals to revenue.
+export function salesByWaiter(
+  receipts: Receipt[],
+  tickets: Ticket[],
+  staff: StaffMember[]
+): WaiterSalesRow[] {
+  const waiterIdByTicket = new Map(tickets.map((t) => [t.id, t.waiterId]));
+  const nameById = new Map(staff.map((m) => [m.id, m.name]));
+  const rows = new Map<string, WaiterSalesRow & { orderIds: Set<string> }>();
+
+  for (const receipt of receipts) {
+    const waiterId = waiterIdByTicket.get(receipt.ticketId) ?? "";
+    const row = rows.get(waiterId) ?? {
+      waiterId,
+      name: nameById.get(waiterId) ?? "Unassigned",
+      orders: 0,
+      mpesa: 0,
+      cash: 0,
+      total: 0,
+      orderIds: new Set<string>(),
+    };
+    row.orderIds.add(receipt.ticketId);
+    row.total += receipt.total;
+    for (const p of receipt.payments) {
+      if (p.method === "cash") row.cash += p.amount;
+      else row.mpesa += p.amount;
+    }
+    rows.set(waiterId, row);
+  }
+
+  return Array.from(rows.values())
+    .map(({ orderIds, ...row }) => ({ ...row, orders: orderIds.size }))
+    .sort((a, b) => b.total - a.total);
 }

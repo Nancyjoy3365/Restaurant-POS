@@ -6,7 +6,8 @@ export { ApiError };
 
 export const fetchPayments = () => request<Payment[]>("/api/payments");
 
-export const fetchReceipts = () => request<Receipt[]>("/api/receipts");
+// Takes the full URL (the SWR key from useReceipts), date range included.
+export const fetchReceipts = (url: string) => request<Receipt[]>(url);
 
 export const startBilling = (ticketId: string) =>
   request<TicketAndOrder>(`/api/orders/${ticketId}/start-billing`, { method: "POST" });

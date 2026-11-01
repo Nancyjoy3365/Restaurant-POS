@@ -22,15 +22,18 @@ import { useIngredients, useRecipes, useStockPurchases, useVendorPayments, useVe
 import { useLeaveRecords, useShifts, useStaff } from "@/lib/hooks/useStaff";
 import { usePayments, useReceipts } from "@/lib/hooks/useBilling";
 import { useMenu } from "@/lib/hooks/useMenu";
+import { useAllTickets } from "@/lib/hooks/useOrders";
 import { formatKES } from "@/lib/utils";
 import {
   computeNetBreakdown,
   revenueByPaymentMethod,
   itemsSoldReport,
+  salesByWaiter,
 } from "@/lib/reports";
 import { payoutForRange, paidLeaveAmountInRange } from "@/lib/payroll";
 import { NetTrendChart, type NetTrendPoint } from "@/components/reports/NetTrendChart";
 import { ItemsSoldTable } from "@/components/reports/ItemsSoldTable";
+import { WaiterSalesTable } from "@/components/reports/WaiterSalesTable";
 import type { PaymentMethod } from "@/lib/types";
 
 const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
@@ -55,8 +58,8 @@ function toDateInputValue(d: Date): string {
 const MAX_TREND_DAYS = 62;
 
 export default function ReportsPage() {
-  const { receipts } = useReceipts();
   const { menu } = useMenu();
+  const { tickets } = useAllTickets();
   const { recipes } = useRecipes();
   const { staff } = useStaff();
   const { shifts } = useShifts();
@@ -83,6 +86,7 @@ export default function ReportsPage() {
         23, 59, 59, 999
       )
     : rangeEndInput;
+  const { receipts } = useReceipts({ start: rangeStart, end: rangeEnd });
 
   // Every figure on this page — the top cards, the hero Net number, and each
   // day of the trend chart below — comes from this one function called with
@@ -135,6 +139,7 @@ export default function ReportsPage() {
   );
 
   const itemsSold = itemsSoldReport(receiptsInRange, menu);
+  const waiterSales = salesByWaiter(receiptsInRange, tickets, staff);
 
   // One bar per calendar day in range, reusing the exact same breakdown
   // function above — this is what makes the trend chart trustworthy instead
@@ -306,6 +311,19 @@ export default function ReportsPage() {
             </div>
           </StatCard>
         </div>
+
+        {waiterSales.length > 0 && (
+          <>
+            <div className="flex items-center gap-3 pt-2">
+              <h2 className="shrink-0 font-extrabold text-slate-900">Sales by Waiter</h2>
+              <div className="flex-1 h-px bg-warm-200" />
+              <span className="shrink-0 text-xs font-bold text-slate-500">
+                Completed orders only
+              </span>
+            </div>
+            <WaiterSalesTable rows={waiterSales} />
+          </>
+        )}
 
         {itemsSold.totalQty > 0 && (
           <>
