@@ -294,13 +294,13 @@ export default function ReportsPage() {
               </Link>
             )}
           </StatCard>
-          <StatCard icon={ArrowDownRight} label="Money Out" value={formatKES(moneyOut)} tone="warm">
+          <StatCard icon={ArrowDownRight} label="Expenses" value={formatKES(moneyOut)} tone="warm">
             <div className="mt-3 pt-3 border-t border-warm-200 space-y-1.5">
               <BreakdownRow icon={Users2} label="Staff payouts" amount={breakdown.staffPayouts} />
               <BreakdownRow icon={Truck} label="Vendor payments" amount={breakdown.vendorPayments} />
               <BreakdownRow icon={Boxes} label="Stock purchases" amount={breakdown.stockPurchases} />
               <div className="flex justify-between pt-1.5 border-t border-warm-200 text-xs font-extrabold text-slate-900">
-                <span>Total out</span>
+                <span>Total expenses</span>
                 <span className="tabular-nums">{formatKES(moneyOut)}</span>
               </div>
             </div>
