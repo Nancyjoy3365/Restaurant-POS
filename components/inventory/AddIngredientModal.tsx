@@ -22,6 +22,11 @@ const PACKAGING_OPTIONS = [
 // custom-unit text input in place of the dropdown.
 const ADD_CUSTOM_UNIT = "__add_custom_unit__";
 
+// Vendor picking is hidden for now (not removed) — flip back to true to
+// bring it back. While hidden, a new item is saved without an opening
+// vendor purchase, so nothing is owed to a vendor it was never chosen for.
+const SHOW_VENDOR = false;
+
 export function AddIngredientModal({
   item,
   onClose,
@@ -42,7 +47,7 @@ export function AddIngredientModal({
 
   const [name, setName] = useState(item?.name ?? "");
   const [packaging, setPackaging] = useState(item?.packaging ?? PACKAGING_OPTIONS[0]);
-  const [amount, setAmount] = useState(item ? String(item.totalCost) : "");
+  const [pricePerPiece, setPricePerPiece] = useState(item ? String(item.unitCost) : "");
   const [piece, setPiece] = useState(item ? String(item.piecesPerPackage) : "");
   // Left blank for a brand-new item until units of measure finish their
   // first load (see `selectedUnit` below) — there's no synchronous default
@@ -98,10 +103,14 @@ export function AddIngredientModal({
   // A single package is bought/created here — quantity (packages on hand)
   // is fixed at 1; restocking more packages later is RestockModal's job.
   const quantityNum = item?.quantity ?? 1;
-  const amountNum = Number(amount) || 0;
+  // The count and the price of one piece are what's typed in; the total
+  // paid is worked out from them, never entered by hand.
+  const unitCost = Number(pricePerPiece) || 0;
   const pieceNum = Number(piece) || 0;
-  const unitAmountNum = Number(unitAmount) || 0;
-  const unitCost = pieceNum > 0 ? amountNum / pieceNum : 0;
+  // Fractions are allowed (e.g. a 0.5 kg packet); rounded to the 2 decimal
+  // places the database keeps (Ingredient.UnitAmount is DECIMAL(12,2)).
+  const unitAmountNum = Math.round((Number(unitAmount) || 0) * 100) / 100;
+  const amountNum = unitCost * pieceNum;
   // A brand-new item is also its opening purchase — a vendor obligation is
   // created either way, so a vendor is required here too, not just on
   // restock. Editing an existing item's own fields needs no vendor.
@@ -109,10 +118,10 @@ export function AddIngredientModal({
     name.trim().length > 0 &&
     amountNum > 0 &&
     pieceNum > 0 &&
-    unitAmountNum >= 1 &&
+    unitAmountNum > 0 &&
     unitAmountNum <= 100 &&
     Boolean(selectedUnit) &&
-    (isEditing || Boolean(vendorId)) &&
+    (isEditing || !SHOW_VENDOR || Boolean(vendorId)) &&
     !saving;
 
   async function handleSave() {
@@ -141,7 +150,7 @@ export function AddIngredientModal({
       if (item) {
         await updateIngredient(item.id, fields);
       } else {
-        await createIngredient(fields, { vendorId });
+        await createIngredient(fields, SHOW_VENDOR ? { vendorId } : undefined);
       }
       onSaved?.();
       onClose();
@@ -181,7 +190,7 @@ export function AddIngredientModal({
             />
           </div>
 
-          {!isEditing && (
+          {SHOW_VENDOR && !isEditing && (
             <div>
               <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
                 Vendor
@@ -300,9 +309,9 @@ export function AddIngredientModal({
               </label>
               <input
                 type="number"
-                min="1"
+                min="0.01"
                 max="100"
-                step="0.1"
+                step="any"
                 value={unitAmount}
                 onChange={(e) => setUnitAmount(e.target.value)}
                 placeholder="e.g. 2.5"
@@ -314,25 +323,25 @@ export function AddIngredientModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-                Amount (KES)
-              </label>
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="e.g. 17280"
-                className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
-                Piece (per package)
+                Count (pcs)
               </label>
               <input
                 type="number"
                 value={piece}
                 onChange={(e) => setPiece(e.target.value)}
-                placeholder="e.g. 12"
+                placeholder="e.g. 4"
+                className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
+                Price per piece (KES)
+              </label>
+              <input
+                type="number"
+                value={pricePerPiece}
+                onChange={(e) => setPricePerPiece(e.target.value)}
+                placeholder="e.g. 100"
                 className="mt-1 w-full rounded-xl border border-warm-200 px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
             </div>
@@ -340,11 +349,11 @@ export function AddIngredientModal({
 
           <div className="rounded-lg bg-warm-50 px-3 py-2.5">
             <div className="flex justify-between text-sm font-black text-slate-900">
-              <span>Unit Cost</span>
-              <span>{formatKES(unitCost)}</span>
+              <span>Total Amount</span>
+              <span>{formatKES(amountNum)}</span>
             </div>
             <div className="text-[11px] font-semibold text-slate-500 mt-0.5">
-              Calculated automatically as Amount ÷ Piece
+              Calculated automatically as Count × Price per piece
             </div>
           </div>
         </div>
