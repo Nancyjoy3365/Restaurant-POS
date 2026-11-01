@@ -16,19 +16,54 @@ export async function POST(_request: Request, { params }: { params: Promise<{ ti
     const orderDetailResult = await pool
       .request()
       .input("OrderId", sql.Int, Number(ticketId))
-      .query<{ OrderDetailId: number }>("SELECT OrderDetailId FROM dbo.OrderDetail WHERE OrderId = @OrderId");
-    const orderDetailId = orderDetailResult.recordset[0]?.OrderDetailId;
-    if (!orderDetailId) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
+      .query<{
+        OrderDetailId: number;
+        BilledThroughRoundIndex: number;
+        RoundCount: number;
+        LatestReceiptId: number | null;
+        LatestQrDataUrl: string | null;
+        LatestInvoiceNumber: string | null;
+      }>(
+        `SELECT od.OrderDetailId, od.BilledThroughRoundIndex,
+                (SELECT COUNT(*) FROM dbo.[Round] r WHERE r.OrderDetailId = od.OrderDetailId) AS RoundCount,
+                lr.ReceiptId AS LatestReceiptId, lr.QrDataUrl AS LatestQrDataUrl, lr.InvoiceNumber AS LatestInvoiceNumber
+         FROM dbo.OrderDetail od
+         OUTER APPLY (
+           SELECT TOP 1 ReceiptId, QrDataUrl, InvoiceNumber FROM dbo.Receipt
+           WHERE OrderId = od.OrderId
+             AND EXISTS (SELECT 1 FROM dbo.ReceiptLineItem li WHERE li.ReceiptId = dbo.Receipt.ReceiptId)
+           ORDER BY IssuedAt DESC
+         ) lr
+         WHERE od.OrderId = @OrderId`
+      );
+    const orderDetail = orderDetailResult.recordset[0];
+    if (!orderDetail) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
+    const orderDetailId = orderDetail.OrderDetailId;
 
-    const finalizeResult = await pool
-      .request()
-      .input("OrderDetailId", sql.Int, orderDetailId)
-      .input("QrDataUrl", sql.NVarChar(sql.MAX), null)
-      .output("ReceiptId", sql.Int)
-      .output("InvoiceNumber", sql.NVarChar(50))
-      .execute("usp_FinalizeReceipt");
-    const receiptId = finalizeResult.output.ReceiptId as number;
-    const invoiceNumber = finalizeResult.output.InvoiceNumber as string;
+    // Every round is already billed, so finalizing again would only snapshot
+    // an empty receipt carrying the previous total (the cashier's cash-drop
+    // auto-complete can re-fire on an order it already finished) — hand back
+    // the existing receipt instead.
+    const alreadyBilled =
+      orderDetail.BilledThroughRoundIndex >= orderDetail.RoundCount &&
+      orderDetail.LatestReceiptId !== null;
+
+    let receiptId: number;
+    let invoiceNumber: string;
+    if (alreadyBilled) {
+      receiptId = orderDetail.LatestReceiptId!;
+      invoiceNumber = orderDetail.LatestInvoiceNumber!;
+    } else {
+      const finalizeResult = await pool
+        .request()
+        .input("OrderDetailId", sql.Int, orderDetailId)
+        .input("QrDataUrl", sql.NVarChar(sql.MAX), null)
+        .output("ReceiptId", sql.Int)
+        .output("InvoiceNumber", sql.NVarChar(50))
+        .execute("usp_FinalizeReceipt");
+      receiptId = finalizeResult.output.ReceiptId as number;
+      invoiceNumber = finalizeResult.output.InvoiceNumber as string;
+    }
 
     const [receiptRow, lineItemRows, paymentLineRows] = await Promise.all([
       pool
@@ -58,18 +93,21 @@ export async function POST(_request: Request, { params }: { params: Promise<{ ti
     ]);
     const receiptRowData = receiptRow.recordset[0];
 
-    const invoiceRef = paymentLineRows.recordset.map((p) => p.Reference).join(", ") || "N/A";
-    const { qrDataUrl } = await simulateEtimsSigning({
-      invoiceNumber,
-      invoiceRef,
-      total: receiptRowData.Total,
-    });
+    let qrDataUrl = alreadyBilled ? orderDetail.LatestQrDataUrl : null;
+    if (!qrDataUrl) {
+      const invoiceRef = paymentLineRows.recordset.map((p) => p.Reference).join(", ") || "N/A";
+      ({ qrDataUrl } = await simulateEtimsSigning({
+        invoiceNumber,
+        invoiceRef,
+        total: receiptRowData.Total,
+      }));
 
-    await pool
-      .request()
-      .input("ReceiptId", sql.Int, receiptId)
-      .input("QrDataUrl", sql.NVarChar(sql.MAX), qrDataUrl)
-      .execute("usp_SetReceiptQrCode");
+      await pool
+        .request()
+        .input("ReceiptId", sql.Int, receiptId)
+        .input("QrDataUrl", sql.NVarChar(sql.MAX), qrDataUrl)
+        .execute("usp_SetReceiptQrCode");
+    }
 
     const items: ReceiptLineItem[] = lineItemRows.recordset.map((row) => ({
       menuItemId: String(row.MenuItemId),

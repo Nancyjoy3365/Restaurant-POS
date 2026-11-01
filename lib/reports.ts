@@ -8,6 +8,9 @@ import type {
   ShiftEntry,
   Payment,
   LeaveRecord,
+  MenuCategory,
+  PaymentMethod,
+  MenuItem,
 } from "./types";
 import { payoutForRange } from "./payroll";
 
@@ -124,36 +127,120 @@ export function computeNetBreakdown(
   };
 }
 
-export function paymentMethodBreakdown(
-  receipts: Receipt[]
-): { cash: number; mpesa: number } {
-  let cash = 0;
-  let mpesa = 0;
+export interface RevenueByMethod {
+  // VAT-inclusive — what customers were actually charged, so it's directly
+  // comparable to the payments collected against it.
+  total: number;
+  vat: number;
+  methods: { method: PaymentMethod; amount: number }[];
+  // total minus every payment line. Positive: billed but not matched to any
+  // payment; negative: more was paid in than was billed.
+  unmatched: number;
+}
+
+const PAYMENT_METHOD_ORDER: PaymentMethod[] = ["mpesa", "cash"];
+
+export function revenueByPaymentMethod(receipts: Receipt[]): RevenueByMethod {
+  let total = 0;
+  let vat = 0;
+  const byMethod = new Map<PaymentMethod, number>();
   for (const receipt of receipts) {
+    total += receipt.total;
+    vat += receipt.vat;
     for (const p of receipt.payments) {
-      if (p.method === "cash") cash += p.amount;
-      else mpesa += p.amount;
+      byMethod.set(p.method, (byMethod.get(p.method) ?? 0) + p.amount);
     }
   }
-  return { cash, mpesa };
+  const methods = Array.from(byMethod, ([method, amount]) => ({ method, amount })).sort(
+    (a, b) => PAYMENT_METHOD_ORDER.indexOf(a.method) - PAYMENT_METHOD_ORDER.indexOf(b.method)
+  );
+  const paid = methods.reduce((sum, m) => sum + m.amount, 0);
+  return { total, vat, methods, unmatched: total - paid };
 }
 
-export interface ItemSalesTally {
+// Soda and Water share one group on the report; Packaging is left out
+// entirely (bags/containers aren't something "sold" in the menu sense).
+export type SalesGroup = "Main" | "Juice" | "Extras" | "Soda & water" | "Other";
+
+export const SALES_GROUP_ORDER: SalesGroup[] = ["Main", "Juice", "Extras", "Soda & water", "Other"];
+
+const SALES_GROUP_BY_CATEGORY: Record<MenuCategory, SalesGroup | null> = {
+  Main: "Main",
+  Juice: "Juice",
+  Extra: "Extras",
+  Soda: "Soda & water",
+  Water: "Soda & water",
+  Packaging: null,
+};
+
+const TAKEAWAY_RE = /\btake\s*-?\s*away\b/i;
+
+// The menu has no takeaway flag — takeaway versions are separate menu items
+// marked only in their name, spelled several ways ("Fish (Wet) Takeaway",
+// "Passion (Take away)", "Kachumbari Take Away"), with the in-house twin
+// sometimes labelled "(Inhouse)". Stripping those markers gives the shared
+// dish name both versions are counted under.
+function splitTakeaway(name: string): { baseName: string; isTakeaway: boolean } {
+  const isTakeaway = TAKEAWAY_RE.test(name);
+  const baseName = name
+    .replace(/\(\s*(take\s*-?\s*away|in\s*-?\s*house)\s*\)/gi, "")
+    .replace(new RegExp(TAKEAWAY_RE.source, "gi"), "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return { baseName: baseName || name, isTakeaway };
+}
+
+export interface ItemSalesRow {
+  key: string;
   name: string;
-  qty: number;
+  inHouse: number;
+  takeaway: number;
+  total: number;
 }
 
-// Sorted descending by quantity sold — callers take the head for best
-// sellers and the tail for worst (worst is only ever among items that sold
-// at least once; a never-ordered menu item isn't a meaningful "worst").
-export function itemSalesTally(receipts: Receipt[]): ItemSalesTally[] {
-  const tally = new Map<string, number>();
+export interface ItemSalesGroup {
+  group: SalesGroup;
+  total: number;
+  rows: ItemSalesRow[];
+}
+
+export interface ItemsSoldReport {
+  groups: ItemSalesGroup[];
+  totalQty: number;
+  // Distinct menu items sold, before takeaway versions are merged.
+  distinctMenuItems: number;
+}
+
+// A line whose menu item no longer exists falls under "Other" rather than
+// being dropped. Groups come back in SALES_GROUP_ORDER, rows by total.
+export function itemsSoldReport(receipts: Receipt[], menu: MenuItem[]): ItemsSoldReport {
+  const menuById = new Map(menu.map((m) => [m.id, m]));
+  const rowsByGroup = new Map<SalesGroup, Map<string, ItemSalesRow>>();
+  const menuItemIds = new Set<string>();
+  let totalQty = 0;
+
   for (const receipt of receipts) {
     for (const line of receipt.items) {
-      tally.set(line.name, (tally.get(line.name) ?? 0) + line.qty);
+      const menuItem = menuById.get(line.menuItemId);
+      const group = menuItem ? SALES_GROUP_BY_CATEGORY[menuItem.category] : "Other";
+      if (!group) continue;
+      const { baseName, isTakeaway } = splitTakeaway(menuItem?.name ?? line.name);
+      const key = baseName.toLowerCase();
+      const rows = rowsByGroup.get(group) ?? new Map<string, ItemSalesRow>();
+      const row = rows.get(key) ?? { key, name: baseName, inHouse: 0, takeaway: 0, total: 0 };
+      if (isTakeaway) row.takeaway += line.qty;
+      else row.inHouse += line.qty;
+      row.total += line.qty;
+      rows.set(key, row);
+      rowsByGroup.set(group, rows);
+      menuItemIds.add(line.menuItemId);
+      totalQty += line.qty;
     }
   }
-  return Array.from(tally, ([name, qty]) => ({ name, qty })).sort(
-    (a, b) => b.qty - a.qty
-  );
+
+  const groups = SALES_GROUP_ORDER.filter((g) => rowsByGroup.has(g)).map((group) => {
+    const rows = Array.from(rowsByGroup.get(group)!.values()).sort((a, b) => b.total - a.total);
+    return { group, total: rows.reduce((sum, r) => sum + r.total, 0), rows };
+  });
+  return { groups, totalQty, distinctMenuItems: menuItemIds.size };
 }

@@ -10,7 +10,6 @@ export async function simulateEtimsSigning(payload: {
   invoiceRef: string;
   total: number;
 }): Promise<{ qrDataUrl: string }> {
-  await new Promise((r) => setTimeout(r, 900));
   const verificationString = `https://etims.kra.go.ke/verify?inv=${payload.invoiceNumber}&ref=${payload.invoiceRef}&amt=${payload.total}`;
   const qrDataUrl = await QRCode.toDataURL(verificationString, {
     width: 160,

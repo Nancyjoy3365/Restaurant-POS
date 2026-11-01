@@ -22,7 +22,7 @@ export function PaymentMethodPicker({
     reference: string;
     customerName?: string;
     isCashSubstitution?: boolean;
-  }) => void;
+  }) => Promise<void>;
 }) {
   const [method, setMethod] = useState<PaymentMethod>("mpesa");
   const [mpesaCode, setMpesaCode] = useState("");
@@ -31,6 +31,7 @@ export function PaymentMethodPicker({
   const [partialMode, setPartialMode] = useState(false);
   const [partialAmount, setPartialAmount] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Whenever the balance changes (e.g. after a prior payment), clear the
   // in-progress amount fields so stale numbers don't linger — adjusting
@@ -68,36 +69,40 @@ export function PaymentMethodPicker({
     setPartialAmount("");
   }
 
-  async function confirmMpesaPayment(amount: number) {
+  // Stays locked until the server has actually saved the payment — releasing
+  // it before then let a second tap record the same payment twice.
+  async function record(payment: Parameters<typeof onRecorded>[0]) {
+    if (processing) return;
     setProcessing(true);
+    setError(null);
     try {
-      onRecorded({
-        method: "mpesa",
-        amount,
-        reference: mpesaCode.trim(),
-        customerName: customerName.trim() || undefined,
-        isCashSubstitution: cashSubstitution || undefined,
-      });
+      await onRecorded(payment);
       reset();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't record the payment. Please try again.");
     } finally {
       setProcessing(false);
     }
   }
 
-  async function confirmCashReceived() {
-    setProcessing(true);
-    try {
-      // Cash the waiter has physically collected — recorded in full so the
-      // cashier knows exactly how much to reconcile with this waiter later.
-      onRecorded({
-        method: "cash",
-        amount: balanceDue,
-        reference: "Received by waiter",
-      });
-      reset();
-    } finally {
-      setProcessing(false);
-    }
+  function confirmMpesaPayment(amount: number) {
+    return record({
+      method: "mpesa",
+      amount,
+      reference: mpesaCode.trim(),
+      customerName: customerName.trim() || undefined,
+      isCashSubstitution: cashSubstitution || undefined,
+    });
+  }
+
+  function confirmCashReceived() {
+    // Cash the waiter has physically collected — recorded in full so the
+    // cashier knows exactly how much to reconcile with this waiter later.
+    return record({
+      method: "cash",
+      amount: balanceDue,
+      reference: "Received by waiter",
+    });
   }
 
   return (
@@ -106,6 +111,12 @@ export function PaymentMethodPicker({
       <p className="text-xs text-slate-500 font-semibold mb-4">
         Balance due: {formatKES(balanceDue)}
       </p>
+
+      {error && (
+        <p className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+          {error}
+        </p>
+      )}
 
       <div className="grid grid-cols-2 gap-2 mb-4">
         {METHODS.map(({ id, label, icon: Icon }) => (

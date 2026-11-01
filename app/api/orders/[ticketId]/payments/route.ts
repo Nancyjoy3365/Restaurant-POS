@@ -16,9 +16,33 @@ export async function POST(request: Request, { params }: { params: Promise<{ tic
     const orderDetailResult = await pool
       .request()
       .input("OrderId", sql.Int, Number(ticketId))
-      .query<{ OrderDetailId: number }>("SELECT OrderDetailId FROM dbo.OrderDetail WHERE OrderId = @OrderId");
-    const orderDetailId = orderDetailResult.recordset[0]?.OrderDetailId;
-    if (!orderDetailId) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
+      .query<{ OrderDetailId: number; Total: number; RecordedForCycle: number; UnbilledRounds: number }>(
+        `SELECT od.OrderDetailId, ISNULL(od.Total, 0) AS Total,
+                (SELECT ISNULL(SUM(p.Amount), 0) FROM dbo.Payment p
+                 WHERE p.OrderDetailId = od.OrderDetailId
+                   AND p.BillingCycle = od.BilledThroughRoundIndex + 1) AS RecordedForCycle,
+                (SELECT COUNT(*) FROM dbo.[Round] r
+                 WHERE r.OrderDetailId = od.OrderDetailId
+                   AND r.RoundIndex > od.BilledThroughRoundIndex) AS UnbilledRounds
+         FROM dbo.OrderDetail od WHERE od.OrderId = @OrderId`
+      );
+    const orderDetail = orderDetailResult.recordset[0];
+    if (!orderDetail) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
+    const orderDetailId = orderDetail.OrderDetailId;
+
+    // Once the whole bill is already recorded (an M-Pesa payment without a
+    // code still counts — it's only awaiting the cashier's verification), or
+    // every round has already been receipted, another payment can only be a
+    // repeat tap, so refuse it rather than charging the customer twice.
+    const alreadyCovered =
+      orderDetail.UnbilledRounds === 0 ||
+      (orderDetail.Total > 0 && orderDetail.RecordedForCycle >= orderDetail.Total);
+    if (alreadyCovered) {
+      return NextResponse.json(
+        { error: "The full bill is already recorded for this order — no further payment is needed." },
+        { status: 409 }
+      );
+    }
 
     await pool
       .request()

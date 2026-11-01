@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import clsx from "clsx";
 import {
   Calendar,
   TrendingUp,
-  TrendingDown,
   PiggyBank,
   Users2,
   Scale,
@@ -14,19 +14,33 @@ import {
   Banknote,
   Smartphone,
   BarChart3,
-  Award,
+  Wallet,
+  ArrowDownRight,
+  AlertTriangle,
 } from "lucide-react";
 import { useIngredients, useRecipes, useStockPurchases, useVendorPayments, useVendors } from "@/lib/hooks/useInventory";
 import { useLeaveRecords, useShifts, useStaff } from "@/lib/hooks/useStaff";
 import { usePayments, useReceipts } from "@/lib/hooks/useBilling";
+import { useMenu } from "@/lib/hooks/useMenu";
 import { formatKES } from "@/lib/utils";
 import {
   computeNetBreakdown,
-  paymentMethodBreakdown,
-  itemSalesTally,
+  revenueByPaymentMethod,
+  itemsSoldReport,
 } from "@/lib/reports";
 import { payoutForRange, paidLeaveAmountInRange } from "@/lib/payroll";
 import { NetTrendChart, type NetTrendPoint } from "@/components/reports/NetTrendChart";
+import { ItemsSoldTable } from "@/components/reports/ItemsSoldTable";
+import type { PaymentMethod } from "@/lib/types";
+
+const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
+  mpesa: "M-Pesa",
+  cash: "Cash",
+};
+const PAYMENT_METHOD_ICON: Record<PaymentMethod, typeof Wallet> = {
+  mpesa: Smartphone,
+  cash: Banknote,
+};
 
 function toDateInputValue(d: Date): string {
   const yyyy = d.getFullYear();
@@ -42,6 +56,7 @@ const MAX_TREND_DAYS = 62;
 
 export default function ReportsPage() {
   const { receipts } = useReceipts();
+  const { menu } = useMenu();
   const { recipes } = useRecipes();
   const { staff } = useStaff();
   const { shifts } = useShifts();
@@ -88,11 +103,16 @@ export default function ReportsPage() {
   const marginPct =
     breakdown.revenue > 0 ? (breakdown.grossMargin / breakdown.revenue) * 100 : 0;
 
+  // Margin is only meaningful once some sold dish has a recipe costed
+  // against ingredients — with no COGS at all it would just read 100%.
+  const cogsTracked = breakdown.cogs > 0;
+  const moneyOut =
+    breakdown.staffPayouts + breakdown.vendorPayments + breakdown.stockPurchases;
+
   const receiptsInRange = receipts.filter(
     (r) => r.issuedAt >= rangeStart.getTime() && r.issuedAt <= rangeEnd.getTime()
   );
-  const { cash: cashRevenue, mpesa: mpesaRevenue } =
-    paymentMethodBreakdown(receiptsInRange);
+  const revenueByMethod = revenueByPaymentMethod(receiptsInRange);
 
   const paidLeaveTotal = staff.reduce(
     (sum, member) =>
@@ -114,11 +134,7 @@ export default function ReportsPage() {
       p.purchasedAt >= rangeStart.getTime() && p.purchasedAt <= rangeEnd.getTime()
   );
 
-  const itemTally = itemSalesTally(receiptsInRange);
-  const bestSellers = itemTally.slice(0, 5);
-  // Only split off a distinct "worst" list once there are enough items that
-  // it wouldn't just be the same list as bestSellers in reverse.
-  const worstSellers = itemTally.length > 5 ? itemTally.slice(-5).reverse() : [];
+  const itemsSold = itemsSoldReport(receiptsInRange, menu);
 
   // One bar per calendar day in range, reusing the exact same breakdown
   // function above — this is what makes the trend chart trustworthy instead
@@ -222,6 +238,88 @@ export default function ReportsPage() {
           </div>
         </div>
 
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <StatCard
+            icon={TrendingUp}
+            label="Revenue"
+            value={formatKES(revenueByMethod.total)}
+            sub={`incl. ${formatKES(revenueByMethod.vat)} VAT collected`}
+            tone="accent"
+          >
+            {(revenueByMethod.methods.length > 0 || revenueByMethod.unmatched !== 0) && (
+              <div className="mt-3 pt-3 border-t border-accent-200/60 space-y-1.5">
+                {revenueByMethod.methods.map(({ method, amount }) => (
+                  <BreakdownRow
+                    key={method}
+                    icon={PAYMENT_METHOD_ICON[method] ?? Wallet}
+                    label={PAYMENT_METHOD_LABEL[method] ?? method}
+                    amount={amount}
+                  />
+                ))}
+                {/* Payments should add up to revenue exactly — surface any
+                    gap instead of letting the rows silently disagree. */}
+                {revenueByMethod.unmatched !== 0 && (
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-800">
+                    <span className="flex items-center gap-1.5">
+                      <AlertTriangle size={13} className="shrink-0" />
+                      {revenueByMethod.unmatched > 0
+                        ? "Not matched to a payment method"
+                        : "Paid above the billed total"}
+                    </span>
+                    <span className="font-extrabold tabular-nums">
+                      {formatKES(Math.abs(revenueByMethod.unmatched))}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </StatCard>
+          <StatCard
+            icon={Scale}
+            label="Gross Margin"
+            value={cogsTracked ? formatKES(breakdown.grossMargin) : "—"}
+            sub={
+              cogsTracked
+                ? `${marginPct.toFixed(0)}% margin`
+                : "Cost of goods isn't tracked yet, so margin can't be calculated"
+            }
+            tone="free"
+          >
+            {!cogsTracked && (
+              <Link
+                href="/inventory"
+                className="inline-block mt-2 text-xs font-extrabold text-accent-700 hover:text-accent-800"
+              >
+                Set up item costs →
+              </Link>
+            )}
+          </StatCard>
+          <StatCard icon={ArrowDownRight} label="Money Out" value={formatKES(moneyOut)} tone="warm">
+            <div className="mt-3 pt-3 border-t border-warm-200 space-y-1.5">
+              <BreakdownRow icon={Users2} label="Staff payouts" amount={breakdown.staffPayouts} />
+              <BreakdownRow icon={Truck} label="Vendor payments" amount={breakdown.vendorPayments} />
+              <BreakdownRow icon={Boxes} label="Stock purchases" amount={breakdown.stockPurchases} />
+              <div className="flex justify-between pt-1.5 border-t border-warm-200 text-xs font-extrabold text-slate-900">
+                <span>Total out</span>
+                <span className="tabular-nums">{formatKES(moneyOut)}</span>
+              </div>
+            </div>
+          </StatCard>
+        </div>
+
+        {itemsSold.totalQty > 0 && (
+          <>
+            <div className="flex items-center gap-3 pt-2">
+              <h2 className="shrink-0 font-extrabold text-slate-900">Sales by Item</h2>
+              <div className="flex-1 h-px bg-warm-200" />
+              <span className="shrink-0 text-xs font-bold text-slate-500 tabular-nums">
+                {itemsSold.totalQty} items · {itemsSold.distinctMenuItems} menu items
+              </span>
+            </div>
+            <ItemsSoldTable report={itemsSold} />
+          </>
+        )}
+
         {trendPoints.length > 1 && (
           <div className="rounded-xl border border-warm-200 bg-white p-5">
             <div className="flex items-center gap-2 mb-1">
@@ -234,55 +332,6 @@ export default function ReportsPage() {
             <NetTrendChart points={trendPoints} />
           </div>
         )}
-
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          <StatCard
-            icon={TrendingUp}
-            label="Revenue"
-            value={formatKES(breakdown.revenue)}
-            sub={`+${formatKES(breakdown.vatCollected)} VAT collected`}
-            tone="accent"
-          >
-            {(cashRevenue > 0 || mpesaRevenue > 0) && (
-              <div className="flex items-center gap-3 mt-2 pt-2 border-t border-accent-200/60 text-[11px] font-bold text-slate-600">
-                <span className="flex items-center gap-1">
-                  <Banknote size={11} /> {formatKES(cashRevenue)}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Smartphone size={11} /> {formatKES(mpesaRevenue)}
-                </span>
-              </div>
-            )}
-          </StatCard>
-          <StatCard
-            icon={Scale}
-            label="Gross Margin"
-            value={formatKES(breakdown.grossMargin)}
-            sub={`${marginPct.toFixed(0)}% margin`}
-            tone="free"
-          />
-          <StatCard
-            icon={Users2}
-            label="Staff Payouts"
-            value={formatKES(breakdown.staffPayouts)}
-            sub="For the selected period, all roles"
-            tone="warm"
-          />
-          <StatCard
-            icon={Truck}
-            label="Vendor Payments"
-            value={formatKES(breakdown.vendorPayments)}
-            sub="Vendors paid in this period"
-            tone="warm"
-          />
-          <StatCard
-            icon={Boxes}
-            label="Stock Purchases"
-            value={formatKES(breakdown.stockPurchases)}
-            sub="Inventory bought in this period"
-            tone="warm"
-          />
-        </div>
 
         {staffPayoutRows.length > 0 && (
           <div className="rounded-xl border border-warm-200 bg-white p-5">
@@ -383,56 +432,6 @@ export default function ReportsPage() {
             </div>
           </div>
         )}
-
-        {itemTally.length > 0 && (
-          <div className="rounded-xl border border-warm-200 bg-white p-5">
-            <div className="flex items-center gap-2 mb-1">
-              <Award size={16} className="text-accent-600" />
-              <h2 className="font-extrabold text-slate-900">
-                {worstSellers.length > 0 ? "Best & Worst Selling Items" : "Items Sold"}
-              </h2>
-            </div>
-            <p className="text-xs text-slate-500 font-semibold mb-3">
-              By quantity sold in the selected period.
-            </p>
-            <div className={clsx("grid gap-4", worstSellers.length > 0 && "sm:grid-cols-2")}>
-              <div>
-                {worstSellers.length > 0 && (
-                  <div className="flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-2">
-                    <TrendingUp size={12} /> Best Sellers
-                  </div>
-                )}
-                <div className="space-y-1.5">
-                  {bestSellers.map((item) => (
-                    <div key={item.name} className="flex justify-between text-sm">
-                      <span className="font-bold text-slate-700">{item.name}</span>
-                      <span className="font-extrabold text-slate-900">
-                        {item.qty} sold
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {worstSellers.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-2">
-                    <TrendingDown size={12} /> Worst Sellers
-                  </div>
-                  <div className="space-y-1.5">
-                    {worstSellers.map((item) => (
-                      <div key={item.name} className="flex justify-between text-sm">
-                        <span className="font-bold text-slate-700">{item.name}</span>
-                        <span className="font-extrabold text-slate-900">
-                          {item.qty} sold
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </main>
     </div>
   );
@@ -449,7 +448,7 @@ function StatCard({
   icon: typeof TrendingUp;
   label: string;
   value: string;
-  sub: string;
+  sub?: string;
   tone: "accent" | "warm" | "free";
   children?: React.ReactNode;
 }) {
@@ -467,11 +466,32 @@ function StatCard({
       <div className="flex items-center gap-1.5 text-xs font-extrabold text-slate-500 uppercase tracking-wide mb-1">
         <Icon size={14} /> {label}
       </div>
-      <div className="text-2xl font-black text-slate-900">{value}</div>
-      <div className="text-[11px] font-semibold text-slate-400 mt-0.5">
-        {sub}
-      </div>
+      <div className="text-2xl font-black text-slate-900 tabular-nums">{value}</div>
+      {sub && (
+        <div className="text-[11px] font-semibold text-slate-400 mt-0.5">
+          {sub}
+        </div>
+      )}
       {children}
+    </div>
+  );
+}
+
+function BreakdownRow({
+  icon: Icon,
+  label,
+  amount,
+}: {
+  icon: typeof TrendingUp;
+  label: string;
+  amount: number;
+}) {
+  return (
+    <div className="flex justify-between gap-2 text-xs font-bold text-slate-600">
+      <span className="flex items-center gap-1.5">
+        <Icon size={13} className="shrink-0" /> {label}
+      </span>
+      <span className="font-extrabold text-slate-900 tabular-nums">{formatKES(amount)}</span>
     </div>
   );
 }

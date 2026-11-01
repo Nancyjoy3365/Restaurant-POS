@@ -36,7 +36,15 @@ export async function GET(request: Request) {
   try {
     const pool = await getPool();
     const [receipts, lineItems, paymentLines] = await Promise.all([
-      pool.request().query<ReceiptRow>("SELECT * FROM dbo.Receipt ORDER BY IssuedAt DESC"),
+      // A receipt with no line items is a duplicate from re-finalizing an
+      // already-billed order (see finalize-receipt) — it repeats the real
+      // receipt's total with nothing sold or paid behind it, so it's left out
+      // rather than double-counting revenue.
+      pool.request().query<ReceiptRow>(
+        `SELECT r.* FROM dbo.Receipt r
+         WHERE EXISTS (SELECT 1 FROM dbo.ReceiptLineItem li WHERE li.ReceiptId = r.ReceiptId)
+         ORDER BY r.IssuedAt DESC`
+      ),
       pool.request().query<ReceiptLineItemRow>("SELECT * FROM dbo.ReceiptLineItem"),
       pool.request().query<ReceiptPaymentLineRow>("SELECT * FROM dbo.ReceiptPaymentLine"),
     ]);

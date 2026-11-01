@@ -28,7 +28,7 @@ export default function BillingPage() {
   const router = useRouter();
 
   const { ticket, order, mutate: mutateOrder } = useOrder(ticketId);
-  const { payments: allPayments } = usePayments();
+  const { payments: allPayments, mutate: mutatePayments } = usePayments();
   const { staff } = useStaff();
   const currentStaffId = usePosStore((s) => s.currentStaffId);
   const { vatRate } = useRestaurantSettings();
@@ -89,7 +89,10 @@ export default function BillingPage() {
       ...payment,
       collectedByStaffId: currentStaffId ?? undefined,
     });
-    await mutateOrder(result, { revalidate: false });
+    // Balance due is derived from the payments list, which otherwise only
+    // refreshes on its 30s poll — reload it now so the payment shows up
+    // immediately instead of the bill looking unpaid and inviting a repeat.
+    await Promise.all([mutateOrder(result, { revalidate: false }), mutatePayments()]);
     if (result.order?.paymentStatus === "paid") {
       setFinalizing(true);
       const { receipt: r } = await billingApi.finalizeReceipt(ticketId);
