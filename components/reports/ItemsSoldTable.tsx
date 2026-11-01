@@ -6,7 +6,7 @@ import type { ItemsSoldReport, SalesGroup } from "@/lib/reports";
 
 type GroupFilter = "All" | SalesGroup;
 
-const FILTER_CHIPS: GroupFilter[] = ["All", "Main", "Juice", "Extras", "Soda & water"];
+const FILTER_CHIPS: GroupFilter[] = ["All", "Main", "Juice", "Extras", "Soda & water", "Packaging"];
 
 // Same hues each category already uses on the menu/order screens
 // (lib/menuVisuals.ts), with Main on the brand accent.
@@ -15,6 +15,7 @@ const GROUP_COLOR: Record<SalesGroup, string> = {
   Juice: "bg-pink-400",
   Extras: "bg-emerald-500",
   "Soda & water": "bg-sky-500",
+  Packaging: "bg-amber-700",
   Other: "bg-slate-400",
 };
 
@@ -28,28 +29,6 @@ export function ItemsSoldTable({ report }: { report: ItemsSoldReport }) {
 
   return (
     <div className="rounded-xl border border-warm-200 bg-white p-5 space-y-4">
-      <div>
-        <div className="flex h-3 rounded-full overflow-hidden bg-warm-100">
-          {report.groups.map((g) => (
-            <div
-              key={g.group}
-              className={GROUP_COLOR[g.group]}
-              style={{ width: `${(g.total / report.totalQty) * 100}%` }}
-              title={`${g.group}: ${g.total} sold`}
-            />
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-x-5 gap-y-1.5 mt-2.5">
-          {report.groups.map((g) => (
-            <span key={g.group} className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
-              <span className={clsx("h-2.5 w-2.5 rounded-full", GROUP_COLOR[g.group])} />
-              {g.group}
-              <span className="font-extrabold text-slate-900 tabular-nums">{g.total}</span>
-            </span>
-          ))}
-        </div>
-      </div>
-
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-2 overflow-x-auto">
           {FILTER_CHIPS.map((c) => (

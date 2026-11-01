@@ -158,19 +158,19 @@ export function revenueByPaymentMethod(receipts: Receipt[]): RevenueByMethod {
   return { total, vat, methods, unmatched: total - paid };
 }
 
-// Soda and Water share one group on the report; Packaging is left out
-// entirely (bags/containers aren't something "sold" in the menu sense).
-export type SalesGroup = "Main" | "Juice" | "Extras" | "Soda & water" | "Other";
+// Soda and Water share one group on the report; every other category,
+// Packaging included, is its own group so the report covers everything sold.
+export type SalesGroup = "Main" | "Juice" | "Extras" | "Soda & water" | "Packaging" | "Other";
 
-export const SALES_GROUP_ORDER: SalesGroup[] = ["Main", "Juice", "Extras", "Soda & water", "Other"];
+export const SALES_GROUP_ORDER: SalesGroup[] = ["Main", "Juice", "Extras", "Soda & water", "Packaging", "Other"];
 
-const SALES_GROUP_BY_CATEGORY: Record<MenuCategory, SalesGroup | null> = {
+const SALES_GROUP_BY_CATEGORY: Record<MenuCategory, SalesGroup> = {
   Main: "Main",
   Juice: "Juice",
   Extra: "Extras",
   Soda: "Soda & water",
   Water: "Soda & water",
-  Packaging: null,
+  Packaging: "Packaging",
 };
 
 const TAKEAWAY_RE = /\btake\s*-?\s*away\b/i;
@@ -223,7 +223,6 @@ export function itemsSoldReport(receipts: Receipt[], menu: MenuItem[]): ItemsSol
     for (const line of receipt.items) {
       const menuItem = menuById.get(line.menuItemId);
       const group = menuItem ? SALES_GROUP_BY_CATEGORY[menuItem.category] : "Other";
-      if (!group) continue;
       const { baseName, isTakeaway } = splitTakeaway(menuItem?.name ?? line.name);
       const key = baseName.toLowerCase();
       const rows = rowsByGroup.get(group) ?? new Map<string, ItemSalesRow>();
