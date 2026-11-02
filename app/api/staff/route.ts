@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getPool, sql } from "@/lib/db";
 import type { StaffMember } from "@/lib/types";
 import { jsonWithEtag } from "@/lib/server/etag";
+import { sessionFromRequest } from "@/lib/server/session";
 
 type StaffRow = {
   StaffId: number;
@@ -37,7 +38,16 @@ export async function GET(request: Request) {
       .query<StaffRow>(
         "SELECT StaffId, Name, Role, Title, PayType, Rate, Phone, CommissionType, CommissionValue FROM dbo.Staff WHERE IsActive = 1 ORDER BY Name"
       );
-    return jsonWithEtag(request, result.recordset.map(toStaffMember));
+    const staff = result.recordset.map(toStaffMember);
+    // Every role needs names and roles (order screens, kitchen, billing),
+    // but pay and phone numbers are for Admins only.
+    const isAdmin = sessionFromRequest(request)?.role === "Admin";
+    return jsonWithEtag(
+      request,
+      isAdmin
+        ? staff
+        : staff.map((m) => ({ ...m, rate: 0, phone: undefined, commissionType: undefined, commissionValue: undefined }))
+    );
   } catch (err) {
     console.error("GET /api/staff failed:", err);
     const message = err instanceof Error ? err.message : String(err);

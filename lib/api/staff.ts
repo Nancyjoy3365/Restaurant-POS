@@ -35,7 +35,5 @@ export const fetchIncentiveRecords = () => request<IncentiveRecord[]>("/api/ince
 export const createIncentiveRecord = (record: Omit<IncentiveRecord, "id">) =>
   request<IncentiveRecord>("/api/incentive-records", { method: "POST", body: JSON.stringify(record) });
 
-export const fetchStaffPin = () => request<{ pin: string | null }>("/api/staff-pin");
-
 export const changeStaffPin = (currentPin: string, newPin: string) =>
   request<{ ok: true }>("/api/staff-pin", { method: "POST", body: JSON.stringify({ currentPin, newPin }) });

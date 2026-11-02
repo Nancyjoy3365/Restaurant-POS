@@ -16,10 +16,12 @@ import {
   X,
 } from "lucide-react";
 import { usePosStore } from "@/lib/store";
-import { useLeaveRecords, useStaff, useStaffPin } from "@/lib/hooks/useStaff";
+import { useSWRConfig } from "swr";
+import { useStaffDirectory } from "@/lib/hooks/useStaff";
+import { login as loginApi } from "@/lib/api/auth";
+import { ApiError } from "@/lib/api/client";
 import { clockIn as clockInApi } from "@/lib/api/staff";
 import { ROLE_LOGIN_ORDER, getDefaultRouteForRole } from "@/lib/roles";
-import { isOnApprovedLeave } from "@/lib/payroll";
 import { ChangePinModal } from "@/components/shared/ChangePinModal";
 import type { StaffRole } from "@/lib/types";
 
@@ -44,10 +46,9 @@ type Step = "role" | "staff" | "pin";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { staff, isLoading: staffLoading, error: staffError } = useStaff();
-  const { staffPin } = useStaffPin();
-  const { leaveRecords } = useLeaveRecords();
+  const { directory: staff, isLoading: staffLoading, error: staffError } = useStaffDirectory();
   const login = usePosStore((s) => s.login);
+  const { mutate: globalMutate } = useSWRConfig();
 
   const [step, setStep] = useState<Step>("role");
   const [role, setRole] = useState<StaffRole | null>(null);
@@ -56,7 +57,8 @@ export default function LoginPage() {
     name: string;
   } | null>(null);
   const [pin, setPin] = useState("");
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
   const [leaveConfirmStaff, setLeaveConfirmStaff] = useState<{
     id: string;
     name: string;
@@ -71,12 +73,15 @@ export default function LoginPage() {
   function goToPin(staffId: string, staffName: string) {
     setSelectedStaff({ id: staffId, name: staffName });
     setPin("");
-    setError(false);
+    setError(null);
     setStep("pin");
   }
 
-  function proceedWithLogin(staffId: string) {
+  async function proceedWithLogin(staffId: string) {
     login(staffId);
+    // Anything fetched while logged out (e.g. the shell's staff list) came
+    // back 401 — refetch it all now that this device has a session.
+    await globalMutate(() => true);
     // Picking yourself off the staff grid is how staff start their shift —
     // clockIn is already a no-op if they're still clocked in from earlier
     // today, so this is safe to call every time without double-counting.
@@ -85,21 +90,28 @@ export default function LoginPage() {
     router.push(role ? getDefaultRouteForRole(role) : "/");
   }
 
-  function submitPin(candidate: string) {
-    if (!selectedStaff) return;
-    if (candidate === staffPin) {
-      setError(false);
-      proceedWithLogin(selectedStaff.id);
-    } else {
-      setError(true);
+  // The PIN is checked by the server, which sets this device's session on
+  // success — the browser never sees the real PIN.
+  async function submitPin(candidate: string) {
+    if (!selectedStaff || checking) return;
+    setChecking(true);
+    try {
+      await loginApi(selectedStaff.id, candidate);
+      setError(null);
+      await proceedWithLogin(selectedStaff.id);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't check the PIN — please try again.");
       setPin("");
+    } finally {
+      setChecking(false);
     }
   }
 
   function handlePinChange(value: string) {
+    if (checking) return;
     const digits = value.replace(/\D/g, "").slice(0, 3);
     setPin(digits);
-    setError(false);
+    setError(null);
     if (digits.length === 3) submitPin(digits);
   }
 
@@ -108,7 +120,7 @@ export default function LoginPage() {
     // might still come in to cover a shift — it just asks for a confirming
     // tap first, in case the leave entry is the one that's correct and the
     // person picked the wrong name by mistake.
-    if (isOnApprovedLeave(leaveRecords, staffId, new Date())) {
+    if (staff.find((m) => m.id === staffId)?.onLeave) {
       setLeaveConfirmStaff({ id: staffId, name: staffName });
       return;
     }
@@ -173,11 +185,7 @@ export default function LoginPage() {
           <div>
             <div className="grid grid-cols-3 gap-3 mb-4">
               {roleStaff.map((member) => {
-                const onLeave = isOnApprovedLeave(
-                  leaveRecords,
-                  member.id,
-                  new Date()
-                );
+                const onLeave = member.onLeave;
                 return (
                   <button
                     key={member.id}
@@ -290,9 +298,14 @@ export default function LoginPage() {
                 className="absolute inset-0 opacity-0 cursor-default"
               />
             </div>
+            {checking && (
+              <p className="text-xs font-extrabold text-slate-500 mb-2">
+                Checking…
+              </p>
+            )}
             {error && (
-              <p className="text-xs font-extrabold text-rose-600 mb-2">
-                Incorrect PIN — try again.
+              <p className="text-xs font-extrabold text-rose-600 mb-2 text-center">
+                {error}
               </p>
             )}
             <button

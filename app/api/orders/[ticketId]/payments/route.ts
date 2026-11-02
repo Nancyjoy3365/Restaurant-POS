@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { getPool, sql } from "@/lib/db";
 import { fetchTicketAndOrder } from "@/lib/server/orders";
+import { sessionFromRequest } from "@/lib/server/session";
 
 export async function POST(request: Request, { params }: { params: Promise<{ ticketId: string }> }) {
   const { ticketId } = await params;
   const body = await request.json();
-  const { method, amount, reference, customerName, isCashSubstitution, collectedByStaffId } = body;
+  const { method, amount, reference, customerName, isCashSubstitution } = body;
+  // Who took the payment is whoever is logged in on this device — taken from
+  // the server session, not from anything the browser sends.
+  const collectedByStaffId = sessionFromRequest(request)?.staffId;
 
   if (!method || !amount) {
     return NextResponse.json({ error: "method and amount are required" }, { status: 400 });

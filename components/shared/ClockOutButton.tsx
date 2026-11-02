@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { usePosStore } from "@/lib/store";
 import { clockOut as clockOutApi } from "@/lib/api/staff";
+import { logout as logoutApi } from "@/lib/api/auth";
 import { cancelEmptyTickets } from "@/lib/hooks/useOrders";
 
 // Shared by the desktop sidebar and the mobile order screen (which has no
@@ -29,10 +30,17 @@ export function ClockOutButton({
     // Fired without waiting — logout shouldn't stall on the network, and
     // neither the shift record nor the empty-ticket sweep are needed for
     // the navigation that follows.
+    const pending = [
+      cancelEmptyTickets().catch((err) => console.error("Empty-ticket cleanup failed:", err)),
+    ];
     if (shouldClockOut && currentStaffId) {
-      clockOutApi(currentStaffId).catch((err) => console.error("Clock-out failed:", err));
+      pending.push(clockOutApi(currentStaffId).catch((err) => console.error("Clock-out failed:", err)));
     }
-    cancelEmptyTickets().catch((err) => console.error("Empty-ticket cleanup failed:", err));
+    // Those calls still need this device's session, so the server-side
+    // logout (clearing the session cookie) waits for them to finish.
+    Promise.all(pending).then(() =>
+      logoutApi().catch((err) => console.error("Logout failed:", err))
+    );
     setOpen(false);
     logout();
     router.push("/login");

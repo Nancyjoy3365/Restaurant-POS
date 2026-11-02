@@ -2,12 +2,9 @@
 
 import { useState } from "react";
 import { X, CheckCircle2 } from "lucide-react";
-import { useStaffPin } from "@/lib/hooks/useStaff";
 import { changeStaffPin, ApiError } from "@/lib/api/staff";
 
 export function ChangePinModal({ onClose }: { onClose: () => void }) {
-  const { mutate: mutateStaffPin } = useStaffPin();
-
   const [currentPin, setCurrentPin] = useState("");
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
@@ -30,7 +27,6 @@ export function ChangePinModal({ onClose }: { onClose: () => void }) {
     setSaving(true);
     try {
       await changeStaffPin(currentPin, newPin);
-      await mutateStaffPin();
       setSaved(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to change PIN.");

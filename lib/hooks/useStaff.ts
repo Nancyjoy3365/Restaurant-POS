@@ -4,9 +4,16 @@ import {
   fetchLeaveRecords,
   fetchShifts,
   fetchStaff,
-  fetchStaffPin,
 } from "@/lib/api/staff";
+import { fetchStaffDirectory } from "@/lib/api/auth";
 import { SHARED_SWR_CONFIG, STATIC_SWR_CONFIG } from "./swrConfig";
+
+// Names and roles for the login screen — the one staff list available
+// before logging in (no pay or phone details).
+export function useStaffDirectory() {
+  const { data, error, isLoading } = useSWR("/api/auth/staff-directory", fetchStaffDirectory, STATIC_SWR_CONFIG);
+  return { directory: data ?? [], error, isLoading };
+}
 
 export function useStaff() {
   const { data, error, isLoading, mutate } = useSWR("/api/staff", fetchStaff, STATIC_SWR_CONFIG);
@@ -34,12 +41,4 @@ export function useIncentiveRecords() {
     STATIC_SWR_CONFIG
   );
   return { incentiveRecords: data ?? [], error, isLoading, mutate };
-}
-
-// Fetched fresh (not persisted to localStorage) so a PIN changed on one
-// device is what every other device compares against — same shared-PIN
-// behavior the app already had, just no longer stale across browsers.
-export function useStaffPin() {
-  const { data, error, isLoading, mutate } = useSWR("/api/staff-pin", fetchStaffPin, STATIC_SWR_CONFIG);
-  return { staffPin: data?.pin ?? null, error, isLoading, mutate };
 }
