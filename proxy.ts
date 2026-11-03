@@ -6,7 +6,7 @@ import {
   SESSION_STAFF_HEADER,
   verifySessionToken,
 } from "@/lib/server/session";
-import { allowedRoles, isPublicRoute } from "@/lib/server/permissions";
+import { allowedRoles, isAllowedBeforePinSetup, isPublicRoute } from "@/lib/server/permissions";
 
 // Every /api request passes through here. Apart from the few login-screen
 // routes in isPublicRoute, a request needs a valid signed session cookie
@@ -34,6 +34,15 @@ export function proxy(request: NextRequest) {
   }
   if (!session) {
     return NextResponse.json({ error: "Please log in again." }, { status: 401 });
+  }
+
+  // Logged in with the old shared PIN: nothing else until they choose
+  // their own PIN.
+  if (session.mustSetPin && !isAllowedBeforePinSetup(method, pathname)) {
+    return NextResponse.json(
+      { error: "Choose your own PIN first.", code: "PIN_SETUP_REQUIRED" },
+      { status: 403 }
+    );
   }
 
   const forbidden = () =>

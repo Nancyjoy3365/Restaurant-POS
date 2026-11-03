@@ -23,6 +23,7 @@ const rule = (methods: string, path: string, roles: StaffRole[]): Rule => ({
 
 const RULES: Rule[] = [
   rule("GET", "auth/me", ALL),
+  rule("POST", "auth/set-pin", ALL),
 
   // Taking orders, billing and the kitchen — every role does these.
   rule("GET,POST", "orders", ALL),
@@ -69,6 +70,7 @@ const RULES: Rule[] = [
   rule("DELETE", `menu/${ID}`, ADMIN),
   rule("POST", "staff", ADMIN),
   rule("PATCH", `staff/${ID}`, ADMIN),
+  rule("POST", `staff/${ID}/pin`, ADMIN),
   rule("GET", "shifts", ADMIN),
   rule("GET,POST", "leave-records", ADMIN),
   rule("PATCH,DELETE", `leave-records/${ID}`, ADMIN),
@@ -88,8 +90,17 @@ export function isPublicRoute(method: string, pathname: string): boolean {
     (method === "POST" && pathname === "/api/auth/login") ||
     (method === "POST" && pathname === "/api/auth/logout") ||
     (method === "GET" && pathname === "/api/auth/staff-directory") ||
-    // Changing the shared PIN is offered on the login screen; the route
-    // itself requires the current PIN and is rate-limited.
+    // Changing your own PIN is offered on the login screen; the route
+    // itself requires your current PIN and is rate-limited.
     (method === "POST" && pathname === "/api/staff-pin")
+  );
+}
+
+// All someone may do after logging in with the old shared PIN, until
+// they've chosen a PIN of their own.
+export function isAllowedBeforePinSetup(method: string, pathname: string): boolean {
+  return (
+    (method === "POST" && pathname === "/api/auth/set-pin") ||
+    (method === "GET" && pathname === "/api/auth/me")
   );
 }

@@ -35,5 +35,14 @@ export const fetchIncentiveRecords = () => request<IncentiveRecord[]>("/api/ince
 export const createIncentiveRecord = (record: Omit<IncentiveRecord, "id">) =>
   request<IncentiveRecord>("/api/incentive-records", { method: "POST", body: JSON.stringify(record) });
 
-export const changeStaffPin = (currentPin: string, newPin: string) =>
-  request<{ ok: true }>("/api/staff-pin", { method: "POST", body: JSON.stringify({ currentPin, newPin }) });
+// Someone changing their own PIN from the login screen.
+export const changeStaffPin = (staffId: string, currentPin: string, newPin: string) =>
+  request<{ ok: true }>("/api/staff-pin", {
+    method: "POST",
+    body: JSON.stringify({ staffId, currentPin, newPin }),
+  });
+
+// Admin only: set someone's PIN, or clear it (null) so they choose a new
+// one themselves at their next login.
+export const setStaffPin = (staffId: string, pin: string | null) =>
+  request<{ ok: true }>(`/api/staff/${staffId}/pin`, { method: "POST", body: JSON.stringify({ pin }) });

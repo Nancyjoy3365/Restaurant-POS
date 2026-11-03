@@ -14,6 +14,9 @@ export const SESSION_MAX_AGE_SECONDS = 16 * 60 * 60;
 export interface Session {
   staffId: string;
   role: StaffRole;
+  // Logged in with the old shared PIN because this person has no PIN of
+  // their own yet — until they set one, the proxy only lets them do that.
+  mustSetPin?: boolean;
   exp: number; // epoch seconds
 }
 
@@ -37,10 +40,15 @@ function sign(payload: string): string {
   return createHmac("sha256", secret()).update(payload).digest("base64url");
 }
 
-export function createSessionToken(staffId: string, role: StaffRole): string {
+export function createSessionToken(
+  staffId: string,
+  role: StaffRole,
+  options: { mustSetPin?: boolean } = {}
+): string {
   const session: Session = {
     staffId,
     role,
+    ...(options.mustSetPin ? { mustSetPin: true } : {}),
     exp: Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SECONDS,
   };
   const payload = Buffer.from(JSON.stringify(session)).toString("base64url");

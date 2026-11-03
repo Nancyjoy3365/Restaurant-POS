@@ -18,7 +18,7 @@ import {
 import { usePosStore } from "@/lib/store";
 import { useSWRConfig } from "swr";
 import { useStaffDirectory } from "@/lib/hooks/useStaff";
-import { login as loginApi } from "@/lib/api/auth";
+import { login as loginApi, logout as logoutApi } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 import { clockIn as clockInApi } from "@/lib/api/staff";
 import { ROLE_LOGIN_ORDER, getDefaultRouteForRole } from "@/lib/roles";
@@ -64,6 +64,7 @@ export default function LoginPage() {
     name: string;
   } | null>(null);
   const [changePinOpen, setChangePinOpen] = useState(false);
+  const [pinSetupOpen, setPinSetupOpen] = useState(false);
 
   function selectRole(r: StaffRole) {
     setRole(r);
@@ -96,9 +97,10 @@ export default function LoginPage() {
     if (!selectedStaff || checking) return;
     setChecking(true);
     try {
-      await loginApi(selectedStaff.id, candidate);
+      const result = await loginApi(selectedStaff.id, candidate);
       setError(null);
-      await proceedWithLogin(selectedStaff.id);
+      if (result.mustSetPin) setPinSetupOpen(true);
+      else await proceedWithLogin(selectedStaff.id);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't check the PIN — please try again.");
       setPin("");
@@ -375,8 +377,28 @@ export default function LoginPage() {
         </div>
       )}
 
-      {changePinOpen && (
-        <ChangePinModal onClose={() => setChangePinOpen(false)} />
+      {changePinOpen && selectedStaff && (
+        <ChangePinModal staff={selectedStaff} onClose={() => setChangePinOpen(false)} />
+      )}
+
+      {/* Logged in with the old shared PIN — they must choose their own
+          before going any further (the server blocks everything else). */}
+      {pinSetupOpen && selectedStaff && (
+        <ChangePinModal
+          mode="setup"
+          staff={selectedStaff}
+          onSaved={() => {
+            setPinSetupOpen(false);
+            proceedWithLogin(selectedStaff.id);
+          }}
+          onClose={() => {
+            // Backing out ends that limited session rather than leaving it
+            // half logged in.
+            setPinSetupOpen(false);
+            setPin("");
+            logoutApi().catch((err) => console.error("Logout failed:", err));
+          }}
+        />
       )}
     </div>
   );

@@ -258,6 +258,9 @@ export interface StaffMember {
   phone?: string;
   commissionType?: CommissionType;
   commissionValue?: number;
+  // Whether they've set their own login PIN yet (Admins only — the PIN
+  // itself is never sent to a browser).
+  hasPin?: boolean;
 }
 
 export type LeaveStatus = "approved" | "pending" | "declined";

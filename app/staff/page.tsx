@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Check,
   Ban,
+  KeyRound,
 } from "lucide-react";
 import {
   useIncentiveRecords,
@@ -44,6 +45,7 @@ import {
 } from "@/lib/staffImport";
 import { LeaveModal } from "@/components/staff/LeaveModal";
 import { IncentiveModal } from "@/components/staff/IncentiveModal";
+import { ChangePinModal } from "@/components/shared/ChangePinModal";
 import type {
   CommissionType,
   LeaveRecord,
@@ -97,6 +99,7 @@ export default function StaffPage() {
   const [search, setSearch] = useState("");
   const [leaveModalStaff, setLeaveModalStaff] = useState<StaffMember | null>(null);
   const [incentiveModalStaff, setIncentiveModalStaff] = useState<StaffMember | null>(null);
+  const [pinModalStaff, setPinModalStaff] = useState<StaffMember | null>(null);
   const [tab, setTab] = useState<"list" | "requests">("list");
   const [decliningLeave, setDecliningLeave] = useState<LeaveRecord | null>(null);
   const [declineReasonDraft, setDeclineReasonDraft] = useState("");
@@ -404,6 +407,7 @@ export default function StaffPage() {
                 <th className="text-right px-2 py-3">Earned</th>
                 <th className="text-center px-2 py-3">Leave</th>
                 <th className="text-center px-2 py-3">Incentives</th>
+                <th className="text-center px-2 py-3">Login PIN</th>
                 <th className="text-center px-4 py-3">Shift Status</th>
               </tr>
             </thead>
@@ -540,6 +544,26 @@ export default function StaffPage() {
                         >
                           <Gift size={12} />
                           {incentivesTotal > 0 ? `+${formatKES(incentivesTotal)}` : "—"}
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-2 py-3">
+                      <div className="flex justify-center">
+                        {/* Only whether a PIN exists — the PIN itself is never sent here. */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPinModalStaff(member);
+                          }}
+                          title={member.hasPin ? "Set a new PIN" : "Hasn't chosen their own PIN yet — set one"}
+                          className={clsx(
+                            "flex items-center gap-1 text-xs font-bold hover:text-accent-700",
+                            member.hasPin ? "text-slate-500" : "text-amber-600"
+                          )}
+                        >
+                          <KeyRound size={12} />
+                          {member.hasPin ? "Set" : "Not set"}
                         </button>
                       </div>
                     </td>
@@ -994,6 +1018,15 @@ export default function StaffPage() {
         <IncentiveModal
           staff={incentiveModalStaff}
           onClose={() => setIncentiveModalStaff(null)}
+        />
+      )}
+
+      {pinModalStaff && (
+        <ChangePinModal
+          mode="admin"
+          staff={pinModalStaff}
+          onSaved={() => mutateStaff()}
+          onClose={() => setPinModalStaff(null)}
         />
       )}
 

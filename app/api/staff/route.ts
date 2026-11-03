@@ -14,6 +14,7 @@ type StaffRow = {
   Phone: string | null;
   CommissionType: StaffMember["commissionType"] | null;
   CommissionValue: number | null;
+  HasPin?: number;
 };
 
 function toStaffMember(row: StaffRow): StaffMember {
@@ -27,6 +28,7 @@ function toStaffMember(row: StaffRow): StaffMember {
     phone: row.Phone ?? undefined,
     commissionType: row.CommissionType ?? undefined,
     commissionValue: row.CommissionValue ?? undefined,
+    hasPin: row.HasPin === undefined ? undefined : row.HasPin === 1,
   };
 }
 
@@ -36,17 +38,26 @@ export async function GET(request: Request) {
     const result = await pool
       .request()
       .query<StaffRow>(
-        "SELECT StaffId, Name, Role, Title, PayType, Rate, Phone, CommissionType, CommissionValue FROM dbo.Staff WHERE IsActive = 1 ORDER BY Name"
+        `SELECT StaffId, Name, Role, Title, PayType, Rate, Phone, CommissionType, CommissionValue,
+                CASE WHEN Pin IS NULL THEN 0 ELSE 1 END AS HasPin
+         FROM dbo.Staff WHERE IsActive = 1 ORDER BY Name`
       );
     const staff = result.recordset.map(toStaffMember);
     // Every role needs names and roles (order screens, kitchen, billing),
-    // but pay and phone numbers are for Admins only.
+    // but pay, phone numbers and PIN status are for Admins only.
     const isAdmin = sessionFromRequest(request)?.role === "Admin";
     return jsonWithEtag(
       request,
       isAdmin
         ? staff
-        : staff.map((m) => ({ ...m, rate: 0, phone: undefined, commissionType: undefined, commissionValue: undefined }))
+        : staff.map((m) => ({
+            ...m,
+            rate: 0,
+            phone: undefined,
+            commissionType: undefined,
+            commissionValue: undefined,
+            hasPin: undefined,
+          }))
     );
   } catch (err) {
     console.error("GET /api/staff failed:", err);
