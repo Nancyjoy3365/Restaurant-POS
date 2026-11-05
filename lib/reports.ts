@@ -227,7 +227,9 @@ export function itemsSoldReport(receipts: Receipt[], menu: MenuItem[]): ItemsSol
       const { baseName, isTakeaway } = splitTakeaway(menuItem?.name ?? line.name);
       const key = baseName.toLowerCase();
       const rows = rowsByGroup.get(group) ?? new Map<string, ItemSalesRow>();
-      const row = rows.get(key) ?? { key, name: baseName, inHouse: 0, takeaway: 0, total: 0 };
+      // "Kienyeji Take away" has no in-house twin, so keep the word in its name.
+      const name = isTakeaway && key === "kienyeji" ? "Kienyeji Takeaway" : baseName;
+      const row = rows.get(key) ?? { key, name, inHouse: 0, takeaway: 0, total: 0 };
       if (isTakeaway) row.takeaway += line.qty;
       else row.inHouse += line.qty;
       row.total += line.qty;
