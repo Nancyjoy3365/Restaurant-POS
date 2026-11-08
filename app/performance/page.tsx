@@ -10,7 +10,6 @@ import {
   ArrowDown,
   LayoutGrid,
   List as ListIcon,
-  Calendar,
 } from "lucide-react";
 import { usePosStore } from "@/lib/store";
 import { useAllTickets } from "@/lib/hooks/useOrders";
@@ -24,15 +23,10 @@ import {
 } from "@/lib/performance";
 import { salesByWaiter } from "@/lib/reports";
 import { avatarColorFor, initials } from "@/components/tickets/ticketStatus";
+import WeekOnWeekReport from "@/components/performance/WeekOnWeekReport";
+import DateRangeFilter, { toDateInputValue } from "@/components/performance/DateRangeFilter";
 
 type ViewMode = "cards" | "list";
-
-function toDateInputValue(d: Date): string {
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
 
 export default function PerformanceTrackerPage() {
   const { staff } = useStaff();
@@ -85,7 +79,7 @@ export default function PerformanceTrackerPage() {
       ? allWaiters.filter((m) => m.id === currentStaff.id)
       : allWaiters;
 
-  // Ranked by sales, using the same completed-receipt figures as the
+  // Ranked by orders completed; sales break ties, using the same completed-receipt figures as the
   // Financial Summary's Sales by Waiter (so duplicate taps or unverified
   // M-Pesa can't move anyone up). The amounts themselves deliberately live
   // only on the Financial Summary — here they only decide the order.
@@ -110,7 +104,7 @@ export default function PerformanceTrackerPage() {
         receipts, tickets, menu, waiter.id, rangeStart, rangeEnd
       ),
     }))
-    .sort((a, b) => b.sales - a.sales || b.orders - a.orders);
+    .sort((a, b) => b.orders - a.orders || b.sales - a.sales);
   // Reused by the Cards view below to badge #1/#2/#3.
   const rankById = new Map(
     listRows.map((row, i) => [row.waiter.id, i + 1])
@@ -127,29 +121,16 @@ export default function PerformanceTrackerPage() {
             ? "My Performance"
             : "Performance Tracker"}
         </h1>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {currentStaff?.role !== "Waiter" && (
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-2 rounded-full border border-warm-200 bg-white px-3 py-2">
-                <Calendar size={14} className="text-accent-600 shrink-0" />
-                <input
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  className="text-xs font-extrabold text-accent-700 outline-none bg-transparent"
-                />
-              </label>
-              <span className="text-xs font-extrabold text-slate-400">to</span>
-              <label className="flex items-center gap-2 rounded-full border border-warm-200 bg-white px-3 py-2">
-                <Calendar size={14} className="text-accent-600 shrink-0" />
-                <input
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  className="text-xs font-extrabold text-accent-700 outline-none bg-transparent"
-                />
-              </label>
-            </div>
+            <DateRangeFilter
+              from={fromDate}
+              to={toDate}
+              onChange={(f, t) => {
+                setFromDate(f);
+                setToDate(t);
+              }}
+            />
           )}
           {waiters.length > 1 && (
             <div className="flex items-center gap-1 rounded-full bg-warm-50 border border-warm-200 p-1">
@@ -186,7 +167,7 @@ export default function PerformanceTrackerPage() {
         <p className="text-sm font-bold text-slate-500">
           {rangeLabel}
           {!isWaiterView && waiters.length > 1 && (
-            <span className="text-slate-400"> · Ranked by sales</span>
+            <span className="text-slate-400"> · Ranked by orders</span>
           )}
         </p>
 
@@ -210,7 +191,7 @@ export default function PerformanceTrackerPage() {
                 <tbody>
                   {listRows.map((row, i) => {
                     const rank = i + 1;
-                    const isTop = rank === 1 && row.sales > 0;
+                    const isTop = rank === 1 && row.orders > 0;
                     const hasActivity = row.orders > 0;
                     const orderDelta = row.orders - row.ordersPrevious;
 
@@ -324,14 +305,14 @@ export default function PerformanceTrackerPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {listRows.map(({ waiter, orders, sales, priorityCategoryTallies }) => {
+            {listRows.map(({ waiter, orders, priorityCategoryTallies }) => {
               // Cards are ordered by the same standing the rank badge shows
-              // (listRows is already sorted by sales, highest first) — the
+              // (listRows is already sorted by orders, highest first) — the
               // leader's card always appears first, and the order shifts
               // live as performance changes instead of staying pinned to
               // the original staff-array order.
               const rank = rankById.get(waiter.id);
-              const showRank = !isWaiterView && rank !== undefined && sales > 0;
+              const showRank = !isWaiterView && rank !== undefined && orders > 0;
 
               return (
                 <div
@@ -366,7 +347,7 @@ export default function PerformanceTrackerPage() {
                           )}
                         >
                           {rank === 1 && <Trophy size={15} />}
-                          #{rank} in sales
+                          #{rank} in orders
                         </span>
                       )}
                     </div>
@@ -397,6 +378,19 @@ export default function PerformanceTrackerPage() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Admin-only: comparing waiters against each other would leak
+            colleagues' numbers to a waiter, who only ever sees their own. */}
+        {!isWaiterView && waiters.length > 0 && (
+          <div className="border-t border-warm-200 pt-6">
+            <WeekOnWeekReport
+              tickets={tickets}
+              waiters={waiters}
+              start={rangeStart}
+              end={rangeEnd}
+            />
           </div>
         )}
       </main>
