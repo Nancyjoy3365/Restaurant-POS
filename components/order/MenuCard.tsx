@@ -45,7 +45,11 @@ export function MenuCard({
         disabled={!item.available}
         onClick={() => onAdd({ spiceLevel, addOns })}
         aria-label={`Add ${item.name}`}
-        className="relative shrink-0 w-20 lg:w-36 aspect-square rounded-xl overflow-hidden hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:hover:opacity-100 transition"
+        className={clsx(
+          // No real photo → skip the gradient placeholder on mobile only.
+          !item.imageUrl && "hidden lg:block",
+          "relative shrink-0 w-20 lg:w-36 aspect-square rounded-xl overflow-hidden hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:hover:opacity-100 transition"
+        )}
       >
         <FoodImage
           imageUrl={item.imageUrl}

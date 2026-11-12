@@ -23,3 +23,23 @@ export function groupMenuItems(items: MenuItem[]): MenuGridEntry[] {
   }
   return entries;
 }
+
+// Takeaway versions of dishes are separate menu items named "… Takeaway".
+export function isTakeawayItem(m: MenuItem): boolean {
+  return /\btakeaway\b/i.test(m.variantGroup ?? m.name);
+}
+
+function menuBaseKey(m: MenuItem): string {
+  return (m.variantGroup ?? m.name).replace(/\btakeaway\b/i, "").trim().toLowerCase();
+}
+
+export type MenuMode = "dine_in" | "takeaway";
+
+// Dine-in hides the "… Takeaway" items; Takeaway shows those in place of
+// their dine-in counterparts. Items with no takeaway version (sodas, water…)
+// show in both. Purely a menu filter — the ticket's order type is unchanged.
+export function filterMenuForMode(items: MenuItem[], allMenu: MenuItem[], mode: MenuMode): MenuItem[] {
+  if (mode === "dine_in") return items.filter((m) => !isTakeawayItem(m));
+  const takeawayBases = new Set(allMenu.filter(isTakeawayItem).map(menuBaseKey));
+  return items.filter((m) => isTakeawayItem(m) || !takeawayBases.has(menuBaseKey(m)));
+}

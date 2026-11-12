@@ -8,7 +8,6 @@ import { useStaff } from "@/lib/hooks/useStaff";
 import { usePosStore } from "@/lib/store";
 import { setMenuItemAvailable, setMenuItemPriority, deleteMenuItem, ApiError } from "@/lib/api/menu";
 import { Toggle } from "@/components/shared/Toggle";
-import { FoodImage } from "@/components/shared/FoodImage";
 import { AddMenuItemModal } from "@/components/menu-management/AddMenuItemModal";
 import { formatKES } from "@/lib/utils";
 import type { MenuCategory, MenuItem } from "@/lib/types";
@@ -89,7 +88,7 @@ export default function MenuManagementPage() {
 
   return (
     <div className="flex-1 flex flex-col lg:h-full lg:overflow-hidden">
-      <header className="shrink-0 h-16 flex items-center justify-between px-6 border-b border-warm-200 bg-white">
+      <header className="shrink-0 h-16 hidden lg:flex items-center justify-between px-6 border-b border-warm-200 bg-white">
         <h1 className="text-xl font-black text-slate-900">Menu Management</h1>
         <button
           type="button"
@@ -100,7 +99,7 @@ export default function MenuManagementPage() {
         </button>
       </header>
 
-      <div className="shrink-0 flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-warm-200 bg-white">
+      <div className="shrink-0 hidden lg:flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-warm-200 bg-white">
         <div className="flex gap-2 overflow-x-auto">
           {(["All", ...CATEGORY_ORDER] as CategoryFilter[]).map((c) => (
             <button
@@ -161,7 +160,146 @@ export default function MenuManagementPage() {
         </div>
       </div>
 
-      <main className="flex-1 lg:min-h-0 flex flex-col p-6">
+      {/* ---------- Mobile layout (below lg) ---------- */}
+      <div className="lg:hidden flex-1 flex flex-col bg-background">
+        <div className="sticky top-0 z-30 bg-white border-b border-warm-200 px-4 pt-4 pb-3 space-y-3">
+          <div className="flex items-baseline justify-between">
+            <h1 className="text-xl font-black text-slate-900">Menu</h1>
+            <span className="text-xs font-semibold text-slate-500">
+              {categoryFilter === "All" && availabilityFilter === "All" && !query
+                ? "Showing all items"
+                : `Showing ${menu.length} item${menu.length === 1 ? "" : "s"}`}
+            </span>
+          </div>
+
+          <div className="relative">
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search menu items..."
+              className="w-full rounded-xl border border-warm-200 bg-warm-50 pl-9 pr-9 py-2.5 text-sm font-semibold outline-none focus:border-accent-400 focus:bg-white"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                aria-label="Clear search"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
+
+          <div className="-mx-4 px-4 flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {(["All", ...CATEGORY_ORDER] as CategoryFilter[]).map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCategoryFilter(c)}
+                className={clsx(
+                  "shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition-colors",
+                  categoryFilter === c
+                    ? "bg-accent-600 text-white"
+                    : "bg-warm-50 text-slate-600 border border-warm-200"
+                )}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <div className="inline-flex rounded-lg bg-warm-100 p-0.5">
+              {(["All", "Active", "Disabled"] as AvailabilityFilter[]).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setAvailabilityFilter(f)}
+                  className={clsx(
+                    "rounded-md px-3 py-1 text-xs font-bold transition-colors",
+                    availabilityFilter === f
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-500"
+                  )}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+            <span className="text-[11px] font-semibold text-slate-500">
+              Priority = shown first
+            </span>
+          </div>
+        </div>
+
+        <div className="flex-1 px-4 py-3 pb-24 space-y-2.5">
+          {menu.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-warm-200 py-6 text-center text-xs font-semibold text-slate-400">
+              No menu items match your filters
+            </div>
+          ) : (
+            menu.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center gap-3 rounded-xl border border-warm-200 bg-white px-3 py-2.5"
+              >
+                <button
+                  type="button"
+                  onClick={() => setEditingItem(item)}
+                  aria-label={`Edit ${item.name}`}
+                  className={clsx("min-w-0 flex-1 text-left", !item.available && "opacity-60")}
+                >
+                  <div className="text-sm font-bold text-slate-900 truncate">{item.name}</div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                    {item.category}
+                    {item.isPriority && (
+                      <span className="rounded-full bg-accent-50 px-1.5 py-px text-[10px] font-extrabold text-accent-700">
+                        Priority
+                      </span>
+                    )}
+                  </div>
+                </button>
+                <span className="shrink-0 text-sm font-extrabold text-slate-900">
+                  {formatKES(item.price)}
+                </span>
+                {isAdmin && !item.available && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteTarget(item);
+                      setDeleteError(null);
+                    }}
+                    aria-label={`Delete ${item.name}`}
+                    className="inline-flex shrink-0 items-center justify-center h-7 w-7 rounded-full border-2 border-rose-200 text-rose-600"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
+                <Toggle
+                  checked={item.available}
+                  onChange={() => handleToggleAvailability(item)}
+                  label={`Toggle availability for ${item.name}`}
+                />
+              </div>
+            ))
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowAddModal(true)}
+          className="fixed right-4 bottom-20 z-30 inline-flex items-center gap-2 rounded-full bg-accent-600 active:bg-accent-700 text-white text-sm font-extrabold px-5 py-3.5 shadow-lg shadow-accent-600/30"
+        >
+          <Plus size={18} strokeWidth={3} /> Add item
+        </button>
+      </div>
+
+      <main className="hidden lg:flex flex-1 lg:min-h-0 flex-col p-6">
         <div className="rounded-2xl border border-warm-200 bg-white flex-1 lg:min-h-0 overflow-y-auto">
           {menu.length === 0 ? (
             <p className="text-slate-400 font-semibold text-center py-12">
@@ -171,8 +309,7 @@ export default function MenuManagementPage() {
           <table className="w-full text-sm">
             <thead className="bg-warm-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
               <tr>
-                <th className="sticky top-0 z-10 bg-warm-50 text-left px-2 py-3"></th>
-                <th className="sticky top-0 z-10 bg-warm-50 text-left px-2 py-3">Item</th>
+                <th className="sticky top-0 z-10 bg-warm-50 text-left px-4 py-3">Item</th>
                 <th className="sticky top-0 z-10 bg-warm-50 text-left px-2 py-3">Category</th>
                 <th className="sticky top-0 z-10 bg-warm-50 text-right px-2 py-3">Price</th>
                 <th className="sticky top-0 z-10 bg-warm-50 text-center px-2 py-3">Priority</th>
@@ -190,25 +327,8 @@ export default function MenuManagementPage() {
                       !item.available && "opacity-50"
                     )}
                   >
-                    <td className="px-2 py-2">
-                      <FoodImage
-                        imageUrl={item.imageUrl}
-                        category={item.category}
-                        name={item.name}
-                        className="h-10 w-10 rounded-lg"
-                        emojiClassName="text-lg"
-                      />
-                    </td>
-                    <td className="px-2 py-3 font-bold text-slate-900">
-                      <span className="flex items-center gap-1.5">
-                        <span
-                          className={clsx(
-                            "inline-block h-2.5 w-2.5 rounded-sm border-2",
-                            item.veg ? "border-emerald-600" : "border-rose-600"
-                          )}
-                        />
-                        {item.name}
-                      </span>
+                    <td className="px-4 py-3 font-bold text-slate-900">
+                      {item.name}
                     </td>
                     <td className="px-2 py-3 text-slate-600 font-semibold">
                       {item.category}

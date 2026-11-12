@@ -14,6 +14,9 @@ import {
   RotateCcw,
   ChevronUp,
   ChevronDown,
+  Package,
+  Store,
+  Wrench,
 } from "lucide-react";
 import {
   useIngredients,
@@ -38,6 +41,55 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "services", label: "Services and Repair" },
   { id: "history", label: "Vendor Statement" },
 ];
+
+// Shorter labels for the mobile tab bar.
+const MOBILE_TABS: { id: Tab; label: string }[] = [
+  { id: "stock", label: "Stock" },
+  { id: "services", label: "Repairs" },
+  { id: "history", label: "Vendors" },
+];
+
+function MobileEmptyState({
+  icon: Icon,
+  title,
+  body,
+  action,
+  onAction,
+}: {
+  icon: typeof Package;
+  title: string;
+  body: string;
+  action?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center text-center px-6 py-16">
+      <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-100 text-accent-700">
+        <Icon size={26} strokeWidth={2} />
+      </span>
+      <h2 className="mt-4 text-base font-extrabold text-slate-900">{title}</h2>
+      <p className="mt-1.5 max-w-xs text-sm font-semibold text-slate-500">{body}</p>
+      {action && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-accent-600 active:bg-accent-700 text-white text-sm font-extrabold px-5 py-3"
+        >
+          <Plus size={16} strokeWidth={3} /> {action}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function MobileStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-warm-50 px-2 py-2">
+      <div className="text-[10px] font-semibold text-slate-500">{label}</div>
+      <div className="text-xs font-extrabold text-slate-900 mt-0.5 truncate">{value}</div>
+    </div>
+  );
+}
 
 const PAYMENT_TERMS_LABEL: Record<VendorPaymentTerms, string> = {
   "due-on-receipt": "Due on receipt",
@@ -216,7 +268,7 @@ export default function InventoryPage() {
 
   return (
     <div className="flex-1 flex flex-col lg:h-full lg:overflow-hidden">
-      <header className="shrink-0 h-16 flex items-center justify-between px-6 border-b border-warm-200 bg-white">
+      <header className="shrink-0 h-16 hidden lg:flex items-center justify-between px-6 border-b border-warm-200 bg-white">
         <h1 className="text-xl font-black text-slate-900">Inventory</h1>
         <div className="flex items-center gap-3">
           <div className="flex rounded-full border border-warm-200 p-0.5">
@@ -256,7 +308,290 @@ export default function InventoryPage() {
         </div>
       </header>
 
-      <main className="flex-1 lg:min-h-0 overflow-y-auto p-6">
+      {/* ---------- Mobile layout (below lg) ---------- */}
+      <div className="lg:hidden flex-1 flex flex-col bg-background">
+        <div className="sticky top-0 z-30 bg-white border-b border-warm-200">
+          <div className="flex items-center justify-between px-4 pt-4 pb-2">
+            <h1 className="text-xl font-black text-slate-900">Inventory</h1>
+            {tab === "stock" && (
+              <button
+                type="button"
+                onClick={() => setShowAddModal(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 active:bg-accent-700 text-white text-xs font-extrabold px-3 py-2"
+              >
+                <Plus size={14} strokeWidth={3} /> Add item
+              </button>
+            )}
+            {tab === "services" && (
+              <button
+                type="button"
+                onClick={() => setShowAddServiceModal(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 active:bg-accent-700 text-white text-xs font-extrabold px-3 py-2"
+              >
+                <Plus size={14} strokeWidth={3} /> Add repair
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-3">
+            {MOBILE_TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={clsx(
+                  "py-2.5 text-sm font-bold border-b-2 transition-colors",
+                  tab === t.id
+                    ? "border-accent-600 text-accent-700"
+                    : "border-transparent text-slate-500"
+                )}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 flex flex-col px-4 py-4 gap-3">
+          {tab === "stock" &&
+            (ingredients.length === 0 ? (
+              <MobileEmptyState
+                icon={Package}
+                title="No stock items yet"
+                body="Add the ingredients and supplies you buy, so you can track what's running low."
+                action="Add your first item"
+                onAction={() => setShowAddModal(true)}
+              />
+            ) : (
+              <>
+                <div className="rounded-xl border border-warm-200 bg-white divide-y divide-warm-100">
+                  {ingredients.map((ing) => (
+                    <div key={ing.id} className="flex items-center gap-3 px-3 py-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-extrabold text-slate-900 truncate">
+                          {ing.name}
+                        </div>
+                        <div className="text-xs font-semibold text-slate-500 truncate">
+                          {ing.quantity} × {ing.packaging} · {formatKES(ing.unitCost)} /{" "}
+                          {ing.unitAmount ?? 1} {ing.unit}
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-sm font-extrabold text-slate-900">
+                        {formatKES(ing.totalCost)}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setRestockingItem(ing)}
+                        aria-label={`Restock ${ing.name}`}
+                        className="inline-flex shrink-0 items-center justify-center h-8 w-8 rounded-full bg-accent-50 text-accent-700"
+                      >
+                        <PackagePlus size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingIngredient(ing)}
+                        aria-label={`Edit ${ing.name}`}
+                        className="inline-flex shrink-0 items-center justify-center h-8 w-8 rounded-full border border-warm-200 text-slate-500"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between rounded-xl bg-white border border-warm-200 px-3 py-3 text-sm">
+                  <span className="font-bold text-slate-600">Total cost of goods</span>
+                  <span className="font-black text-slate-900">
+                    {formatKES(ingredients.reduce((sum, ing) => sum + ing.totalCost, 0))}
+                  </span>
+                </div>
+              </>
+            ))}
+
+          {tab === "services" &&
+            (serviceExpenses.length === 0 ? (
+              <MobileEmptyState
+                icon={Wrench}
+                title="No repairs yet"
+                body="Record services and repairs you pay for, like gas refills or fixing equipment."
+                action="Add your first repair"
+                onAction={() => setShowAddServiceModal(true)}
+              />
+            ) : (
+              <>
+                <div className="rounded-xl border border-warm-200 bg-white divide-y divide-warm-100">
+                  {[...serviceExpenses]
+                    .sort((a, b) => b.incurredAt - a.incurredAt)
+                    .map((expense) => (
+                      <div key={expense.id} className="flex items-center gap-3 px-3 py-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-extrabold text-slate-900 truncate">
+                            {expense.description}
+                          </div>
+                          <div className="text-xs font-semibold text-slate-500 truncate">
+                            {expense.category} · {formatPaymentDate(expense.incurredAt)}
+                          </div>
+                        </div>
+                        <div className="shrink-0 text-sm font-extrabold text-slate-900">
+                          {formatKES(expense.amount)}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setEditingService(expense)}
+                          aria-label={`Edit ${expense.description}`}
+                          className="inline-flex shrink-0 items-center justify-center h-8 w-8 rounded-full border border-warm-200 text-slate-500"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteServiceExpense(expense.id)}
+                          aria-label={`Delete ${expense.description}`}
+                          className="inline-flex shrink-0 items-center justify-center h-8 w-8 rounded-full border border-rose-200 text-rose-600"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                </div>
+                <div className="flex items-center justify-between rounded-xl bg-white border border-warm-200 px-3 py-3 text-sm">
+                  <span className="font-bold text-slate-600">Total spent</span>
+                  <span className="font-black text-slate-900">
+                    {formatKES(serviceExpenses.reduce((sum, e) => sum + e.amount, 0))}
+                  </span>
+                </div>
+              </>
+            ))}
+
+          {tab === "history" &&
+            (vendors.length === 0 ? (
+              <MobileEmptyState
+                icon={Store}
+                title="No vendors yet"
+                body="Vendors you add in Settings will show here with what you owe each one."
+              />
+            ) : (
+              <>
+                <div className="relative">
+                  <Search
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+                  <input
+                    value={vendorSearch}
+                    onChange={(e) => setVendorSearch(e.target.value)}
+                    placeholder="Search vendors"
+                    className="w-full rounded-xl border border-warm-200 bg-white pl-9 pr-3 py-2.5 text-sm font-semibold outline-none focus:border-accent-400"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <select
+                      value={categoryFilter}
+                      onChange={(e) => setCategoryFilter(e.target.value)}
+                      className="w-full appearance-none rounded-xl border border-warm-200 bg-white pl-3 pr-8 py-2.5 text-sm font-semibold text-slate-700 outline-none focus:border-accent-400"
+                    >
+                      <option value="">All categories</option>
+                      {vendorCategories.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      size={16}
+                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAllPaymentsModal(true)}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-warm-200 bg-white px-3 text-sm font-bold text-slate-700"
+                  >
+                    <History size={15} /> Payments
+                  </button>
+                </div>
+
+                {vendorRows.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-warm-200 py-6 text-center text-xs font-semibold text-slate-400">
+                    No vendors match this filter
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {vendorRows.map((row) => {
+                      const owed = currentBalanceOwed(row.vendor.id);
+                      return (
+                        <div
+                          key={row.vendor.id}
+                          className="rounded-xl border border-warm-200 bg-white p-3"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-sm font-extrabold text-slate-900 truncate">
+                                {row.vendor.name}
+                              </div>
+                              <div className="text-xs font-semibold text-slate-500 truncate">
+                                {[row.vendor.contactPerson, row.vendor.phone]
+                                  .filter(Boolean)
+                                  .join(" · ") || row.vendor.category}
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div
+                                className={clsx(
+                                  "text-sm font-black",
+                                  row.endingBalance > 0
+                                    ? "text-amber-600"
+                                    : row.endingBalance < 0
+                                    ? "text-emerald-600"
+                                    : "text-slate-900"
+                                )}
+                              >
+                                {formatKES(Math.abs(row.endingBalance))}
+                              </div>
+                              <div className="text-[10px] font-semibold text-slate-400">
+                                {row.endingBalance > 0
+                                  ? "You owe"
+                                  : row.endingBalance < 0
+                                  ? "Owes you"
+                                  : "Balanced"}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 mt-3">
+                            <MobileStat label="Invoices" value={formatKES(row.invoicesTotal)} />
+                            <MobileStat label="Payments" value={formatKES(row.paymentsTotal)} />
+                            <MobileStat
+                              label="Terms"
+                              value={PAYMENT_TERMS_LABEL[row.vendor.paymentTerms ?? "net-30"]}
+                            />
+                          </div>
+                          <div className="flex gap-2 mt-3">
+                            <button
+                              type="button"
+                              disabled={owed <= 0}
+                              onClick={() => setPayoutVendor(row.vendor)}
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-accent-600 active:bg-accent-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-extrabold py-2.5"
+                            >
+                              <Banknote size={15} /> {owed > 0 ? "Pay vendor" : "Nothing owed"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setHistoryVendor(row.vendor)}
+                              className="rounded-lg border border-warm-200 bg-white px-4 text-sm font-bold text-slate-700"
+                            >
+                              History
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            ))}
+        </div>
+      </div>
+
+      <main className="hidden lg:block flex-1 lg:min-h-0 overflow-y-auto p-6">
         {tab === "stock" && (
           <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
             {ingredients.length === 0 ? (

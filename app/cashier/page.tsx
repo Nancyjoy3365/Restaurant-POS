@@ -7,6 +7,8 @@ import {
   Banknote,
   Calendar,
   CheckCircle2,
+  ChevronDown,
+  Info,
   RotateCcw,
   Search,
   Smartphone,
@@ -14,6 +16,7 @@ import {
   X,
   Plus,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { usePosStore } from "@/lib/store";
 import { useOpenOrders, useAllTickets } from "@/lib/hooks/useOrders";
 import { fetchOrder } from "@/lib/api/orders";
@@ -55,7 +58,52 @@ function startOfDay(d: Date): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 }
 
+function initials(name: string): string {
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase() || "?"
+  );
+}
+
+function MobileEmpty({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-dashed border-warm-200 py-5 text-center text-xs font-semibold text-slate-400">
+      {children}
+    </div>
+  );
+}
+
+function MobileStat({
+  label,
+  value,
+  highlight = false,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div className="rounded-lg bg-warm-50 px-2 py-2">
+      <div className="text-[10px] font-semibold text-slate-500">{label}</div>
+      <div
+        className={clsx(
+          "text-xs font-extrabold mt-0.5 truncate",
+          highlight ? "text-amber-600" : "text-slate-900"
+        )}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
 export default function CashierPage() {
+  const router = useRouter();
   const currentStaffId = usePosStore((s) => s.currentStaffId);
   const { tickets, orders, mutate: mutateOpenOrders } = useOpenOrders();
   const { tickets: allTickets } = useAllTickets();
@@ -82,6 +130,11 @@ export default function CashierPage() {
   const [waiterFilter, setWaiterFilter] = useState("");
   const [fromDate, setFromDate] = useState(() => toISODate(new Date()));
   const [toDate, setToDate] = useState(() => toISODate(new Date()));
+
+  // Mobile-only UI state: the "Record payment" bottom sheet and the
+  // Reconcile tab's info panel (explanation + date range pickers).
+  const [payTicketId, setPayTicketId] = useState<string | null>(null);
+  const [reconInfoOpen, setReconInfoOpen] = useState(false);
 
   const [cashDropOpen, setCashDropOpen] = useState(false);
   const [cashDropIsLumpsum, setCashDropIsLumpsum] = useState(false);
@@ -226,6 +279,34 @@ export default function CashierPage() {
 
   function cashDraftFor(ticketId: string, recordedCash: number): string {
     return cashDrafts[ticketId] ?? (recordedCash > 0 ? String(recordedCash) : "");
+  }
+
+  // Same per-ticket figures the desktop table computes inline, shared with
+  // the mobile cards and the Record payment sheet.
+  function paymentInfo(ticketId: string, order: TicketOrder) {
+    const total = order.billTotals?.total ?? 0;
+    const cyclePayments = paymentsForCurrentCycle(payments, order);
+    const mpesaPayment = cyclePayments.find((p) => p.method === "mpesa");
+    const mpesaAmount = cyclePayments
+      .filter((p) => p.method === "mpesa")
+      .reduce((sum, p) => sum + p.amount, 0);
+    const recordedCash = cyclePayments
+      .filter((p) => p.method === "cash")
+      .reduce((sum, p) => sum + p.amount, 0);
+    const draftValue = cashDraftFor(ticketId, recordedCash);
+    const draftAmount = Math.max(0, Number(draftValue) || 0);
+    return {
+      total,
+      mpesaPayment,
+      mpesaAmount,
+      recordedCash,
+      draftValue,
+      canComplete: mpesaAmount + draftAmount >= total && total > 0,
+      canReverse: cyclePayments.length > 0,
+      mpesaCleared:
+        mpesaAmount > 0 &&
+        cyclePayments.some((p) => p.method === "mpesa" && p.reference.trim() !== ""),
+    };
   }
 
   async function handleComplete(
@@ -557,7 +638,7 @@ export default function CashierPage() {
 
   return (
     <div className="flex-1 flex flex-col lg:h-full lg:overflow-hidden">
-      <header className="shrink-0 flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-warm-200 bg-white">
+      <header className="shrink-0 hidden lg:flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-warm-200 bg-white">
         <h1 className="text-xl font-black text-slate-900">Cashier</h1>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -634,7 +715,7 @@ export default function CashierPage() {
         </div>
       </header>
 
-      <main className="flex-1 lg:min-h-0 overflow-y-auto p-6 space-y-6">
+      <main className="hidden lg:block flex-1 lg:min-h-0 overflow-y-auto p-6 space-y-6">
         {tab === "live" && (
         <>
         <div className="rounded-xl border border-warm-200 bg-white overflow-hidden">
@@ -1311,6 +1392,619 @@ export default function CashierPage() {
         </div>
         )}
       </main>
+
+      {/* ---------- Mobile layout (below lg) ---------- */}
+      <div className="lg:hidden flex-1 flex flex-col bg-background">
+        <div className="sticky top-0 z-30 bg-white border-b border-warm-200">
+          <h1 className="px-4 pt-4 pb-2 text-xl font-black text-slate-900">Cashier</h1>
+          <div className="grid grid-cols-3">
+            {(
+              [
+                { id: "live", label: "Payments", count: queue.length },
+                { id: "reconciliation", label: "Reconcile", count: 0 },
+                { id: "takeaway", label: "Takeaway", count: 0 },
+              ] as const
+            ).map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={clsx(
+                  "flex items-center justify-center gap-1.5 py-2.5 text-sm font-bold border-b-2 transition-colors",
+                  tab === t.id
+                    ? "border-accent-600 text-accent-700"
+                    : "border-transparent text-slate-500"
+                )}
+              >
+                {t.label}
+                {t.count > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-accent-600 text-white text-[11px] font-extrabold">
+                    {t.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 px-4 py-4 space-y-5">
+          {tab === "live" && (
+            <>
+              <div className="relative">
+                <Search
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="M-Pesa code or customer"
+                  className="w-full rounded-xl border border-warm-200 bg-white pl-9 pr-9 py-2.5 text-sm font-semibold outline-none focus:border-accent-400"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    aria-label="Clear search"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  >
+                    <X size={15} />
+                  </button>
+                )}
+              </div>
+
+              {(() => {
+                const visible = queue.filter(({ order }) => rowMatches(order));
+                return (
+                  <section>
+                    <h2 className="text-sm font-extrabold text-slate-900 mb-2">
+                      Awaiting payment · {visible.length}
+                    </h2>
+                    {visible.length === 0 ? (
+                      <MobileEmpty>
+                        {query ? "No orders match your search" : "No orders awaiting payment"}
+                      </MobileEmpty>
+                    ) : (
+                      <div className="space-y-3">
+                        {visible.map(({ ticket, order }) => {
+                          const info = paymentInfo(ticket.id, order);
+                          const waiterName =
+                            staff.find((m) => m.id === order.waiterId)?.name ?? "Unassigned";
+                          return (
+                            <div
+                              key={ticket.id}
+                              className="rounded-xl border border-warm-200 bg-white p-3"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="text-sm font-extrabold text-slate-900">
+                                    Order No. {ticket.displayNumber}
+                                  </div>
+                                  <div className="text-xs font-semibold text-slate-500 truncate">
+                                    Waiter: {waiterName}
+                                    {ticketSubtitle(ticket) && ` · ${ticketSubtitle(ticket)}`}
+                                  </div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <div className="text-base font-black text-slate-900">
+                                    {formatKES(info.total)}
+                                  </div>
+                                  {info.mpesaAmount > 0 && (
+                                    <span
+                                      className={clsx(
+                                        "inline-flex rounded-full text-[10px] font-extrabold px-2 py-0.5 mt-0.5",
+                                        info.mpesaCleared
+                                          ? "bg-emerald-50 text-emerald-700"
+                                          : "bg-amber-50 text-amber-700"
+                                      )}
+                                    >
+                                      M-Pesa {info.mpesaCleared ? "paid" : "pending"}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex gap-2 mt-3">
+                                <button
+                                  type="button"
+                                  onClick={() => setPayTicketId(ticket.id)}
+                                  className="flex-1 rounded-lg bg-accent-600 active:bg-accent-700 text-white text-sm font-extrabold py-2.5"
+                                >
+                                  Record payment
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => router.push(`/ticket/${ticket.id}`)}
+                                  className="rounded-lg border border-warm-200 bg-white px-4 text-sm font-bold text-slate-700"
+                                >
+                                  View
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </section>
+                );
+              })()}
+
+              {query && completedMatches.length > 0 && (
+                <section>
+                  <h2 className="text-sm font-extrabold text-slate-900 mb-2">
+                    Completed matches · {completedMatches.length}
+                  </h2>
+                  <div className="rounded-xl border border-warm-200 bg-white divide-y divide-warm-100">
+                    {completedMatches.map(({ payment, ticket }) => (
+                      <div key={payment.id} className="flex items-center gap-3 px-3 py-2.5">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-extrabold text-slate-900">
+                            Order No. {ticket.displayNumber}
+                          </div>
+                          <div className="text-xs font-semibold text-slate-500 truncate">
+                            {payment.method === "mpesa"
+                              ? `M-Pesa ${payment.reference || ""}`
+                              : "Cash"}{" "}
+                            · {formatTime(payment.paidAt)}
+                          </div>
+                        </div>
+                        <div className="text-sm font-black text-slate-900">
+                          {formatKES(payment.amount)}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleReverseCompleted(payment.id)}
+                          aria-label="Reverse this payment and reopen the order"
+                          className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-rose-200 text-rose-600"
+                        >
+                          <RotateCcw size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              <section>
+                <h2 className="text-sm font-extrabold text-slate-900 mb-2">
+                  In progress · {activeOrders.length}
+                </h2>
+                {activeOrders.length === 0 ? (
+                  <MobileEmpty>No orders in progress</MobileEmpty>
+                ) : (
+                  <div className="rounded-xl border border-warm-200 bg-white divide-y divide-warm-100">
+                    {activeOrders.map(({ ticket, order }) => {
+                      const status = activeOrderStatus(order);
+                      const waiterName =
+                        staff.find((m) => m.id === order.waiterId)?.name ?? "Unassigned";
+                      return (
+                        <button
+                          key={ticket.id}
+                          type="button"
+                          onClick={() => router.push(`/ticket/${ticket.id}`)}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 text-left"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-extrabold text-slate-900">
+                              Order No. {ticket.displayNumber}
+                            </div>
+                            <div className="text-xs font-semibold text-slate-500 truncate">
+                              Waiter: {waiterName}
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-sm font-black text-slate-900">
+                              {formatKES(unbilledOrderTotal(order, vatRate).total)}
+                            </div>
+                            <span
+                              className={clsx(
+                                "inline-flex rounded-full text-[10px] font-extrabold px-2 py-0.5 mt-0.5",
+                                activeOrderStatusClasses(status)
+                              )}
+                            >
+                              {status}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            </>
+          )}
+
+          {tab === "reconciliation" && (
+            <>
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-extrabold text-slate-900">
+                    Cash owed · {rangeLabel}
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setReconInfoOpen((v) => !v)}
+                    aria-label="Period and details"
+                    className={clsx(
+                      "inline-flex items-center justify-center h-7 w-7 rounded-full border",
+                      reconInfoOpen
+                        ? "border-accent-400 bg-accent-50 text-accent-700"
+                        : "border-warm-200 bg-white text-slate-500"
+                    )}
+                  >
+                    <Info size={14} />
+                  </button>
+                </div>
+
+                {reconInfoOpen && (
+                  <div className="rounded-xl border border-warm-200 bg-white p-3 space-y-3">
+                    <p className="text-xs font-semibold text-slate-500">
+                      Bills and M-Pesa figures cover {rangeLabel}. Cash pending
+                      carries forward day to day until it&rsquo;s actually dropped.
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="text-[11px] font-extrabold text-slate-500 uppercase">
+                        From
+                        <input
+                          type="date"
+                          value={fromDate}
+                          max={toDate}
+                          onChange={(e) => setFromDate(e.target.value)}
+                          className="mt-1 w-full rounded-lg border border-warm-200 bg-white px-2 py-2 text-xs font-bold text-slate-700 normal-case outline-none focus:border-accent-400"
+                        />
+                      </label>
+                      <label className="text-[11px] font-extrabold text-slate-500 uppercase">
+                        To
+                        <input
+                          type="date"
+                          value={toDate}
+                          min={fromDate}
+                          onChange={(e) => setToDate(e.target.value)}
+                          className="mt-1 w-full rounded-lg border border-warm-200 bg-white px-2 py-2 text-xs font-bold text-slate-700 normal-case outline-none focus:border-accent-400"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <select
+                      value={waiterFilter}
+                      onChange={(e) => setWaiterFilter(e.target.value)}
+                      className="w-full appearance-none rounded-xl border border-warm-200 bg-white pl-3 pr-8 py-2.5 text-sm font-semibold text-slate-700 outline-none focus:border-accent-400"
+                    >
+                      <option value="">All staff</option>
+                      {waiters.map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      size={16}
+                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={openAddCashDropLumpsum}
+                    disabled={totalPendingAllWaiters() <= 0}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-accent-600 active:bg-accent-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-extrabold px-4"
+                  >
+                    <Plus size={15} /> Cash drop
+                  </button>
+                </div>
+
+                {owedRows.length === 0 ? (
+                  <MobileEmpty>Nobody currently owes anything</MobileEmpty>
+                ) : (
+                  <div className="space-y-3">
+                    {owedRows.map((row) => (
+                      <button
+                        key={row.waiterId}
+                        type="button"
+                        onClick={() => openAddCashDropForWaiter(row.waiterId)}
+                        className="w-full text-left rounded-xl border border-warm-200 bg-white p-3"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-accent-50 text-accent-700 text-xs font-extrabold">
+                            {initials(row.waiterName)}
+                          </span>
+                          <span className="flex-1 text-sm font-extrabold text-slate-900">
+                            {row.waiterName}
+                          </span>
+                          <span className="text-xs font-bold text-accent-700">Drop</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 mt-3">
+                          <MobileStat label="Bills" value={formatKES(row.sumAll)} />
+                          <MobileStat label="M-Pesa" value={formatKES(row.mpesaAmount)} />
+                          <MobileStat
+                            label="Cash pending"
+                            value={formatKES(row.totalPending)}
+                            highlight={row.totalPending > 0}
+                          />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section>
+                <h2 className="text-sm font-extrabold text-slate-900 mb-2">
+                  Cash drops · {rangeLabel}
+                </h2>
+                {historyRows.length === 0 ? (
+                  <MobileEmpty>No cash drops yet</MobileEmpty>
+                ) : (
+                  <div className="rounded-xl border border-warm-200 bg-white divide-y divide-warm-100">
+                    {historyRows.map(({ drop, waiterName }) => (
+                      <div key={drop.id} className="flex items-center gap-3 px-3 py-2.5">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-extrabold text-slate-900 truncate">
+                            {waiterName}
+                          </div>
+                          <div className="text-xs font-semibold text-slate-500 truncate">
+                            {drop.method === "mpesa"
+                              ? `M-Pesa${drop.reference ? ` ${drop.reference}` : ""}`
+                              : "Cash"}{" "}
+                            · {formatTime(drop.droppedAt, !isSingleDay)}
+                          </div>
+                        </div>
+                        <div className="text-sm font-black text-slate-900">
+                          {formatKES(drop.amount)}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            billingApi.deleteCashDrop(drop.id).then(() => mutateCashDrops())
+                          }
+                          aria-label="Delete cash drop"
+                          className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-rose-200 text-rose-600"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section>
+                <h2 className="text-sm font-extrabold text-slate-900 mb-2">
+                  Completed orders · {rangeLabel} · {completedRange.length}
+                </h2>
+                {completedRange.length === 0 ? (
+                  <MobileEmpty>No completed orders yet</MobileEmpty>
+                ) : (
+                  <div className="rounded-xl border border-warm-200 bg-white divide-y divide-warm-100">
+                    {completedRange.map(({ payment, ticket }) => {
+                      const waiterName =
+                        staff.find((m) => m.id === payment.waiterId)?.name ?? "Unassigned";
+                      return (
+                        <div key={payment.id} className="flex items-center gap-3 px-3 py-2.5">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-extrabold text-slate-900">
+                              Order No. {ticket.displayNumber}
+                            </div>
+                            <div className="text-xs font-semibold text-slate-500 truncate">
+                              {waiterName} ·{" "}
+                              {payment.method === "mpesa" ? "M-Pesa" : "Cash"} ·{" "}
+                              {formatTime(payment.paidAt, !isSingleDay)}
+                            </div>
+                          </div>
+                          <div className="text-sm font-black text-slate-900">
+                            {formatKES(payment.amount)}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleReverseCompleted(payment.id)}
+                            aria-label="Reverse this payment and reopen the order"
+                            className="inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-rose-200 text-rose-600"
+                          >
+                            <RotateCcw size={14} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            </>
+          )}
+
+          {tab === "takeaway" && (
+            <>
+              <div className="relative">
+                <Search
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  value={takeawaySearch}
+                  onChange={(e) => setTakeawaySearch(e.target.value)}
+                  placeholder="Search name or phone"
+                  className="w-full rounded-xl border border-warm-200 bg-white pl-9 pr-9 py-2.5 text-sm font-semibold outline-none focus:border-accent-400"
+                />
+                {takeawaySearch && (
+                  <button
+                    type="button"
+                    onClick={() => setTakeawaySearch("")}
+                    aria-label="Clear search"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  >
+                    <X size={15} />
+                  </button>
+                )}
+              </div>
+
+              <section>
+                <h2 className="text-sm font-extrabold text-slate-900 mb-2">
+                  Takeaway customers · {takeawayCustomers.length}
+                </h2>
+                {takeawayCustomers.length === 0 ? (
+                  <MobileEmpty>
+                    {takeawaySearch
+                      ? "No customers match your search"
+                      : "No takeaway customers yet"}
+                  </MobileEmpty>
+                ) : (
+                  <div className="rounded-xl border border-warm-200 bg-white divide-y divide-warm-100">
+                    {takeawayCustomers.map((c) => (
+                      <div key={c.key} className="flex items-center gap-3 px-3 py-2.5">
+                        <span className="inline-flex items-center justify-center h-9 w-9 shrink-0 rounded-full bg-accent-50 text-accent-700 text-sm font-extrabold">
+                          {(c.name.trim()[0] ?? "?").toUpperCase()}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-extrabold text-slate-900 truncate">
+                            {c.name}
+                          </div>
+                          <div className="text-xs font-semibold text-slate-500 truncate">
+                            {c.phone || "No phone saved"}
+                          </div>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-warm-100 px-2.5 py-1 text-[11px] font-extrabold text-slate-600">
+                          {c.orderCount} order{c.orderCount === 1 ? "" : "s"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </>
+          )}
+        </div>
+      </div>
+
+      {payTicketId &&
+        (() => {
+          const row = queue.find((r) => r.ticket.id === payTicketId);
+          if (!row) return null;
+          const { ticket, order } = row;
+          const info = paymentInfo(ticket.id, order);
+          const waiterName =
+            staff.find((m) => m.id === order.waiterId)?.name ?? "Unassigned";
+          return (
+            <div
+              className="lg:hidden fixed inset-0 z-50 flex items-end bg-slate-900/50"
+              onClick={() => setPayTicketId(null)}
+            >
+              <div
+                className="w-full max-h-[85vh] overflow-y-auto rounded-t-2xl bg-white p-5"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h3 className="font-extrabold text-slate-900">
+                      Order No. {ticket.displayNumber}
+                    </h3>
+                    <p className="text-xs font-semibold text-slate-500">
+                      Waiter: {waiterName}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPayTicketId(null)}
+                    aria-label="Close"
+                    className="text-slate-400"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="rounded-lg bg-warm-50 px-3 py-2.5 mb-3 flex justify-between text-sm font-black text-slate-900">
+                  <span>Bill total</span>
+                  <span>{formatKES(info.total)}</span>
+                </div>
+
+                <div className="rounded-lg border border-warm-200 px-3 py-2.5 mb-4 space-y-1.5 text-xs font-semibold">
+                  <div className="flex items-center justify-between">
+                    <span className="font-extrabold text-slate-500 uppercase tracking-wide">
+                      M-Pesa
+                    </span>
+                    <span
+                      className={clsx(
+                        "inline-flex rounded-full text-[10px] font-extrabold px-2 py-0.5",
+                        info.mpesaCleared
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-amber-50 text-amber-700"
+                      )}
+                    >
+                      {info.mpesaCleared ? "Paid" : "Pending"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Code</span>
+                    <span className="font-bold text-slate-800">
+                      {info.mpesaPayment?.reference || "—"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Amount</span>
+                    <span className="font-bold text-slate-800">
+                      {info.mpesaAmount > 0 ? formatKES(info.mpesaAmount) : "—"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Customer</span>
+                    <span className="font-bold text-slate-800">
+                      {info.mpesaPayment?.customerName || "—"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Time</span>
+                    <span className="font-bold text-slate-800">
+                      {info.mpesaPayment ? formatTime(info.mpesaPayment.paidAt) : "—"}
+                    </span>
+                  </div>
+                </div>
+
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">
+                  Cash received
+                </label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={info.draftValue}
+                  onChange={(e) =>
+                    setCashDrafts((d) => ({ ...d, [ticket.id]: e.target.value }))
+                  }
+                  placeholder="0"
+                  className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2.5 text-sm font-bold outline-none focus:border-accent-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+
+                <div className="flex gap-2 mt-4">
+                  <button
+                    type="button"
+                    disabled={!info.canReverse}
+                    onClick={() => setConfirmReverseTicketId(ticket.id)}
+                    aria-label="Reverse last payment"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-lg border-2 border-rose-200 text-rose-600 disabled:border-warm-200 disabled:text-slate-300 text-sm font-extrabold px-3"
+                  >
+                    <RotateCcw size={14} /> Reverse
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!info.canComplete}
+                    onClick={async () => {
+                      await handleComplete(
+                        ticket.id,
+                        order.waiterId,
+                        info.recordedCash,
+                        info.mpesaAmount,
+                        info.total
+                      );
+                      setPayTicketId(null);
+                    }}
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-accent-600 active:bg-accent-700 disabled:bg-slate-300 text-white font-extrabold py-3"
+                  >
+                    <CheckCircle2 size={16} /> Complete
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
       {cashDropOpen && (() => {
         const isLumpsum = cashDropIsLumpsum;

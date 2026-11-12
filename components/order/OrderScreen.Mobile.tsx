@@ -17,6 +17,7 @@ import {
   AlertCircle,
   X,
   Layers,
+  Search,
 } from "lucide-react";
 import { usePosStore } from "@/lib/store";
 import {
@@ -39,13 +40,11 @@ import { FoodImage } from "@/components/shared/FoodImage";
 import { ClockOutButton } from "@/components/shared/ClockOutButton";
 
 const MAX_HELD_ORDERS_PER_WAITER = 5;
-import { CategoryTabs } from "@/components/order/CategoryTabs";
-import { SearchBar } from "@/components/order/SearchBar";
-import { MenuCard } from "@/components/order/MenuCard";
-import { GroupedMenuCard } from "@/components/order/GroupedMenuCard";
-import { groupMenuItems } from "@/lib/menuGrouping";
+import { CATEGORIES } from "@/components/order/CategoryTabs";
+import { VariantPickerSheet } from "@/components/order/VariantPickerSheet";
+import { filterMenuForMode, groupMenuItems } from "@/lib/menuGrouping";
 import { ticketDetailSubtitle } from "@/components/tickets/ticketStatus";
-import type { MenuCategory, OrderLineItem } from "@/lib/types";
+import type { MenuCategory, MenuItem, OrderLineItem } from "@/lib/types";
 
 const VOID_REASONS = ["Customer changed mind", "Kitchen error", "Other"];
 const LONG_PRESS_MS = 500;
@@ -110,6 +109,14 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerCategory, setPickerCategory] = useState<MenuCategory>("Main");
   const [pickerQuery, setPickerQuery] = useState("");
+  // null = follow the ticket's own order type until the waiter flips it.
+  const [pickerModeChoice, setPickerMode] = useState<"dine_in" | "takeaway" | null>(null);
+  const pickerMode =
+    pickerModeChoice ?? (ticket?.orderType === "takeaway" ? "takeaway" : "dine_in");
+  const [variantSheet, setVariantSheet] = useState<{
+    name: string;
+    variants: MenuItem[];
+  } | null>(null);
 
   const bottomBarRef = useRef<HTMLDivElement>(null);
   const [bottomBarHeight, setBottomBarHeight] = useState(0);
@@ -144,9 +151,12 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
           m.aliases.some((a) => a.toLowerCase().includes(q)))
     );
   }, [pickerQuery, menu]);
-  const pickerItems =
-    pickerMatches ??
-    menu.filter((m) => m.available && m.category === pickerCategory);
+  const pickerItems = filterMenuForMode(
+    pickerMatches ?? menu.filter((m) => m.available && m.category === pickerCategory),
+    menu,
+    pickerMode
+  );
+  const latestRound = rounds[rounds.length - 1];
   // As on the desktop grid, grouping only applies to the default browsing
   // view — an active search still jumps straight to the specific variant.
   const pickerGridEntries = pickerMatches
@@ -342,15 +352,17 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
                             key={item.id}
                             className="flex gap-3 rounded-2xl bg-white border border-warm-200 shadow-sm p-3"
                           >
-                            <div className="shrink-0" {...longPress}>
-                              <FoodImage
-                                imageUrl={menuItem?.imageUrl}
-                                category={menuItem?.category ?? "Main"}
-                                name={item.name}
-                                className="h-14 w-14 rounded-xl"
-                                emojiClassName="text-xl"
-                              />
-                            </div>
+                            {menuItem?.imageUrl && (
+                              <div className="shrink-0" {...longPress}>
+                                <FoodImage
+                                  imageUrl={menuItem.imageUrl}
+                                  category={menuItem.category}
+                                  name={item.name}
+                                  className="h-14 w-14 rounded-xl"
+                                  emojiClassName="text-xl"
+                                />
+                              </div>
+                            )}
                             <div className="flex-1 min-w-0" {...longPress}>
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex items-center gap-1.5 min-w-0">
@@ -506,60 +518,203 @@ export function OrderScreenMobile({ ticketId }: { ticketId: string }) {
       {/* Item picker sheet */}
       {pickerOpen && (
         <div className="fixed inset-0 z-40 flex flex-col bg-background">
-          <div className="flex items-center gap-3 px-3 h-14 border-b border-warm-200 bg-white shrink-0">
-            <button
-              type="button"
-              onClick={() => setPickerOpen(false)}
-              aria-label="Close"
-              className="h-11 w-11 flex items-center justify-center rounded-full hover:bg-warm-50 text-slate-600"
-            >
-              <X size={20} />
-            </button>
-            <h2 className="font-extrabold text-slate-900">Add to Order</h2>
+          <div className="shrink-0 bg-white border-b border-warm-200 px-3 pt-2 pb-3 space-y-3">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPickerOpen(false)}
+                aria-label="Back to order"
+                className="h-10 w-10 shrink-0 flex items-center justify-center rounded-full hover:bg-warm-50 text-slate-600"
+              >
+                <ArrowLeft size={20} />
+              </button>
+              <div className="min-w-0 flex-1">
+                <h2 className="font-extrabold text-slate-900 leading-tight">Add to order</h2>
+                <p className="text-[11px] font-semibold text-slate-500 truncate">
+                  {ticketDetailSubtitle(ticket) || `Order No. ${ticket.displayNumber}`}
+                </p>
+              </div>
+              <div className="inline-flex shrink-0 rounded-lg bg-warm-100 p-0.5">
+                {(
+                  [
+                    { id: "dine_in", label: "Dine-in" },
+                    { id: "takeaway", label: "Takeaway" },
+                  ] as const
+                ).map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setPickerMode(m.id)}
+                    className={clsx(
+                      "rounded-md px-2.5 py-1.5 text-xs font-bold transition-colors",
+                      pickerMode === m.id
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-slate-500"
+                    )}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="relative">
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <input
+                value={pickerQuery}
+                onChange={(e) => setPickerQuery(e.target.value)}
+                placeholder="Search menu (try “fish”, “chapo”)"
+                className="w-full rounded-xl border border-warm-200 bg-warm-50 pl-9 pr-9 py-2.5 text-sm font-semibold outline-none focus:border-accent-400 focus:bg-white"
+              />
+              {pickerQuery && (
+                <button
+                  type="button"
+                  onClick={() => setPickerQuery("")}
+                  aria-label="Clear search"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                >
+                  <X size={15} />
+                </button>
+              )}
+            </div>
+
+            <div className="-mx-3 px-3 flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {CATEGORIES.map(({ name }) => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => {
+                    setPickerQuery("");
+                    setPickerCategory(name);
+                  }}
+                  className={clsx(
+                    "shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition-colors",
+                    !pickerMatches && pickerCategory === name
+                      ? "bg-accent-600 text-white"
+                      : "bg-warm-50 text-slate-600 border border-warm-200"
+                  )}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex flex-col gap-3 px-3 py-3 border-b border-warm-200 bg-white shrink-0">
-            <CategoryTabs
-              active={pickerCategory}
-              onChange={(c) => {
-                setPickerQuery("");
-                setPickerCategory(c);
-              }}
-            />
-            <SearchBar value={pickerQuery} onChange={setPickerQuery} />
-          </div>
+
           <div className="flex-1 overflow-y-auto p-3">
-            {pickerItems.length === 0 ? (
+            {pickerGridEntries.length === 0 ? (
               <p className="text-slate-400 font-semibold text-center py-16">
-                No items match &ldquo;{pickerQuery}&rdquo;.
+                {pickerMatches
+                  ? <>No items match &ldquo;{pickerQuery}&rdquo;.</>
+                  : "No items in this category."}
               </p>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {pickerGridEntries.map((entry) =>
-                  entry.kind === "single" ? (
-                    <MenuCard
-                      key={entry.item.id}
-                      item={entry.item}
-                      onAdd={(opts) => {
-                        if (latestRoundId)
-                          addItemMutation(ticketId, latestRoundId, entry.item, opts, vatRate);
-                      }}
-                    />
-                  ) : (
-                    <GroupedMenuCard
-                      key={entry.groupName}
-                      groupName={entry.groupName}
-                      variants={entry.variants}
-                      onSelect={(item, opts) => {
-                        if (latestRoundId)
-                          addItemMutation(ticketId, latestRoundId, item, opts, vatRate);
-                      }}
-                    />
-                  )
-                )}
+              <div className="rounded-2xl border border-warm-200 bg-white divide-y divide-warm-100 overflow-hidden">
+                {pickerGridEntries.map((entry) => {
+                  const variants = entry.kind === "single" ? [entry.item] : entry.variants;
+                  const name = entry.kind === "single" ? entry.item.name : entry.groupName;
+                  const ids = new Set(variants.map((v) => v.id));
+                  const lines = (latestRound?.items ?? []).filter((i) => ids.has(i.menuItemId));
+                  const qty = lines.reduce((s, i) => s + i.qty, 0);
+                  const minPrice = Math.min(...variants.map((v) => v.price));
+                  const subtitle =
+                    entry.kind === "single"
+                      ? formatKES(entry.item.price)
+                      : `From ${formatKES(minPrice)} · ${variants
+                          .map((v) => v.variantLabel ?? v.name)
+                          .join(", ")}`;
+                  // Anything with a choice to make (variants or a spice
+                  // level) goes through the picker sheet; plain items add
+                  // in one tap.
+                  const needsSheet =
+                    entry.kind === "group" ||
+                    (entry.item.spiceLevels?.length ?? 0) > 0;
+                  const add = () => {
+                    if (needsSheet) setVariantSheet({ name, variants });
+                    else if (latestRoundId)
+                      addItemMutation(ticketId, latestRoundId, variants[0], {}, vatRate);
+                  };
+                  const remove = () => {
+                    const last = lines[lines.length - 1];
+                    if (last) updateItemQtyMutation(ticketId, last.id, last.qty - 1, vatRate);
+                  };
+                  return (
+                    <div key={entry.kind === "single" ? entry.item.id : entry.groupName} className="flex items-center gap-3 px-3 py-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-extrabold text-slate-900 truncate">{name}</div>
+                        <div className="text-xs font-semibold text-slate-500 truncate">{subtitle}</div>
+                      </div>
+                      {qty > 0 ? (
+                        <div className="inline-flex shrink-0 items-center rounded-full border-2 border-accent-600 bg-white">
+                          <button
+                            type="button"
+                            onClick={remove}
+                            aria-label={`Remove one ${name}`}
+                            className="h-8 w-8 flex items-center justify-center text-accent-700"
+                          >
+                            <Minus size={15} strokeWidth={2.5} />
+                          </button>
+                          <span className="w-5 text-center text-sm font-extrabold text-slate-900">
+                            {qty}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={add}
+                            aria-label={`Add another ${name}`}
+                            className="h-8 w-8 flex items-center justify-center text-accent-700"
+                          >
+                            <Plus size={15} strokeWidth={2.5} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={add}
+                          aria-label={`Add ${name}`}
+                          className="h-9 w-9 shrink-0 flex items-center justify-center rounded-full bg-accent-100 text-accent-700 active:bg-accent-200"
+                        >
+                          <Plus size={18} strokeWidth={2.5} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
+
+          <div className="shrink-0 border-t border-warm-200 bg-white p-3">
+            <button
+              type="button"
+              onClick={() => setPickerOpen(false)}
+              className="w-full flex items-center justify-between gap-3 rounded-xl bg-accent-600 active:bg-accent-700 text-white px-4 py-3.5"
+            >
+              <span className="flex items-center gap-2 text-sm font-bold">
+                <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-white/25 px-1.5 text-xs font-extrabold">
+                  {itemCount}
+                </span>
+                item{itemCount === 1 ? "" : "s"}
+              </span>
+              <span className="text-sm font-extrabold">
+                Review order · {formatKES(total)}
+              </span>
+            </button>
+          </div>
         </div>
+      )}
+
+      {variantSheet && (
+        <VariantPickerSheet
+          groupName={variantSheet.name}
+          variants={variantSheet.variants}
+          onSelect={(item, opts) => {
+            if (latestRoundId) addItemMutation(ticketId, latestRoundId, item, opts, vatRate);
+            setVariantSheet(null);
+          }}
+          onClose={() => setVariantSheet(null)}
+        />
       )}
 
       {/* Void confirmation sheet */}

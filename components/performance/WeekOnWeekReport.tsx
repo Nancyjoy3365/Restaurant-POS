@@ -1,19 +1,32 @@
 "use client";
 
 import clsx from "clsx";
-import { ArrowDown, ArrowUp, Minus, TrendingUp } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import type { Ticket } from "@/lib/types";
-import { weekOnWeekReport } from "@/lib/performance";
+import { monthWeekReport, type MonthWeekRow, type PeriodRange } from "@/lib/performance";
 import { avatarColorFor, initials } from "@/components/tickets/ticketStatus";
 
-function shortDate(d: Date): string {
-  return d.toLocaleDateString("en-KE", { day: "numeric", month: "short" });
+function ordinal(n: number): string {
+  const v = n % 100;
+  if (v >= 11 && v <= 13) return `${n}th`;
+  return `${n}${({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th"}`;
 }
 
-function rangeLabel(b: { start: Date; end: Date }): string {
-  const startStr = shortDate(b.start);
-  const endStr = shortDate(b.end);
-  return startStr === endStr ? startStr : `${startStr} – ${endStr}`;
+function monthShort(d: Date): string {
+  return d.toLocaleDateString("en-KE", { month: "short" });
+}
+
+// "1st – 11th Nov", or "22nd Oct – 4th Nov" when the range crosses months.
+function rangeText(r: PeriodRange): string {
+  const sameMonth =
+    r.start.getMonth() === r.end.getMonth() && r.start.getFullYear() === r.end.getFullYear();
+  return sameMonth
+    ? `${ordinal(r.start.getDate())} – ${ordinal(r.end.getDate())} ${monthShort(r.end)}`
+    : `${ordinal(r.start.getDate())} ${monthShort(r.start)} – ${ordinal(r.end.getDate())} ${monthShort(r.end)}`;
+}
+
+function formatGrowth(n: number): string {
+  return `${n > 0 ? "+" : ""}${n}`;
 }
 
 function formatPct(pct: number | null, change: number): string {
@@ -22,54 +35,91 @@ function formatPct(pct: number | null, change: number): string {
   return `${rounded > 0 ? "+" : ""}${rounded}%`;
 }
 
-function formatChange(change: number): string {
-  return `${change > 0 ? "+" : ""}${change}`;
+function growthClass(n: number): string {
+  return n > 0 ? "text-status-free" : n < 0 ? "text-rose-600" : "text-slate-400";
 }
 
-// The date range comes from the Performance Tracker's own filter at the top
-// of the page, so the cards and this report always cover the same period.
+type Figures = Omit<MonthWeekRow, "waiterId" | "name">;
+
+function FigureCells({ f, bold = false }: { f: Figures; bold?: boolean }) {
+  const num = clsx("px-3 py-3 text-right tabular-nums", bold ? "font-black" : "font-bold");
+  return (
+    <>
+      <td className={clsx(num, "text-slate-500")}>{f.lastMonth}</td>
+      <td className={clsx(num, "text-slate-900")}>{f.monthToDate}</td>
+      <td className={clsx(num, growthClass(f.momGrowth))}>{formatGrowth(f.momGrowth)}</td>
+      <td className={clsx(num, growthClass(f.momGrowth))}>{formatPct(f.momPct, f.momGrowth)}</td>
+      <td className="w-4 border-l border-warm-200" aria-hidden />
+      <td className={clsx(num, "text-slate-500")}>{f.previousWeek}</td>
+      <td className={clsx(num, "text-slate-700")}>{f.lastWeek}</td>
+      <td className={clsx(num, "text-slate-900")}>{f.currentWeek}</td>
+      <td className={clsx(num, growthClass(f.wowGrowth))}>{formatGrowth(f.wowGrowth)}</td>
+      <td className={clsx(num, growthClass(f.wowGrowth))}>{formatPct(f.wowPct, f.wowGrowth)}</td>
+    </>
+  );
+}
+
+// Always measured from today — the columns define their own fixed periods
+// (last month, month to date, previous/last/current week), so the Performance
+// Tracker's date filter deliberately doesn't apply here.
 export default function WeekOnWeekReport({
   tickets,
   waiters,
-  start,
-  end,
 }: {
   tickets: Ticket[];
   waiters: { id: string; name: string }[];
-  start: Date;
-  end: Date;
 }) {
-  const { buckets, previousPeriod, inProgress, rows } = weekOnWeekReport(
-    tickets,
-    waiters,
-    start,
-    end
+  const report = monthWeekReport(tickets, waiters, new Date());
+  const { rows, totals } = report;
+  const mostImproved = rows.filter((r) => r.wowGrowth > 0).slice(0, 3);
+
+  const columns: { label: string; sub?: string; muted?: boolean }[] = [
+    { label: "Last Month", sub: report.lastMonth.start.toLocaleDateString("en-KE", { month: "long" }), muted: true },
+    { label: "Month to Date", sub: rangeText(report.monthToDate) },
+    { label: "MoM Growth" },
+    { label: "% MoM" },
+  ];
+  const weekColumns: { label: string; sub?: string; muted?: boolean }[] = [
+    { label: "Previous Week", sub: rangeText(report.previousWeek), muted: true },
+    { label: "Last Week", sub: rangeText(report.lastWeek) },
+    {
+      label: "Current Week",
+      sub: `${rangeText(report.currentWeek)} (${report.currentWeek.days}d)`,
+    },
+    { label: "WoW Growth" },
+    { label: "% WoW" },
+  ];
+
+  const headCell = (c: { label: string; sub?: string; muted?: boolean }) => (
+    <th
+      key={c.label}
+      className={clsx(
+        "text-right px-3 py-3 whitespace-nowrap align-top",
+        c.muted && "text-slate-400"
+      )}
+    >
+      {c.label}
+      <div className="normal-case font-bold tracking-normal text-slate-400 min-h-4">
+        {c.sub ?? ""}
+      </div>
+    </th>
   );
-  // Only someone who actually went up counts as "improved" — a smaller drop
-  // than everyone else is still a drop.
-  const mostImproved = rows.filter((r) => r.change > 0).slice(0, 3);
-  const periodText = rangeLabel({ start, end });
-  const previousText =
-    rangeLabel(previousPeriod) +
-    (inProgress
-      ? ` (up to ${previousPeriod.end.toLocaleTimeString("en-KE", { hour: "numeric", minute: "2-digit" })})`
-      : "");
 
   return (
     <section className="space-y-4 pt-2">
       <div>
         <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-          <TrendingUp size={18} className="text-accent-600" /> Week-on-Week Report
+          <TrendingUp size={18} className="text-accent-600" /> Month &amp; Week Growth
         </h2>
         <p className="text-xs font-semibold text-slate-500 mt-0.5">
-          Orders completed per week · {periodText} compared with {previousText} · ranked by
-          most improved
+          Orders completed · weeks run 1st–7th, 8th–14th, 15th–21st and 22nd–month end ·
+          ranked by most improved week on week
         </p>
       </div>
 
       {mostImproved.length === 0 && rows.length > 0 && (
         <div className="rounded-2xl border border-warm-200 bg-white px-4 py-3 text-sm font-bold text-slate-500">
-          No waiter has completed more orders than in {previousText} yet, so there&apos;s no
+          No waiter has completed more orders this week than last week yet, so there&apos;s no
           most improved for this period.
         </div>
       )}
@@ -97,18 +147,9 @@ export default function WeekOnWeekReport({
                   {i === 0 ? "Most improved" : `#${i + 1} most improved`}
                 </div>
                 <div className="font-extrabold text-slate-900 truncate">{r.name}</div>
-                <div
-                  className={clsx(
-                    "text-xs font-bold",
-                    r.change > 0
-                      ? "text-status-free"
-                      : r.change < 0
-                      ? "text-rose-600"
-                      : "text-slate-400"
-                  )}
-                >
-                  {formatChange(r.change)} orders ({formatPct(r.changePct, r.change)}) ·{" "}
-                  {r.previous} → {r.total}
+                <div className={clsx("text-xs font-bold", growthClass(r.wowGrowth))}>
+                  {formatGrowth(r.wowGrowth)} orders ({formatPct(r.wowPct, r.wowGrowth)}) ·{" "}
+                  {r.lastWeek} → {r.currentWeek}
                 </div>
               </div>
             </div>
@@ -122,37 +163,23 @@ export default function WeekOnWeekReport({
         <div className="rounded-2xl border border-warm-200 bg-white overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-warm-50 text-slate-500 text-xs font-extrabold uppercase tracking-wide">
+              <thead className="bg-warm-50 text-slate-500 text-xs font-extrabold">
                 <tr>
-                  <th className="text-left px-4 py-3 w-10">#</th>
-                  <th className="text-left px-2 py-3">Waiter</th>
-                  {buckets.map((b) => (
-                    <th key={b.start.getTime()} className="text-right px-2 py-3 whitespace-nowrap">
-                      Week
-                      <div className="normal-case font-bold tracking-normal text-slate-400">
-                        {rangeLabel(b)}
-                        {b.days < 7 && ` (${b.days}d)`}
-                      </div>
-                    </th>
-                  ))}
-                  <th className="text-right px-2 py-3 whitespace-nowrap">
-                    Total
-                    <div className="normal-case font-bold tracking-normal text-slate-400">
-                      {periodText}
-                    </div>
-                  </th>
-                  <th className="text-right px-2 py-3 whitespace-nowrap text-slate-400">
-                    Previous
-                    <div className="normal-case font-bold tracking-normal">{previousText}</div>
-                  </th>
-                  <th className="text-right px-4 py-3 whitespace-nowrap">Change</th>
+                  <th className="text-left px-4 py-3 w-10 align-top">#</th>
+                  <th className="text-left px-2 py-3 align-top">Waiter</th>
+                  {columns.map(headCell)}
+                  <th className="w-4 border-l border-warm-200" aria-hidden />
+                  {weekColumns.map(headCell)}
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => (
                   <tr
                     key={r.waiterId}
-                    className={clsx("border-t border-warm-100", i === 0 && r.change > 0 && "bg-accent-50/60")}
+                    className={clsx(
+                      "border-t border-warm-100",
+                      i === 0 && r.wowGrowth > 0 && "bg-accent-50/60"
+                    )}
                   >
                     <td className="px-4 py-3 text-slate-400 font-bold">{i + 1}</td>
                     <td className="px-2 py-3">
@@ -170,39 +197,14 @@ export default function WeekOnWeekReport({
                         </span>
                       </div>
                     </td>
-                    {r.weekly.map((n, idx) => (
-                      <td key={idx} className="px-2 py-3 text-right font-bold text-slate-700">
-                        {n}
-                      </td>
-                    ))}
-                    <td className="px-2 py-3 text-right font-black text-slate-900">{r.total}</td>
-                    <td className="px-2 py-3 text-right font-bold text-slate-400">{r.previous}</td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <span
-                        className={clsx(
-                          "inline-flex items-center gap-0.5 font-extrabold",
-                          r.change > 0
-                            ? "text-status-free"
-                            : r.change < 0
-                            ? "text-rose-600"
-                            : "text-slate-400"
-                        )}
-                      >
-                        {r.change > 0 ? (
-                          <ArrowUp size={13} />
-                        ) : r.change < 0 ? (
-                          <ArrowDown size={13} />
-                        ) : (
-                          <Minus size={13} />
-                        )}
-                        {formatChange(r.change)}
-                      </span>
-                      <div className="text-[11px] font-bold text-slate-400">
-                        {formatPct(r.changePct, r.change)}
-                      </div>
-                    </td>
+                    <FigureCells f={r} />
                   </tr>
                 ))}
+                <tr className="border-t-2 border-warm-200 bg-warm-50">
+                  <td className="px-4 py-3" />
+                  <td className="px-2 py-3 font-black text-slate-900">Total</td>
+                  <FigureCells f={totals} bold />
+                </tr>
               </tbody>
             </table>
           </div>

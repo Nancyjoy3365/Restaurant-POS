@@ -18,7 +18,7 @@ import {
   Settings,
   MoreHorizontal,
   ChevronRight,
-  X,
+  Store,
 } from "lucide-react";
 import clsx from "clsx";
 import { usePosStore } from "@/lib/store";
@@ -35,7 +35,7 @@ interface NavItem {
   label: string;
   mobileLabel: string;
   icon: typeof LayoutGrid;
-  children?: { href: string; label: string }[];
+  children?: { href: string; label: string; icon?: typeof LayoutGrid }[];
 }
 
 // mobileLabel is a short, non-wrapping variant for the cramped bottom-nav
@@ -56,8 +56,18 @@ const NAV_ITEMS: NavItem[] = [
     label: "Settings",
     mobileLabel: "Settings",
     icon: Settings,
-    children: [{ href: "/settings/vendors", label: "Vendors" }],
+    children: [{ href: "/settings/vendors", label: "Vendors", icon: Store }],
   },
+];
+
+// Section headings for the mobile "More" sheet. Anything overflowing into
+// the sheet that isn't listed here lands in a final, unlabeled group.
+const MORE_SHEET_GROUPS: { label: string; hrefs: string[] }[] = [
+  {
+    label: "Manage",
+    hrefs: ["/kitchen", "/menu-management", "/inventory", "/staff", "/settings/vendors"],
+  },
+  { label: "Reports", hrefs: ["/reports", "/performance"] },
 ];
 
 // Desktop-only grouping for visual hierarchy — mobile keeps its own flat
@@ -118,7 +128,7 @@ export function Sidebar() {
             href: c.href,
             label: c.label,
             mobileLabel: c.label,
-            icon: item.icon,
+            icon: c.icon ?? item.icon,
           })),
         ]
       : [item]
@@ -368,47 +378,65 @@ export function Sidebar() {
           onClick={() => setMoreSheetOpen(false)}
         >
           <div
-            className="w-full rounded-t-3xl bg-white p-4 pb-6 max-h-[70vh] overflow-y-auto"
+            className="w-full rounded-t-3xl bg-white px-4 pt-2 pb-6 max-h-[80vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-3 px-1">
-              <h3 className="font-extrabold text-slate-900">More</h3>
-              <button
-                type="button"
-                onClick={() => setMoreSheetOpen(false)}
-                aria-label="Close"
-                className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {mobileOverflowItems.map(({ href, label, icon: Icon }) => {
-                const active = isNavPathActive(href);
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    onClick={() => setMoreSheetOpen(false)}
-                    className={clsx(
-                      "flex flex-col items-center justify-center gap-1.5 min-h-[64px] rounded-2xl px-2 py-3 text-xs font-bold text-center transition-colors",
-                      active
-                        ? "bg-accent-100 text-accent-700"
-                        : "bg-warm-50 text-slate-600"
-                    )}
-                  >
-                    <Icon size={22} strokeWidth={2.5} />
-                    <span className="leading-tight">{label}</span>
-                  </Link>
-                );
-              })}
-              {currentStaff && (
-                <ClockOutButton className="flex flex-col items-center justify-center gap-1.5 min-h-[64px] rounded-2xl px-2 py-3 text-xs font-bold text-center transition-colors bg-rose-50 text-rose-600">
-                  <LogOut size={22} strokeWidth={2.5} />
-                  <span className="leading-tight">Sign Out</span>
-                </ClockOutButton>
-              )}
-            </div>
+            <button
+              type="button"
+              onClick={() => setMoreSheetOpen(false)}
+              aria-label="Close"
+              className="mx-auto mb-3 block h-1.5 w-10 rounded-full bg-warm-200"
+            />
+            {(() => {
+              const grouped = new Set(MORE_SHEET_GROUPS.flatMap((g) => g.hrefs));
+              const sections = [
+                ...MORE_SHEET_GROUPS.map((g) => ({
+                  label: g.label as string | null,
+                  items: mobileOverflowItems.filter((i) => g.hrefs.includes(i.href)),
+                })),
+                {
+                  label: null,
+                  items: mobileOverflowItems.filter((i) => !grouped.has(i.href)),
+                },
+              ].filter((s) => s.items.length > 0);
+              return sections.map((section, idx) => (
+                <div key={section.label ?? `other-${idx}`} className="mb-4">
+                  {section.label && (
+                    <div className="px-1 mb-1.5 text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                      {section.label}
+                    </div>
+                  )}
+                  <div className="rounded-2xl border border-warm-200 divide-y divide-warm-100 overflow-hidden">
+                    {section.items.map(({ href, label, icon: Icon }) => {
+                      const active = isNavPathActive(href);
+                      return (
+                        <Link
+                          key={href}
+                          href={href}
+                          onClick={() => setMoreSheetOpen(false)}
+                          className={clsx(
+                            "flex items-center gap-3 px-3 py-3 text-sm font-semibold transition-colors",
+                            active ? "bg-accent-50 text-accent-700" : "text-slate-800"
+                          )}
+                        >
+                          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-50 text-accent-600">
+                            <Icon size={16} strokeWidth={2.25} />
+                          </span>
+                          <span className="flex-1">{label}</span>
+                          <ChevronRight size={16} className="text-slate-400" />
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              ));
+            })()}
+            {currentStaff && (
+              <ClockOutButton className="w-full flex items-center justify-center gap-2 rounded-2xl border border-rose-200 py-3 text-sm font-bold text-rose-600 transition-colors active:bg-rose-50">
+                <LogOut size={16} strokeWidth={2.5} />
+                <span>Sign out</span>
+              </ClockOutButton>
+            )}
           </div>
         </div>
       )}

@@ -262,3 +262,150 @@ export function weekOnWeekReport(
 
   return { buckets, previousPeriod, inProgress, rows };
 }
+
+// ---------------------------------------------------------------------------
+// Month / week growth report (Performance Tracker table).
+//
+// Weeks are anchored to the calendar month rather than to Mondays: days
+// 1–7, 8–14, 15–21, and 22 to month-end (the last block absorbs the extra
+// 1–3 days). "Current week" is the block containing the as-of date, counted
+// only up to that date; "Last week" and "Previous week" are the two blocks
+// before it, crossing into the previous month when needed.
+// ---------------------------------------------------------------------------
+
+export interface PeriodRange {
+  start: Date;
+  end: Date;
+  /** Calendar days covered (partial for the current week / month to date). */
+  days: number;
+}
+
+export interface MonthWeekRow {
+  waiterId: string;
+  name: string;
+  lastMonth: number;
+  monthToDate: number;
+  momGrowth: number;
+  momPct: number | null;
+  previousWeek: number;
+  lastWeek: number;
+  currentWeek: number;
+  wowGrowth: number;
+  wowPct: number | null;
+}
+
+export interface MonthWeekReport {
+  lastMonth: PeriodRange;
+  monthToDate: PeriodRange;
+  previousWeek: PeriodRange;
+  lastWeek: PeriodRange;
+  currentWeek: PeriodRange;
+  rows: MonthWeekRow[];
+  totals: Omit<MonthWeekRow, "waiterId" | "name">;
+}
+
+function endOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+}
+
+function daysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+/** The month-anchored week block (1–7, 8–14, 15–21, 22–end) containing `d`. */
+function monthWeekBlock(d: Date): { start: Date; end: Date } {
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const idx = Math.min(Math.floor((d.getDate() - 1) / 7), 3);
+  const startDay = idx * 7 + 1;
+  const endDay = idx === 3 ? daysInMonth(y, m) : startDay + 6;
+  return { start: new Date(y, m, startDay), end: endOfDay(new Date(y, m, endDay)) };
+}
+
+function fullRange(start: Date, end: Date): PeriodRange {
+  const days = Math.round((startOfDay(end).getTime() - start.getTime()) / 86_400_000) + 1;
+  return { start, end, days };
+}
+
+function pct(change: number, base: number): number | null {
+  return base > 0 ? (change / base) * 100 : null;
+}
+
+export function monthWeekReport(
+  tickets: Ticket[],
+  waiters: { id: string; name: string }[],
+  asOf: Date
+): MonthWeekReport {
+  const y = asOf.getFullYear();
+  const m = asOf.getMonth();
+
+  const monthToDate = fullRange(new Date(y, m, 1), asOf);
+  const lastMonth = fullRange(new Date(y, m - 1, 1), endOfDay(new Date(y, m, 0)));
+
+  const currentBlock = monthWeekBlock(asOf);
+  const currentWeek = fullRange(currentBlock.start, asOf);
+  const lastBlock = monthWeekBlock(addDays(currentBlock.start, -1));
+  const lastWeek = fullRange(lastBlock.start, lastBlock.end);
+  const prevBlock = monthWeekBlock(addDays(lastBlock.start, -1));
+  const previousWeek = fullRange(prevBlock.start, prevBlock.end);
+
+  const paidByWaiter = new Map<string, number[]>();
+  for (const t of tickets) {
+    if (t.status !== "paid" || t.closedAt === undefined) continue;
+    const list = paidByWaiter.get(t.waiterId) ?? [];
+    list.push(t.closedAt);
+    paidByWaiter.set(t.waiterId, list);
+  }
+  const countIn = (times: number[], r: PeriodRange) =>
+    times.filter((x) => x >= r.start.getTime() && x <= r.end.getTime()).length;
+
+  const rows: MonthWeekRow[] = waiters.map((w) => {
+    const times = paidByWaiter.get(w.id) ?? [];
+    const lm = countIn(times, lastMonth);
+    const mtd = countIn(times, monthToDate);
+    const pw = countIn(times, previousWeek);
+    const lw = countIn(times, lastWeek);
+    const cw = countIn(times, currentWeek);
+    return {
+      waiterId: w.id,
+      name: w.name,
+      lastMonth: lm,
+      monthToDate: mtd,
+      momGrowth: mtd - lm,
+      momPct: pct(mtd - lm, lm),
+      previousWeek: pw,
+      lastWeek: lw,
+      currentWeek: cw,
+      wowGrowth: cw - lw,
+      wowPct: pct(cw - lw, lw),
+    };
+  });
+
+  // Ranked by most improved week on week.
+  rows.sort(
+    (a, b) =>
+      b.wowGrowth - a.wowGrowth ||
+      b.currentWeek - a.currentWeek ||
+      a.name.localeCompare(b.name)
+  );
+
+  const sum = (k: keyof MonthWeekRow) =>
+    rows.reduce((s, r) => s + (r[k] as number), 0);
+  const tLm = sum("lastMonth");
+  const tMtd = sum("monthToDate");
+  const tLw = sum("lastWeek");
+  const tCw = sum("currentWeek");
+  const totals = {
+    lastMonth: tLm,
+    monthToDate: tMtd,
+    momGrowth: tMtd - tLm,
+    momPct: pct(tMtd - tLm, tLm),
+    previousWeek: sum("previousWeek"),
+    lastWeek: tLw,
+    currentWeek: tCw,
+    wowGrowth: tCw - tLw,
+    wowPct: pct(tCw - tLw, tLw),
+  };
+
+  return { lastMonth, monthToDate, previousWeek, lastWeek, currentWeek, rows, totals };
+}

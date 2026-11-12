@@ -385,12 +385,7 @@ export default function PerformanceTrackerPage() {
             colleagues' numbers to a waiter, who only ever sees their own. */}
         {!isWaiterView && waiters.length > 0 && (
           <div className="border-t border-warm-200 pt-6">
-            <WeekOnWeekReport
-              tickets={tickets}
-              waiters={waiters}
-              start={rangeStart}
-              end={rangeEnd}
-            />
+            <WeekOnWeekReport tickets={tickets} waiters={waiters} />
           </div>
         )}
       </main>
