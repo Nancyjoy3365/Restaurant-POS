@@ -1,10 +1,21 @@
-import type { CashDrop, Payment, PaymentMethod, Receipt, RestaurantSettings } from "@/lib/types";
+import type {
+  CashDrop,
+  Payment,
+  PaymentMethod,
+  Receipt,
+  RestaurantSettings,
+  WaiterCashBalance,
+} from "@/lib/types";
 import type { TicketAndOrder } from "./orders";
 import { request, ApiError } from "./client";
 
 export { ApiError };
 
 export const fetchPayments = () => request<Payment[]>("/api/payments");
+export const fetchTicketPayments = (ticketId: string) =>
+  request<Payment[]>(`/api/payments?ticketId=${encodeURIComponent(ticketId)}`);
+// Takes the full URL (the SWR key) — open-ticket, date-range or search scoped.
+export const fetchPaymentsByUrl = (url: string) => request<Payment[]>(url);
 
 // Takes the full URL (the SWR key from useReceipts), date range included.
 export const fetchReceipts = (url: string) => request<Receipt[]>(url);
@@ -36,7 +47,9 @@ export const reverseCompletedPayment = (paymentId: string) =>
 export const finalizeReceipt = (ticketId: string) =>
   request<TicketAndOrder & { receipt: Receipt }>(`/api/orders/${ticketId}/finalize-receipt`, { method: "POST" });
 
-export const fetchCashDrops = () => request<CashDrop[]>("/api/cash-drops");
+// Takes the full URL (the SWR key from useCashDrops), date range included.
+export const fetchCashDrops = (url: string) => request<CashDrop[]>(url);
+export const fetchWaiterCashBalances = () => request<WaiterCashBalance[]>("/api/cash-drops/balances");
 
 export const recordCashDrop = (
   waiterId: string,

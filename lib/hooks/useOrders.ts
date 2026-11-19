@@ -3,7 +3,7 @@ import useSWR, { mutate } from "swr";
 import * as ordersApi from "@/lib/api/orders";
 import type { TicketAndOrder } from "@/lib/api/orders";
 import { optimisticAddItem, optimisticRemoveItem, optimisticUpdateItemQty } from "@/lib/orderOptimistic";
-import { SHARED_SWR_CONFIG } from "./swrConfig";
+import { PAUSABLE, SHARED_SWR_CONFIG } from "./swrConfig";
 import type { AddOn, MenuItem } from "@/lib/types";
 
 // Order-taking is the highest-frequency interaction in the app (every tap
@@ -11,13 +11,13 @@ import type { AddOn, MenuItem } from "@/lib/types";
 // slices (Menu 60s, the rest 30s — see swrConfig.ts) and the hottest mutations (addItem,
 // updateItemQty, removeItem) update the local cache optimistically via
 // lib/orderOptimistic.ts instead of waiting on a round trip.
-const POLL_CONFIG = { refreshInterval: 15000, revalidateOnFocus: true };
+const POLL_CONFIG = { ...PAUSABLE, refreshInterval: 15000, revalidateOnFocus: true };
 
 // A single ticket is never polled on its own: the open-orders poll above
 // (mounted app-wide by Sidebar/OrderReadyNotifier) already carries every
 // open ticket's full order, and useOrder copies it across. Its own fetch
 // only runs on mount/focus — e.g. for a just-paid ticket no longer "open".
-const SINGLE_ORDER_CONFIG = { refreshInterval: 0, revalidateOnFocus: true };
+const SINGLE_ORDER_CONFIG = { ...PAUSABLE, refreshInterval: 0, revalidateOnFocus: true };
 
 const OPEN_ORDERS_KEY = "/api/orders";
 const orderKey = (ticketId: string) => `/api/orders/${ticketId}`;

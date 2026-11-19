@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { Smartphone, Banknote, Loader2, CheckCircle2 } from "lucide-react";
 import type { PaymentMethod } from "@/lib/types";
 import { formatKES } from "@/lib/utils";
+import { usePausePolling } from "@/lib/hooks/pollPause";
 
 const METHODS: { id: PaymentMethod; label: string; icon: typeof Smartphone }[] = [
   { id: "mpesa", label: "M-Pesa", icon: Smartphone },
@@ -45,6 +46,17 @@ export function PaymentMethodPicker({
     setCustomerName("");
     setCashSubstitution(false);
   }
+
+  // Once the cashier starts filling this in, hold off background refreshes
+  // until it's saved or cleared — see lib/hooks/pollPause.ts.
+  usePausePolling(
+    processing ||
+      partialMode ||
+      cashSubstitution ||
+      mpesaCode.trim() !== "" ||
+      customerName.trim() !== "" ||
+      partialAmount.trim() !== ""
+  );
 
   const targetAmount = partialMode ? Number(partialAmount) || 0 : balanceDue;
 

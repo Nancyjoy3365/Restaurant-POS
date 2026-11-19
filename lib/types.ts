@@ -357,6 +357,18 @@ export interface CashDrop {
   droppedAt: number;
 }
 
+// One staff member's all-time cash position, summed server-side by
+// GET /api/cash-drops/balances.
+export interface WaiterCashBalance {
+  waiterId: string;
+  mpesaAmount: number;
+  cashAmount: number;
+  substitutionAmount: number;
+  expectedDrop: number;
+  dropAmount: number;
+  pending: number;
+}
+
 export interface ReceiptPaymentLine {
   method: PaymentMethod;
   amount: number;

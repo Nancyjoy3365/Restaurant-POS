@@ -30,7 +30,22 @@ function toCashDrop(row: CashDropRow): CashDrop {
 export async function GET(request: Request) {
   try {
     const pool = await getPool();
-    const result = await pool.request().query<CashDropRow>("SELECT * FROM dbo.CashDrop ORDER BY DroppedAt DESC");
+    // Optional ?from=&to= (epoch ms, to exclusive) — the cashier's
+    // reconciliation view only shows drops in the selected range.
+    const { searchParams } = new URL(request.url);
+    const from = Number(searchParams.get("from"));
+    const to = Number(searchParams.get("to"));
+    const ranged = Number.isFinite(from) && Number.isFinite(to) && from > 0 && to > 0;
+    const req = pool.request();
+    if (ranged) {
+      req.input("From", sql.DateTime2, new Date(from));
+      req.input("To", sql.DateTime2, new Date(to));
+    }
+    const result = await req.query<CashDropRow>(
+      `SELECT * FROM dbo.CashDrop
+       ${ranged ? "WHERE DroppedAt >= @From AND DroppedAt < @To" : ""}
+       ORDER BY DroppedAt DESC`
+    );
     return jsonWithEtag(request, result.recordset.map(toCashDrop));
   } catch (err) {
     console.error("GET /api/cash-drops failed:", err);

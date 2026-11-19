@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import clsx from "clsx";
 import {
   AlertCircle,
@@ -21,7 +21,15 @@ import { usePosStore } from "@/lib/store";
 import { useOpenOrders, useAllTickets } from "@/lib/hooks/useOrders";
 import { fetchOrder } from "@/lib/api/orders";
 import { useSWRConfig } from "swr";
-import { usePayments, useCashDrops, useRestaurantSettings } from "@/lib/hooks/useBilling";
+import {
+  useCashDrops,
+  useOpenTicketPayments,
+  usePaymentSearch,
+  usePaymentsInRange,
+  useRestaurantSettings,
+  useWaiterCashBalances,
+} from "@/lib/hooks/useBilling";
+import { usePausePolling } from "@/lib/hooks/pollPause";
 import * as billingApi from "@/lib/api/billing";
 import { useStaff } from "@/lib/hooks/useStaff";
 import { formatKES, paymentsForCurrentCycle, unbilledOrderTotal } from "@/lib/utils";
@@ -109,16 +117,25 @@ export default function CashierPage() {
   const { tickets: allTickets } = useAllTickets();
   const { staff } = useStaff();
   const { vatRate } = useRestaurantSettings();
-  const { payments, mutate: mutatePayments } = usePayments();
-  const { cashDrops, mutate: mutateCashDrops } = useCashDrops();
+  // Payments on open tickets only — the live queue never needs history.
+  const { payments } = useOpenTicketPayments();
   // Receipts are fetched per date range by the report pages; this screen never
   // shows them, so just refresh whatever ranges are loaded after a new one.
   const { mutate: globalMutate } = useSWRConfig();
   const mutateReceipts = () =>
     globalMutate((key) => typeof key === "string" && key.startsWith("/api/receipts"));
+  // Payments and cash drops are now fetched in several scoped slices (open
+  // tickets, date range, search, all-time balances) — refresh every slice
+  // that's loaded rather than tracking each one's mutate separately.
+  const mutateCashDrops = () =>
+    globalMutate((key) => typeof key === "string" && key.startsWith("/api/cash-drops"));
 
   async function refreshAfterPaymentChange() {
-    await Promise.all([mutateOpenOrders(), mutatePayments()]);
+    await Promise.all([
+      mutateOpenOrders(),
+      globalMutate((key) => typeof key === "string" && key.startsWith("/api/payments")),
+      mutateCashDrops(),
+    ]);
   }
 
   const [tab, setTab] = useState<"live" | "reconciliation" | "takeaway">("live");
@@ -130,6 +147,26 @@ export default function CashierPage() {
   const [waiterFilter, setWaiterFilter] = useState("");
   const [fromDate, setFromDate] = useState(() => toISODate(new Date()));
   const [toDate, setToDate] = useState(() => toISODate(new Date()));
+
+  // Reconciliation reporting window — a custom from/to date range,
+  // inclusive of both endpoints. Defaults to today on both ends.
+  const rangeStart = startOfDay(parseLocalDate(fromDate));
+  const rangeEnd = startOfDay(parseLocalDate(toDate)) + 24 * 60 * 60 * 1000;
+  function inRange(ts: number): boolean {
+    return ts >= rangeStart && ts < rangeEnd;
+  }
+  const { payments: rangePaymentsFetched } = usePaymentsInRange({ start: rangeStart, end: rangeEnd });
+  const { cashDrops: rangeDropsFetched } = useCashDrops({ start: rangeStart, end: rangeEnd });
+  const { balances } = useWaiterCashBalances();
+
+  // Completed-order search hits the server (it covers the whole history),
+  // so wait until the cashier pauses typing instead of firing per keystroke.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search.trim().toLowerCase()), 300);
+    return () => clearTimeout(id);
+  }, [search]);
+  const { payments: searchedPayments } = usePaymentSearch(debouncedSearch);
 
   // Mobile-only UI state: the "Record payment" bottom sheet and the
   // Reconcile tab's info panel (explanation + date range pickers).
@@ -143,6 +180,16 @@ export default function CashierPage() {
   const [cashDropAmount, setCashDropAmount] = useState("");
   const [cashDropReference, setCashDropReference] = useState("");
   const [cashDropNote, setCashDropNote] = useState("");
+
+  // Hold off background refreshes while the cashier is mid-payment — the
+  // Record payment sheet or Cash Drop dialog is open, or a cash amount is
+  // being typed — so the app isn't using the connection the card machine
+  // needs. Their own saves still refresh straight away; see pollPause.ts.
+  usePausePolling(
+    payTicketId !== null ||
+      cashDropOpen ||
+      Object.values(cashDrafts).some((v) => v.trim() !== "")
+  );
 
   // Every staff member can take an order now, not just Waiters — anyone
   // could be holding cash/M-Pesa-substitution money owed to the cashier.
@@ -247,7 +294,7 @@ export default function CashierPage() {
   // live tickets, just extended to closed ones too.
   const completedMatches: { payment: Payment; ticket: Ticket }[] = [];
   if (query) {
-    for (const payment of payments) {
+    for (const payment of searchedPayments) {
       const ticket = allTickets.find((t) => t.id === payment.ticketId);
       if (!ticket || ticket.status !== "paid") continue;
       const matches =
@@ -384,13 +431,6 @@ export default function CashierPage() {
     setConfirmReverseTicketId(null);
   }
 
-  // Reconciliation reporting window — a custom from/to date range,
-  // inclusive of both endpoints. Defaults to today on both ends.
-  const rangeStart = startOfDay(parseLocalDate(fromDate));
-  const rangeEnd = startOfDay(parseLocalDate(toDate)) + 24 * 60 * 60 * 1000;
-  function inRange(ts: number): boolean {
-    return ts >= rangeStart && ts < rangeEnd;
-  }
   const isSingleDay = fromDate === toDate;
   const isCurrentDay = isSingleDay && rangeStart === startOfDay(new Date());
   const rangeLabel = isCurrentDay
@@ -410,8 +450,10 @@ export default function CashierPage() {
         year: "numeric",
       })}`;
 
-  const rangePayments = payments.filter((p) => inRange(p.paidAt));
-  const rangeDrops = cashDrops.filter((d) => inRange(d.droppedAt));
+  // Already range-scoped by the server; the extra filter keeps the figures
+  // exact while keepPreviousData shows the old range during a reload.
+  const rangePayments = rangePaymentsFetched.filter((p) => inRange(p.paidAt));
+  const rangeDrops = rangeDropsFetched.filter((d) => inRange(d.droppedAt));
 
   function computeWaiterCashFrom(
     waiterId: string,
@@ -456,8 +498,18 @@ export default function CashierPage() {
   // never resets at midnight: if it wasn't dropped yesterday, it's still
   // owed today. So both the "how much do they owe right now" figure and
   // the Add Cash Drop dialog always look at the FULL, unscoped history.
+  // Summed on the server (GET /api/cash-drops/balances) — same formula as
+  // computeWaiterCashFrom, without downloading the full history to do it.
   function computeWaiterCashAllTime(waiterId: string) {
-    return computeWaiterCashFrom(waiterId, payments, cashDrops);
+    const b = balances.find((row) => row.waiterId === waiterId);
+    return {
+      mpesaAmount: b?.mpesaAmount ?? 0,
+      cashAmount: b?.cashAmount ?? 0,
+      substitutionAmount: b?.substitutionAmount ?? 0,
+      expectedDrop: b?.expectedDrop ?? 0,
+      dropAmount: b?.dropAmount ?? 0,
+      pending: b?.pending ?? 0,
+    };
   }
 
   // Waiters who actually owe something right now — the set a lumpsum
@@ -507,7 +559,7 @@ export default function CashierPage() {
   // (unlike Cash Drop History, which is money-in-hand, not order-level),
   // so each row carries a specific payment to reverse.
   const completedRange: { payment: Payment; ticket: Ticket }[] = [];
-  for (const payment of payments) {
+  for (const payment of rangePayments) {
     if (!inRange(payment.paidAt)) continue;
     const ticket = allTickets.find((t) => t.id === payment.ticketId);
     if (!ticket || ticket.status !== "paid") continue;

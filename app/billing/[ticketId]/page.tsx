@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Clock } from "lucide-react";
 import { usePosStore } from "@/lib/store";
 import { useOrder } from "@/lib/hooks/useOrders";
-import { usePayments, useRestaurantSettings } from "@/lib/hooks/useBilling";
+import { useTicketPayments, useRestaurantSettings } from "@/lib/hooks/useBilling";
 import * as billingApi from "@/lib/api/billing";
 import { useStaff } from "@/lib/hooks/useStaff";
 import { BillSummary } from "@/components/billing/BillSummary";
@@ -28,7 +28,7 @@ export default function BillingPage() {
   const router = useRouter();
 
   const { ticket, order, mutate: mutateOrder } = useOrder(ticketId);
-  const { payments: allPayments, mutate: mutatePayments } = usePayments();
+  const { payments: ticketPayments, mutate: mutatePayments } = useTicketPayments(ticketId);
   const { staff } = useStaff();
   const currentStaffId = usePosStore((s) => s.currentStaffId);
   const { vatRate } = useRestaurantSettings();
@@ -59,7 +59,7 @@ export default function BillingPage() {
       0
     ) ?? 0;
 
-  const orderPayments = paymentsForCurrentCycle(allPayments, order);
+  const orderPayments = paymentsForCurrentCycle(ticketPayments, order);
   const paidSoFar = orderPayments.reduce((sum, p) => sum + p.amount, 0);
   const balanceDue = Math.max(0, total - paidSoFar);
 
