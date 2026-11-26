@@ -278,8 +278,31 @@ export default function CashierPage() {
   }
 
   const query = search.trim().toLowerCase();
-  function rowMatches(order: TicketOrder | undefined) {
+  // A number-like search ("9320", "#9320", "Order No. 9320", "KES 1,750")
+  // with the labels and punctuation stripped off.
+  const numericQuery = query.replace(/kes|order|no\.?|[#,\s]/g, "");
+  const isNumericQuery = /^\d+(\.\d+)?$/.test(numericQuery);
+
+  // Live-queue search. Matches any of:
+  //  - order number (partial, e.g. "93" finds 9320, 9323…)
+  //  - amount — exact bill total or remaining balance, e.g. the figure on
+  //    a customer's M-Pesa message
+  //  - waiter name (partial)
+  //  - M-Pesa code or customer name on a payment already recorded
+  function rowMatches({ ticket, order }: { ticket: Ticket; order: TicketOrder }) {
     if (!query) return true;
+
+    if (isNumericQuery) {
+      if (String(ticket.displayNumber).includes(numericQuery)) return true;
+      const amount = Number(numericQuery);
+      const total = order.billTotals?.total ?? 0;
+      const paid = paymentsForCurrentCycle(payments, order).reduce((sum, p) => sum + p.amount, 0);
+      if (amount > 0 && (amount === total || amount === total - paid)) return true;
+    }
+
+    const waiterName = staff.find((m) => m.id === order.waiterId)?.name ?? "";
+    if (waiterName.toLowerCase().includes(query)) return true;
+
     const cyclePayments = paymentsForCurrentCycle(payments, order);
     return cyclePayments.some(
       (p) =>
@@ -783,7 +806,7 @@ export default function CashierPage() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by M-Pesa code or customer name"
+                placeholder="Search order no., amount, waiter, M-Pesa code or customer"
                 className="w-full rounded-full border border-warm-200 bg-white pl-8 pr-8 py-2 text-sm font-semibold outline-none focus:border-accent-400"
               />
               {search && (
@@ -823,9 +846,7 @@ export default function CashierPage() {
                 <tbody>
                   {groupOrder.map((key) => {
                     const group = groups.get(key)!;
-                    const visibleRows = group.rows.filter(({ order }) =>
-                      rowMatches(order)
-                    );
+                    const visibleRows = group.rows.filter(rowMatches);
                     if (visibleRows.length === 0) return null;
                     return (
                       <Fragment key={key}>
@@ -1490,7 +1511,7 @@ export default function CashierPage() {
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="M-Pesa code or customer"
+                  placeholder="Order no., amount, waiter or M-Pesa code"
                   className="w-full rounded-xl border border-warm-200 bg-white pl-9 pr-9 py-2.5 text-sm font-semibold outline-none focus:border-accent-400"
                 />
                 {search && (
@@ -1506,7 +1527,7 @@ export default function CashierPage() {
               </div>
 
               {(() => {
-                const visible = queue.filter(({ order }) => rowMatches(order));
+                const visible = queue.filter(rowMatches);
                 return (
                   <section>
                     <h2 className="text-sm font-extrabold text-slate-900 mb-2">

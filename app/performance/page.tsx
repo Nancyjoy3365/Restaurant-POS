@@ -24,6 +24,7 @@ import {
 import { salesByWaiter } from "@/lib/reports";
 import { avatarColorFor, initials } from "@/components/tickets/ticketStatus";
 import WeekOnWeekReport from "@/components/performance/WeekOnWeekReport";
+import DailyOrdersChart from "@/components/performance/DailyOrdersChart";
 import DateRangeFilter, { toDateInputValue } from "@/components/performance/DateRangeFilter";
 
 type ViewMode = "cards" | "list";
@@ -385,7 +386,20 @@ export default function PerformanceTrackerPage() {
             colleagues' numbers to a waiter, who only ever sees their own. */}
         {!isWaiterView && waiters.length > 0 && (
           <div className="border-t border-warm-200 pt-6">
-            <WeekOnWeekReport tickets={tickets} waiters={waiters} />
+            <WeekOnWeekReport
+              tickets={tickets}
+              waiters={waiters}
+              rangeStart={rangeStart}
+              rangeEnd={rangeEnd}
+            />
+            <div className="mt-6">
+              <DailyOrdersChart
+                tickets={tickets}
+                waiters={waiters}
+                rangeStart={rangeStart}
+                rangeEnd={rangeEnd}
+              />
+            </div>
           </div>
         )}
       </main>

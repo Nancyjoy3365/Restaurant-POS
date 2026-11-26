@@ -3,7 +3,12 @@
 import clsx from "clsx";
 import { TrendingUp } from "lucide-react";
 import type { Ticket } from "@/lib/types";
-import { monthWeekReport, type MonthWeekRow, type PeriodRange } from "@/lib/performance";
+import {
+  monthWeekReport,
+  ordersCompletedInRange,
+  type MonthWeekRow,
+  type PeriodRange,
+} from "@/lib/performance";
 import { avatarColorFor, initials } from "@/components/tickets/ticketStatus";
 
 function ordinal(n: number): string {
@@ -59,18 +64,32 @@ function FigureCells({ f, bold = false }: { f: Figures; bold?: boolean }) {
   );
 }
 
-// Always measured from today — the columns define their own fixed periods
-// (last month, month to date, previous/last/current week), so the Performance
-// Tracker's date filter deliberately doesn't apply here.
+// The month/week columns are always measured from today and define their own
+// fixed periods. The "Selected Dates" column is the exception: it counts
+// orders across whatever range the Performance Tracker's date filter is set
+// to, whether that's one day, a few days, a week or several months.
 export default function WeekOnWeekReport({
   tickets,
   waiters,
+  rangeStart,
+  rangeEnd,
 }: {
   tickets: Ticket[];
   waiters: { id: string; name: string }[];
+  rangeStart: Date;
+  rangeEnd: Date;
 }) {
   const report = monthWeekReport(tickets, waiters, new Date());
   const { rows, totals } = report;
+  const selectedById = new Map(
+    waiters.map((w) => [w.id, ordersCompletedInRange(tickets, w.id, rangeStart, rangeEnd)])
+  );
+  const selectedTotal = [...selectedById.values()].reduce((s, n) => s + n, 0);
+  const selectedSub =
+    rangeStart.toDateString() === rangeEnd.toDateString()
+      ? `${ordinal(rangeStart.getDate())} ${monthShort(rangeStart)}`
+      : rangeText({ start: rangeStart, end: rangeEnd, days: 0 });
+  const selectedCell = "px-3 py-3 text-right tabular-nums bg-accent-50/40 border-r border-warm-200";
   const mostImproved = rows.filter((r) => r.wowGrowth > 0).slice(0, 3);
 
   const columns: { label: string; sub?: string; muted?: boolean }[] = [
@@ -167,6 +186,12 @@ export default function WeekOnWeekReport({
                 <tr>
                   <th className="text-left px-4 py-3 w-10 align-top">#</th>
                   <th className="text-left px-2 py-3 align-top">Waiter</th>
+                  <th className="text-right px-3 py-3 whitespace-nowrap align-top text-slate-900 bg-accent-50/40 border-r border-warm-200">
+                    Selected Dates
+                    <div className="normal-case font-bold tracking-normal text-slate-400 min-h-4">
+                      {selectedSub}
+                    </div>
+                  </th>
                   {columns.map(headCell)}
                   <th className="w-4 border-l border-warm-200" aria-hidden />
                   {weekColumns.map(headCell)}
@@ -197,12 +222,18 @@ export default function WeekOnWeekReport({
                         </span>
                       </div>
                     </td>
+                    <td className={clsx(selectedCell, "font-black text-slate-900")}>
+                      {selectedById.get(r.waiterId) ?? 0}
+                    </td>
                     <FigureCells f={r} />
                   </tr>
                 ))}
                 <tr className="border-t-2 border-warm-200 bg-warm-50">
                   <td className="px-4 py-3" />
                   <td className="px-2 py-3 font-black text-slate-900">Total</td>
+                  <td className={clsx(selectedCell, "font-black text-slate-900")}>
+                    {selectedTotal}
+                  </td>
                   <FigureCells f={totals} bold />
                 </tr>
               </tbody>
